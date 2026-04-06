@@ -21,9 +21,9 @@ A **cloud-first, subscription-based SaaS** enabling Indian retailers (electronic
 | Data residency | India region |
 
 ### 2.2 Subscription Tiers
-- **Starter**: 1 store, 3 users, basic billing
-- **Pro**: 3 stores, 10 users, full inventory, multi-payment
-- **Enterprise**: Unlimited stores/users, API access, custom roles, franchise mode
+- **Launch** (₹999/mo): 1 store, 3 users, basic billing, GST billing, inventory tracking
+- **Grow** (₹2,499/mo): 3 stores, 10 users, full inventory, multi-payment, customer management, reports
+- **Scale** (Custom): Unlimited stores/users, API access, custom roles, white-label, franchise mode
 
 ---
 

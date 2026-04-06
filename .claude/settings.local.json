@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma:*)",
+      "Bash(openssl version:*)",
+      "Bash(ls -la /Users/karthikeyan/Desktop/store/.env*)",
+      "Bash(ls -la /Users/karthikeyan/Desktop/store/src/.env*)"
+    ]
+  }
+}

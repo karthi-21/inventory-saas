@@ -1,0 +1,950 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// TENANT / ORGANIZATION
+// ============================================
+
+model Tenant {
+  id           String     @id @default(cuid())
+  name         String
+  subdomain    String     @unique
+  logoUrl      String?
+  customDomain String?    @unique
+  plan         TenantPlan @default(STARTER)
+  pan          String?
+  gstin        String?
+  fssaiNumber  String?
+  address      String?
+  state        String?
+  pincode      String?
+  phone        String?
+  email        String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  stores        Store[]
+  users         User[]
+  categories    Category[]
+  products      Product[]
+  customers     Customer[]
+  vendors       Vendor[]
+  settings      TenantSettings?
+  subscriptions Subscription[]
+}
+
+// Per-store pricing tiers
+enum TenantPlan {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  tenantId               String
+  tenant                 Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan                   TenantPlan
+  status                 SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart     DateTime
+  currentPeriodEnd       DateTime
+  razorpayOrderId       String?
+  razorpaySubscriptionId String?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  TRIALING
+}
+
+model TenantSettings {
+  id                String   @id @default(cuid())
+  tenantId          String   @unique
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  defaultLanguage   String   @default("en")
+  currency          String   @default("INR")
+  fiscalYearStart   Int      @default(4) // April = 4
+  lowStockAlertDays Int      @default(7)
+  expiryAlertDays   Int      @default(7)
+  invoicePrefix     String   @default("INV")
+  decimalPlaces     Int      @default(2)
+  roundOffEnabled   Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ============================================
+// STORE & LOCATION
+// ============================================
+
+model Store {
+  id        String    @id @default(cuid())
+  tenantId  String
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name      String
+  code      String // short code e.g. "STR-001"
+  address   String?
+  state     String?
+  pincode   String?
+  phone     String?
+  storeType StoreType
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  locations        Location[]
+  users            UserStoreAccess[]
+  inventoryStocks  InventoryStock[]
+  salesInvoices    SalesInvoice[]
+  purchaseInvoices PurchaseInvoice[]
+  customers        Customer[]
+  tables           RestaurantTable[]
+  shifts           Shift[]
+
+  @@unique([tenantId, code])
+}
+
+enum StoreType {
+  ELECTRONICS
+  CLOTHING
+  GROCERY
+  SUPERMARKET
+  WHOLESALE
+  RESTAURANT
+  MULTI_CATEGORY
+}
+
+model Location {
+  id        String       @id @default(cuid())
+  storeId   String
+  store     Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  name      String // e.g. "Showroom A", "Cold Storage", "Kitchen Station 1"
+  type      LocationType
+  isActive  Boolean      @default(true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  inventoryStocks InventoryStock[]
+}
+
+enum LocationType {
+  SHOWROOM
+  WAREHOUSE
+  COLD_STORAGE
+  KITCHEN
+  COUNTER
+  RACK
+}
+
+// ============================================
+// USER & ACCESS MANAGEMENT
+// ============================================
+
+model User {
+  id            String    @id @default(cuid())
+  tenantId      String
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  email         String?
+  phone         String?
+  passwordHash  String?
+  firstName     String
+  lastName      String?
+  avatarUrl     String?
+  isOwner       Boolean   @default(false)
+  isActive      Boolean   @default(true)
+  emailVerified Boolean   @default(false)
+  phoneVerified Boolean   @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  storeAccess   UserStoreAccess[]
+  userPersonas  UserPersona[]
+  salesInvoices SalesInvoice[]    @relation("CreatedBy")
+  activityLogs  ActivityLog[]
+  shiftCashiers Shift[]           @relation("Cashier")
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, phone])
+}
+
+model UserStoreAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  storeId   String
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, storeId])
+}
+
+// Persona = role with permissions scoped to store
+model Persona {
+  id           String              @id @default(cuid())
+  tenantId     String
+  name         String // e.g. "Store Manager", "Billing Operator"
+  description  String?
+  isSystem     Boolean             @default(false) // system personas can't be deleted
+  permissions  PersonaPermission[]
+  userPersonas UserPersona[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@unique([tenantId, name])
+}
+
+model PersonaPermission {
+  id        String           @id @default(cuid())
+  personaId String
+  persona   Persona          @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  module    PermissionModule
+  action    PermissionAction
+
+  @@unique([personaId, module, action])
+}
+
+enum PermissionModule {
+  // Store
+  STORE_VIEW
+  STORE_EDIT
+  // Users
+  USER_VIEW
+  USER_CREATE
+  USER_EDIT
+  USER_DELETE
+  // Products
+  PRODUCT_VIEW
+  PRODUCT_CREATE
+  PRODUCT_EDIT
+  PRODUCT_DELETE
+  // Inventory
+  INVENTORY_VIEW
+  INVENTORY_EDIT
+  INVENTORY_ADJUST
+  // Billing
+  BILLING_VIEW
+  BILLING_CREATE
+  BILLING_EDIT
+  BILLING_DELETE
+  BILLING_RETURN
+  // Purchases
+  PURCHASE_VIEW
+  PURCHASE_CREATE
+  PURCHASE_EDIT
+  // Customers
+  CUSTOMER_VIEW
+  CUSTOMER_CREATE
+  CUSTOMER_EDIT
+  CUSTOMER_DELETE
+  // Vendors
+  VENDOR_VIEW
+  VENDOR_CREATE
+  VENDOR_EDIT
+  VENDOR_DELETE
+  // Reports
+  REPORT_VIEW
+  REPORT_EXPORT
+  // Settings
+  SETTINGS_VIEW
+  SETTINGS_EDIT
+  // Restaurant
+  TABLE_MANAGE
+  KOT_VIEW
+  KOT_EDIT
+  BOM_VIEW
+  BOM_EDIT
+  // Billing
+  PRICE_OVERRIDE
+  DISCOUNT_GLOBAL
+}
+
+enum PermissionAction {
+  VIEW
+  CREATE
+  EDIT
+  DELETE
+  ADJUST
+}
+
+model UserPersona {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  personaId String
+  persona   Persona  @relation(fields: [personaId], references: [id], onDelete: Cascade)
+  storeId   String? // optional store-specific assignment
+  createdAt DateTime @default(now())
+
+  @@unique([userId, personaId, storeId])
+}
+
+// ============================================
+// PRODUCT CATALOG
+// ============================================
+
+model Category {
+  id          String     @id @default(cuid())
+  tenantId    String
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentId    String?
+  parent      Category?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryHierarchy")
+  name        String
+  description String?
+  hsnCode     String?
+  imageUrl    String?
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  products Product[]
+
+  @@unique([tenantId, parentId, name])
+}
+
+model Product {
+  id              String      @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  categoryId      String?
+  category        Category?   @relation(fields: [categoryId], references: [id])
+  sku             String
+  barcode         String?
+  name            String
+  description     String?
+  brand           String?
+  hsnCode         String?
+  gstRate         Float       @default(18) // percentage
+  mrp             Decimal     @db.Decimal(12, 2)
+  costPrice       Decimal     @db.Decimal(12, 2)
+  sellingPrice    Decimal     @db.Decimal(12, 2)
+  reorderLevel    Int         @default(10)
+  productType     ProductType @default(STANDARD)
+  hasVariants     Boolean     @default(false)
+  hasSerialNumber Boolean     @default(false)
+  hasBatchNumber  Boolean     @default(false)
+  hasExpiry       Boolean     @default(false)
+  imageUrls       String[] // array of URLs
+  isActive        Boolean     @default(true)
+  weight          Decimal?    @db.Decimal(8, 3) // for grocery
+  weightUnit      String? // kg, g, l, ml, pieces
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  variants        ProductVariant[]
+  inventoryStocks InventoryStock[]
+  purchaseItems   PurchaseInvoiceItem[]
+  salesItems      SalesInvoiceItem[]
+  bomItems        BOMItem[]
+
+  @@unique([tenantId, sku])
+}
+
+enum ProductType {
+  STANDARD
+  VARIANT
+  BOM // Bill of Materials (restaurant combo)
+}
+
+model ProductVariant {
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sku          String
+  barcode      String?
+  name         String // e.g. "Red, Size L"
+  mrp          Decimal  @db.Decimal(12, 2)
+  costPrice    Decimal  @db.Decimal(12, 2)
+  sellingPrice Decimal  @db.Decimal(12, 2)
+  attributes   Json // e.g. { "color": "Red", "size": "L" }
+  imageUrls    String[]
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  inventoryStocks InventoryStock[]
+  purchaseItems   PurchaseInvoiceItem[]
+  salesItems      SalesInvoiceItem[]
+
+  @@unique([productId, sku])
+}
+
+// ============================================
+// INVENTORY
+// ============================================
+
+model InventoryStock {
+  id              String          @id @default(cuid())
+  productId       String?
+  product         Product?        @relation(fields: [productId], references: [id])
+  variantId       String?
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+  storeId         String
+  store           Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  locationId      String?
+  location        Location?       @relation(fields: [locationId], references: [id])
+  quantity        Int             @default(0)
+  reservedQty     Int             @default(0) // held for pending orders
+  lastStockUpdate DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  movements StockMovement[]
+
+  @@unique([productId, variantId, storeId, locationId])
+}
+
+model StockMovement {
+  id               String            @id @default(cuid())
+  productId        String?
+  variantId        String?
+  storeId          String
+  locationId       String?
+  movementType     StockMovementType
+  quantity         Int // positive = in, negative = out
+  referenceType    String? // e.g. "SalesInvoice", "PurchaseInvoice"
+  referenceId      String?
+  reason           String?
+  notes            String?
+  createdById      String?
+  createdAt        DateTime          @default(now())
+  InventoryStock   InventoryStock?   @relation(fields: [inventoryStockId], references: [id])
+  inventoryStockId String?
+
+  @@index([productId, createdAt])
+  @@index([storeId, createdAt])
+}
+
+enum StockMovementType {
+  OPENING_STOCK
+  PURCHASE
+  PURCHASE_RETURN
+  SALES
+  SALES_RETURN
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT_IN
+  ADJUSTMENT_OUT
+  DAMAGE
+  THEFT
+  EXPIRY
+}
+
+model StockAdjustment {
+  id             String           @id @default(cuid())
+  productId      String
+  variantId      String?
+  storeId        String
+  locationId     String?
+  reason         AdjustmentReason
+  quantityBefore Int
+  quantityAfter  Int
+  notes          String?
+  createdById    String?
+  createdAt      DateTime         @default(now())
+}
+
+enum AdjustmentReason {
+  DAMAGE
+  THEFT
+  EXPIRY
+  FOUND
+  CORRECTION
+  SYSTEM_ADJUSTMENT
+}
+
+// ============================================
+// CUSTOMERS
+// ============================================
+
+model Customer {
+  id                String       @id @default(cuid())
+  tenantId          String
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  storeId           String?
+  store             Store?       @relation(fields: [storeId], references: [id])
+  customerType      CustomerType @default(RETAIL)
+  firstName         String
+  lastName          String?
+  phone             String
+  email             String?
+  gstin             String?
+  address           String?
+  city              String?
+  state             String?
+  pincode           String?
+  creditLimit       Decimal      @default(0) @db.Decimal(12, 2)
+  creditBalance     Decimal      @default(0) @db.Decimal(12, 2)
+  loyaltyPoints     Int          @default(0)
+  loyaltyMultiplier Float        @default(1.0)
+  isActive          Boolean      @default(true)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  salesInvoices    SalesInvoice[]
+  loyaltyPointsLog LoyaltyPointsLog[]
+
+  @@unique([tenantId, phone])
+}
+
+enum CustomerType {
+  RETAIL
+  WHOLESALE
+}
+
+model LoyaltyPointsLog {
+  id            String   @id @default(cuid())
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  points        Int // positive = earned, negative = redeemed
+  referenceType String?
+  referenceId   String?
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+// ============================================
+// VENDORS / SUPPLIERS
+// ============================================
+
+model Vendor {
+  id               String   @id @default(cuid())
+  tenantId         String
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  name             String
+  phone            String?
+  email            String?
+  gstin            String?
+  pan              String?
+  address          String?
+  city             String?
+  state            String?
+  pincode          String?
+  bankName         String?
+  bankAccount      String?
+  bankIfsc         String?
+  creditPeriodDays Int      @default(0)
+  isActive         Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  purchaseInvoices PurchaseInvoice[]
+
+  @@unique([tenantId, gstin])
+}
+
+model PurchaseOrder {
+  id           String              @id @default(cuid())
+  tenantId     String
+  vendorId     String
+  storeId      String
+  orderNumber  String
+  status       PurchaseOrderStatus @default(DRAFT)
+  expectedDate DateTime?
+  notes        String?
+  createdById  String?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  items PurchaseOrderItem[]
+
+  @@unique([tenantId, orderNumber])
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  SENT
+  PARTIAL
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  productId       String?
+  variantId       String?
+  quantity        Int
+  unitPrice       Decimal       @db.Decimal(12, 2)
+  gstRate         Float
+  receivedQty     Int           @default(0)
+  createdAt       DateTime      @default(now())
+}
+
+model PurchaseInvoice {
+  id              String         @id @default(cuid())
+  tenantId        String
+  vendorId        String
+  vendor          Vendor         @relation(fields: [vendorId], references: [id])
+  storeId         String
+  invoiceNumber   String
+  purchaseOrderId String?
+  invoiceDate     DateTime       @default(now())
+  dueDate         DateTime?
+  subtotal        Decimal        @db.Decimal(14, 2)
+  totalGst        Decimal        @db.Decimal(14, 2)
+  totalAmount     Decimal        @db.Decimal(14, 2)
+  amountPaid      Decimal        @default(0) @db.Decimal(14, 2)
+  status          PurchaseStatus @default(PENDING)
+  notes           String?
+  createdById     String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  items PurchaseInvoiceItem[]
+  Store Store                 @relation(fields: [storeId], references: [id])
+
+  @@unique([tenantId, invoiceNumber])
+}
+
+enum PurchaseStatus {
+  PENDING
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
+model PurchaseInvoiceItem {
+  id                String          @id @default(cuid())
+  purchaseInvoiceId String
+  purchaseInvoice   PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  productId         String?
+  product           Product?        @relation(fields: [productId], references: [id])
+  variantId         String?
+  variant           ProductVariant? @relation(fields: [variantId], references: [id])
+  description       String?
+  batchNumber       String?
+  expiryDate        DateTime?
+  quantity          Int
+  receivedQty       Int             @default(0)
+  unitPrice         Decimal         @db.Decimal(12, 2)
+  gstRate           Float
+  gstAmount         Decimal         @db.Decimal(12, 2)
+  totalAmount       Decimal         @db.Decimal(14, 2)
+  createdAt         DateTime        @default(now())
+}
+
+// ============================================
+// BILLING / SALES
+// ============================================
+
+model SalesInvoice {
+  id            String        @id @default(cuid())
+  tenantId      String
+  storeId       String
+  store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  invoiceNumber String
+  invoiceType   InvoiceType   @default(RETAIL_INVOICE)
+  customerId    String?
+  customer      Customer?     @relation(fields: [customerId], references: [id])
+  createdById   String
+  createdBy     User          @relation("CreatedBy", fields: [createdById], references: [id])
+  invoiceDate   DateTime      @default(now())
+  subtotal      Decimal       @db.Decimal(14, 2)
+  totalDiscount Decimal       @default(0) @db.Decimal(14, 2)
+  totalGst      Decimal       @db.Decimal(14, 2)
+  roundOff      Decimal       @default(0) @db.Decimal(8, 2)
+  totalAmount   Decimal       @db.Decimal(14, 2)
+  amountPaid    Decimal       @default(0) @db.Decimal(14, 2)
+  amountDue     Decimal       @default(0) @db.Decimal(14, 2)
+  paymentStatus PaymentStatus @default(PAID)
+  billingType   BillingType   @default(CASH)
+  gstin         String? // customer GSTIN for B2B
+  notes         String?
+  parkingSlipNo String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  items    SalesInvoiceItem[]
+  payments Payment[]
+  returns  SalesReturn[]
+
+  @@unique([tenantId, storeId, invoiceNumber])
+}
+
+enum InvoiceType {
+  TAX_INVOICE // B2B with GSTIN
+  RETAIL_INVOICE // B2C
+  PROFORMA_INVOICE
+  QUOTATION
+  CASH_MEMO
+  CREDIT_NOTE
+  DEBIT_NOTE
+  RESTAURANT_BILL
+}
+
+enum PaymentStatus {
+  PAID
+  PARTIAL
+  DUE
+  OVERDUE
+}
+
+enum BillingType {
+  CASH
+  CREDIT
+  CARD
+  UPI
+  MIXED
+}
+
+model SalesInvoiceItem {
+  id              String          @id @default(cuid())
+  invoiceId       String
+  invoice         SalesInvoice    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  productId       String?
+  product         Product?        @relation(fields: [productId], references: [id])
+  variantId       String?
+  variant         ProductVariant? @relation(fields: [variantId], references: [id])
+  description     String?
+  hsnCode         String?
+  batchNumber     String?
+  expiryDate      DateTime?
+  serialNumbers   String[] // array of serial numbers
+  quantity        Int
+  unitPrice       Decimal         @db.Decimal(12, 2)
+  discountPercent Decimal         @default(0) @db.Decimal(5, 2)
+  discountAmount  Decimal         @default(0) @db.Decimal(12, 2)
+  gstRate         Float
+  gstAmount       Decimal         @db.Decimal(12, 2)
+  totalAmount     Decimal         @db.Decimal(14, 2)
+  createdAt       DateTime        @default(now())
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  invoiceId     String
+  invoice       SalesInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount        Decimal       @db.Decimal(14, 2)
+  method        PaymentMethod
+  reference     String? // UPI ref, card last 4, etc.
+  collectedById String?
+  createdAt     DateTime      @default(now())
+}
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  BANK_TRANSFER
+  WALLET
+  CREDIT
+  PARTIAL
+}
+
+model SalesReturn {
+  id           String       @id @default(cuid())
+  invoiceId    String
+  invoice      SalesInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  returnNumber String
+  returnDate   DateTime     @default(now())
+  totalAmount  Decimal      @db.Decimal(14, 2)
+  reason       String?
+  createdById  String?
+  createdAt    DateTime     @default(now())
+
+  items SalesReturnItem[]
+}
+
+model SalesReturnItem {
+  id        String      @id @default(cuid())
+  returnId  String
+  return    SalesReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  productId String?
+  variantId String?
+  quantity  Int
+  unitPrice Decimal     @db.Decimal(12, 2)
+  amount    Decimal     @db.Decimal(14, 2)
+  reason    String?
+}
+
+// ============================================
+// RESTAURANT SPECIFIC
+// ============================================
+
+model RestaurantTable {
+  id          String      @id @default(cuid())
+  storeId     String
+  store       Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  tableNumber String
+  capacity    Int
+  status      TableStatus @default(AVAILABLE)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  kotOrders KOT[]
+}
+
+enum TableStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  BLOCKED
+}
+
+model MenuItem {
+  id              String   @id @default(cuid())
+  tenantId        String
+  categoryId      String? // food category e.g. "Biryani", "Drinks"
+  name            String
+  description     String?
+  price           Decimal  @db.Decimal(10, 2)
+  imageUrl        String?
+  prepTimeMinutes Int      @default(15)
+  isBom           Boolean  @default(false) // if it's a combo/BOM item
+  isActive        Boolean  @default(true)
+  taxRate         Float    @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  bomItems BOMItem[] @relation("MenuItemIngredients")
+  kotItems KOTItem[]
+}
+
+model BOMItem {
+  id         String   @id @default(cuid())
+  menuItemId String // the combo item
+  menuItem   MenuItem @relation("MenuItemIngredients", fields: [menuItemId], references: [id], onDelete: Cascade)
+  productId  String
+  product    Product  @relation(fields: [productId], references: [id])
+  quantity   Decimal  @db.Decimal(8, 3)
+  unit       String   @default("pcs")
+  createdAt  DateTime @default(now())
+}
+
+model KOT {
+  id           String           @id @default(cuid())
+  tableId      String?
+  table        RestaurantTable? @relation(fields: [tableId], references: [id])
+  storeId      String
+  orderNumber  String
+  status       KOTStatus        @default(PENDING)
+  customerName String?
+  waiterId     String?
+  notes        String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  items KOTItem[]
+}
+
+enum KOTStatus {
+  PENDING
+  IN_PROGRESS
+  READY
+  SERVED
+  CANCELLED
+}
+
+model KOTItem {
+  id         String        @id @default(cuid())
+  kotId      String
+  kot        KOT           @relation(fields: [kotId], references: [id], onDelete: Cascade)
+  menuItemId String
+  menuItem   MenuItem      @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+  status     KOTItemStatus @default(PENDING)
+  notes      String?
+  createdAt  DateTime      @default(now())
+}
+
+enum KOTItemStatus {
+  PENDING
+  COOKING
+  READY
+  SERVED
+}
+
+// ============================================
+// SHIFTS (for POS accountability)
+// ============================================
+
+model Shift {
+  id           String      @id @default(cuid())
+  storeId      String
+  store        Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  cashierId    String
+  cashier      User        @relation("Cashier", fields: [cashierId], references: [id])
+  openingCash  Decimal     @db.Decimal(14, 2)
+  closingCash  Decimal?
+  expectedCash Decimal?
+  variance     Decimal?
+  openedAt     DateTime    @default(now())
+  closedAt     DateTime?
+  status       ShiftStatus @default(OPEN)
+  createdAt    DateTime    @default(now())
+}
+
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+// ============================================
+// ACTIVITY / AUDIT LOG
+// ============================================
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  module     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ============================================
+// PRINTER CONFIGURATION
+// ============================================
+
+model PrinterConfig {
+  id                String            @id @default(cuid())
+  storeId           String
+  name              String // e.g. "Receipt Printer 1"
+  type              PrinterType
+  connectionType    PrinterConnection
+  ipAddress         String?
+  port              Int?
+  paperWidth        Int               @default(80) // 58 or 80 mm
+  charactersPerLine Int               @default(48)
+  isDefault         Boolean           @default(false)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+enum PrinterType {
+  RECEIPT
+  KITCHEN
+  LABEL
+}
+
+enum PrinterConnection {
+  NETWORK
+  USB
+  BLUETOOTH
+}
