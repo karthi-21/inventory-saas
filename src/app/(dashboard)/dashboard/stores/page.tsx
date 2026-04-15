@@ -44,6 +44,8 @@ import {
   MoreHorizontal,
   Archive,
   RotateCcw,
+  Warehouse,
+  Monitor,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Store as StoreType, StoreType as StoreTypeEnum, Location } from '@/types'
@@ -69,6 +71,21 @@ export default function StoresPage() {
   const [selectedStore, setSelectedStore] = useState<StoreWithLocations | null>(null)
   const [activeTab, setActiveTab] = useState('active')
 
+  // Location management state
+  const [locationName, setLocationName] = useState('')
+  const [locationType, setLocationType] = useState('COUNTER')
+  const [locations, setLocations] = useState<Array<{ id: string; name: string; type: string }>>([])
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false)
+
+  const locationTypeLabels: Record<string, string> = {
+    COUNTER: 'Counter',
+    WAREHOUSE: 'Warehouse',
+    SHOWROOM: 'Showroom',
+    COLD_STORAGE: 'Cold Storage',
+    KITCHEN: 'Kitchen',
+    RACK: 'Rack',
+  }
+
   // Form state
   const [formData, setFormData] = useState({
     name: '',
@@ -88,7 +105,8 @@ export default function StoresPage() {
     queryFn: async () => {
       const res = await fetch('/api/stores')
       if (!res.ok) throw new Error('Failed to fetch stores')
-      return res.json()
+      const json = await res.json()
+      return json.data || []
     },
   })
 
@@ -176,6 +194,67 @@ export default function StoresPage() {
     },
   })
 
+  // Fetch locations for a store
+  const fetchLocations = async (storeId: string) => {
+    setIsLoadingLocations(true)
+    try {
+      const res = await fetch(`/api/locations?storeId=${storeId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setLocations(data.data || [])
+      }
+    } catch {
+      setLocations([])
+    } finally {
+      setIsLoadingLocations(false)
+    }
+  }
+
+  // Create location mutation
+  const createLocation = useMutation({
+    mutationFn: async (data: { storeId: string; name: string; type: string }) => {
+      const res = await fetch('/api/locations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to create location')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      if (selectedStore) fetchLocations(selectedStore.id)
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+      toast.success('Location added successfully')
+      setLocationName('')
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
+  // Delete location mutation
+  const deleteLocation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/locations/${id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to delete location')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      if (selectedStore) fetchLocations(selectedStore.id)
+      queryClient.invalidateQueries({ queryKey: ['stores'] })
+      toast.success('Location removed')
+    },
+    onError: (error) => {
+      toast.error(error.message)
+    },
+  })
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -199,6 +278,7 @@ export default function StoresPage() {
       pincode: store.pincode || '',
       phone: store.phone || '',
     })
+    fetchLocations(store.id)
     setShowEditDialog(true)
   }
 
@@ -363,6 +443,17 @@ export default function StoresPage() {
                     {store.locations?.length || 0} location{store.locations?.length !== 1 ? 's' : ''}
                   </Badge>
                 </div>
+                {/* Location chips */}
+                {store.locations && store.locations.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {store.locations.map((loc) => (
+                      <Badge key={loc.id} variant="secondary" className="text-xs gap-1">
+                        <MapPin className="h-2.5 w-2.5" />
+                        {loc.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="flex gap-2 pt-2 border-t">
                 <Button
@@ -629,6 +720,87 @@ export default function StoresPage() {
                   value={(formData as Record<string, string>).gstin || ''}
                   onChange={(e) => setFormData({ ...formData, gstin: e.target.value } as typeof formData)}
                 />
+              </div>
+
+              {/* Locations Management */}
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base font-semibold">Locations</Label>
+                  <Badge variant="outline">{locations.length}</Badge>
+                </div>
+
+                {/* Existing locations list */}
+                {isLoadingLocations ? (
+                  <div className="flex justify-center py-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  </div>
+                ) : locations.length > 0 ? (
+                  <div className="space-y-2">
+                    {locations.map((loc) => (
+                      <div key={loc.id} className="flex items-center justify-between rounded-md border px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          {loc.type === 'COUNTER' ? <Monitor className="h-4 w-4 text-muted-foreground" /> :
+                           loc.type === 'WAREHOUSE' ? <Warehouse className="h-4 w-4 text-muted-foreground" /> :
+                           <MapPin className="h-4 w-4 text-muted-foreground" />}
+                          <span className="text-sm">{loc.name}</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {locationTypeLabels[loc.type] || loc.type}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          onClick={() => deleteLocation.mutate(loc.id)}
+                          disabled={deleteLocation.isPending}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground py-2">No locations added yet</p>
+                )}
+
+                {/* Add location form */}
+                <div className="flex items-end gap-2">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Location name"
+                      value={locationName}
+                      onChange={(e) => setLocationName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && locationName.trim() && selectedStore) {
+                          createLocation.mutate({ storeId: selectedStore.id, name: locationName.trim(), type: locationType })
+                        }
+                      }}
+                    />
+                  </div>
+                  <Select value={locationType} onValueChange={(v) => setLocationType(v ?? 'COUNTER')}>
+                    <SelectTrigger className="w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(locationTypeLabels).map(([key, label]) => (
+                        <SelectItem key={key} value={key}>{label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    disabled={!locationName.trim() || !selectedStore || createLocation.isPending}
+                    onClick={() => {
+                      if (selectedStore && locationName.trim()) {
+                        createLocation.mutate({ storeId: selectedStore.id, name: locationName.trim(), type: locationType })
+                      }
+                    }}
+                  >
+                    {createLocation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Add
+                  </Button>
+                </div>
               </div>
             </div>
             <DialogFooter>

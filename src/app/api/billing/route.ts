@@ -101,6 +101,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const {
       storeId,
+      locationId,
       customerId,
       customerName,
       invoiceType = 'RETAIL_INVOICE',
@@ -131,6 +132,14 @@ export async function POST(request: NextRequest) {
     })
     if (!store) return errorResponse('Store not found or access denied', 404)
 
+    // Validate location belongs to store if provided
+    if (locationId) {
+      const location = await prisma.location.findFirst({
+        where: { id: locationId, storeId }
+      })
+      if (!location) return errorResponse('Location not found in this store', 404)
+    }
+
     // Generate invoice number
     const invoiceNumber = await generateInvoiceNumber(user.tenantId, storeId)
 
@@ -146,6 +155,7 @@ export async function POST(request: NextRequest) {
         data: {
           tenantId: user.tenantId,
           storeId,
+          locationId: locationId || null,
           invoiceNumber,
           invoiceType,
           customerId: customerId || null,

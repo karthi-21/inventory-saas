@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
+import { usePOSStore } from '@/stores/pos-store'
 
 interface DashboardStats {
   todaySales: number
@@ -53,11 +54,15 @@ interface LowStockItem {
 }
 
 export default function DashboardPage() {
+  const currentStoreId = usePOSStore((state) => state.currentStoreId)
+
   // Fetch dashboard stats
   const { data: statsData, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats'],
+    queryKey: ['dashboard-stats', currentStoreId],
     queryFn: async () => {
-      const res = await fetch('/api/reports?type=sales-summary')
+      const params = new URLSearchParams({ type: 'sales-summary' })
+      if (currentStoreId) params.set('storeId', currentStoreId)
+      const res = await fetch(`/api/reports?${params}`)
       if (!res.ok) throw new Error('Failed to fetch stats')
       const data = await res.json()
       return {
@@ -72,9 +77,11 @@ export default function DashboardPage() {
 
   // Fetch recent sales
   const { data: recentSales, isLoading: salesLoading } = useQuery<RecentSale[]>({
-    queryKey: ['recent-sales'],
+    queryKey: ['recent-sales', currentStoreId],
     queryFn: async () => {
-      const res = await fetch('/api/billing?limit=5')
+      const params = new URLSearchParams({ limit: '5' })
+      if (currentStoreId) params.set('storeId', currentStoreId)
+      const res = await fetch(`/api/billing?${params}`)
       if (!res.ok) throw new Error('Failed to fetch recent sales')
       const data = await res.json()
       return (data.data || []).map((inv: Record<string, unknown>) => ({
@@ -92,9 +99,11 @@ export default function DashboardPage() {
 
   // Fetch low stock items
   const { data: lowStockItems, isLoading: lowStockLoading } = useQuery<LowStockItem[]>({
-    queryKey: ['low-stock-alerts'],
+    queryKey: ['low-stock-alerts', currentStoreId],
     queryFn: async () => {
-      const res = await fetch('/api/inventory?lowStock=true&limit=5')
+      const params = new URLSearchParams({ lowStock: 'true', limit: '5' })
+      if (currentStoreId) params.set('storeId', currentStoreId)
+      const res = await fetch(`/api/inventory?${params}`)
       if (!res.ok) throw new Error('Failed to fetch low stock')
       const data = await res.json()
       return (data.stocks || []).map((item: Record<string, unknown>) => ({
@@ -115,9 +124,9 @@ export default function DashboardPage() {
       if (!res.ok) throw new Error('Failed to fetch top products')
       const data = await res.json()
       return (data.products || []).map((p: Record<string, unknown>) => ({
-        name: p.name as string,
-        quantity: Number(p.totalQty) || 0,
-        revenue: Number(p.totalRevenue) || 0,
+        name: (p.productName || p.name || 'Unknown') as string,
+        quantity: Number(p.quantity || p.totalQty) || 0,
+        revenue: Number(p.revenue || p.totalRevenue) || 0,
       }))
     },
   })
@@ -197,7 +206,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            {dateStr} • {stores?.[0]?.name || 'Your Store'}
+            {dateStr} • {currentStoreId ? stores?.find(s => s.id === currentStoreId)?.name || 'Your Store' : stores?.[0]?.name || 'Your Store'}
           </p>
         </div>
         <div className="flex gap-2">

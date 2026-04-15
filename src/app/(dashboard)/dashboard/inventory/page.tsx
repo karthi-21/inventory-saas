@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -47,6 +47,7 @@ import {
   ImageIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { usePOSStore } from '@/stores/pos-store'
 import { ImageUpload } from '@/components/ui/image-upload'
 import type { InventoryStock, Product, Store, Location } from '@/types'
 
@@ -84,7 +85,7 @@ interface InventoryWithDetails extends InventoryStock {
 }
 
 interface InventoryResponse {
-  stocks: InventoryWithDetails[]
+  data: InventoryWithDetails[]
   total: number
 }
 
@@ -94,7 +95,17 @@ export default function InventoryPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showProductDetail, setShowProductDetail] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState<InventoryWithDetails | null>(null)
-  const [selectedStore, setSelectedStore] = useState('all')
+  const { currentStoreId } = usePOSStore()
+  const [selectedStore, setSelectedStore] = useState<string>(currentStoreId || 'all')
+  const [selectedLocation, setSelectedLocation] = useState<string>('all')
+
+  // Sync selected store with global store context
+  useEffect(() => {
+    if (currentStoreId) {
+      setSelectedStore(currentStoreId)
+      setSelectedLocation('all')
+    }
+  }, [currentStoreId])
   // Separate dialog for adding a new product (vs adding stock)
   const [showAddProductDialog, setShowAddProductDialog] = useState(false)
 
@@ -138,15 +149,29 @@ export default function InventoryPage() {
 
   // Fetch inventory
   const { data: inventoryData, isLoading, error } = useQuery<InventoryResponse>({
-    queryKey: ['inventory', selectedStore],
+    queryKey: ['inventory', selectedStore, selectedLocation],
     queryFn: async () => {
-      const url = selectedStore && selectedStore !== 'all'
-        ? `/api/inventory?storeId=${selectedStore}`
-        : '/api/inventory'
-      const res = await fetch(url)
+      const params = new URLSearchParams()
+      if (selectedStore && selectedStore !== 'all') params.set('storeId', selectedStore)
+      if (selectedLocation && selectedLocation !== 'all') params.set('locationId', selectedLocation)
+      if (activeTab === 'low') params.set('lowStock', 'true')
+      const res = await fetch(`/api/inventory?${params}`)
       if (!res.ok) throw new Error('Failed to fetch inventory')
       return res.json()
     },
+  })
+
+  // Fetch locations for selected store
+  const { data: locations } = useQuery<Array<{ id: string; name: string; type: string }>>({
+    queryKey: ['locations', selectedStore],
+    queryFn: async () => {
+      if (!selectedStore || selectedStore === 'all') return []
+      const res = await fetch(`/api/locations?storeId=${selectedStore}`)
+      if (!res.ok) return []
+      const data = await res.json()
+      return data.data || []
+    },
+    enabled: !!selectedStore && selectedStore !== 'all',
   })
 
   // Fetch stores for dropdown
@@ -251,7 +276,7 @@ export default function InventoryPage() {
     setShowProductDetail(true)
   }
 
-  const filteredInventory = inventoryData?.stocks?.filter((item) => {
+  const filteredInventory = inventoryData?.data?.filter((item) => {
     const matchesSearch =
       item.product?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.product?.sku?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -272,12 +297,12 @@ export default function InventoryPage() {
     return matchesSearch
   }) || []
 
-  const totalProducts = inventoryData?.stocks?.length || 0
-  const lowStockCount = inventoryData?.stocks?.filter(
+  const totalProducts = inventoryData?.data?.length || 0
+  const lowStockCount = inventoryData?.data?.filter(
     (i) => i.quantity <= (i.product?.reorderLevel || 0) && i.quantity > 0
   ).length || 0
-  const outOfStockCount = inventoryData?.stocks?.filter((i) => i.quantity === 0).length || 0
-  const expiringSoonCount = inventoryData?.stocks?.filter((i) => {
+  const outOfStockCount = inventoryData?.data?.filter((i) => i.quantity === 0).length || 0
+  const expiringSoonCount = inventoryData?.data?.filter((i) => {
     if (!i.expiryDate) return false
     const expiry = new Date(i.expiryDate)
     const daysUntilExpiry = Math.floor((expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24))
@@ -375,9 +400,9 @@ export default function InventoryPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={selectedStore} onValueChange={(v) => v && setSelectedStore(v)}>
+        <Select value={selectedStore} onValueChange={(v) => { setSelectedStore(v || 'all'); setSelectedLocation('all'); }}>
           <SelectTrigger className="w-48">
-            <SelectValue placeholder="All Stores" />
+            {selectedStore === 'all' ? 'All Stores' : stores?.find(s => s.id === selectedStore)?.name ?? 'All Stores'}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Stores</SelectItem>
@@ -388,6 +413,21 @@ export default function InventoryPage() {
             ))}
           </SelectContent>
         </Select>
+        {selectedStore !== 'all' && locations && locations.length > 0 && (
+          <Select value={selectedLocation} onValueChange={(v) => v && setSelectedLocation(v)}>
+            <SelectTrigger className="w-44">
+              {selectedLocation === 'all' ? 'All Locations' : locations?.find(l => l.id === selectedLocation)?.name ?? 'All Locations'}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
+              {locations.map((loc) => (
+                <SelectItem key={loc.id} value={loc.id}>
+                  {loc.name} ({loc.type})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
           <TabsList>
             <TabsTrigger value="all">All</TabsTrigger>

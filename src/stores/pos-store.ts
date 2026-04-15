@@ -8,6 +8,7 @@ interface POSState {
   // Cart
   cart: POSCartItem[]
   currentStoreId: string | null
+  currentLocationId: string | null
   currentUserId: string | null
   currentShiftId: string | null
 
@@ -25,6 +26,7 @@ interface POSState {
   removeFromCart: (productId: string, variantId: string | undefined) => void
   clearCart: () => void
   setCurrentStore: (storeId: string) => void
+  setCurrentLocation: (locationId: string | null) => void
   setCurrentUser: (userId: string) => void
   setCurrentShift: (shiftId: string) => void
   setCurrentCustomer: (customer: Customer | null) => void
@@ -59,6 +61,7 @@ export const usePOSStore = create<POSState>()(
     (set, get) => ({
       cart: [],
       currentStoreId: null,
+      currentLocationId: null,
       currentUserId: null,
       currentShiftId: null,
       currentCustomer: null,
@@ -112,6 +115,7 @@ export const usePOSStore = create<POSState>()(
       clearCart: () => set({ cart: [], currentCustomer: null, notes: '', parkingSlipNo: '' }),
 
       setCurrentStore: (storeId) => set({ currentStoreId: storeId }),
+      setCurrentLocation: (locationId) => set({ currentLocationId: locationId }),
       setCurrentUser: (userId) => set({ currentUserId: userId }),
       setCurrentShift: (shiftId) => set({ currentShiftId: shiftId }),
       setCurrentCustomer: (customer) => set({ currentCustomer: customer }),
@@ -177,6 +181,7 @@ export const usePOSStore = create<POSState>()(
       name: 'pos-storage',
       partialize: (state) => ({
         currentStoreId: state.currentStoreId,
+        currentLocationId: state.currentLocationId,
         currentUserId: state.currentUserId,
         currentShiftId: state.currentShiftId,
         heldBills: state.heldBills,

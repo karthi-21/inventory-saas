@@ -38,6 +38,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { supabase } from '@/lib/supabase/client'
+import { usePOSStore } from '@/stores/pos-store'
 
 interface Notification {
   id: string
@@ -76,6 +77,7 @@ export default function DashboardLayout({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true)
   const [shouldRedirectToOnboarding, setShouldRedirectToOnboarding] = useState(false)
+  const { currentStoreId, setCurrentStore, setCurrentLocation } = usePOSStore()
 
   // Fetch user info from Supabase auth session
   const { data: userData } = useQuery({
@@ -103,7 +105,7 @@ export default function DashboardLayout({
     retry: 2,
     retryDelay: 1000,
   })
-  const stores = storesData || []
+  const stores = Array.isArray(storesData) ? storesData : []
 
   // Fetch tenant plan
   const { data: tenantData } = useQuery<{ plan: string }>({
@@ -211,13 +213,17 @@ export default function DashboardLayout({
           <DropdownMenuTrigger className="w-full justify-start gap-2 border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors px-3 py-2 gap-2">
             <Store className="h-4 w-4" />
             <span className="flex-1 truncate text-left">
-              {storesLoading ? 'Loading...' : stores.length > 0 ? stores[0].name : 'No stores'}
+              {storesLoading ? 'Loading...' : stores.length > 0
+	                ? (currentStoreId
+		            ? stores.find(s => s.id === currentStoreId)?.name ?? stores[0].name
+		            : stores[0].name)
+	                : 'No stores'}
             </span>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56">
-            {stores.map((store) => (
-              <DropdownMenuItem key={store.id}>{store.name}</DropdownMenuItem>
+            {Array.isArray(stores) && stores.map((store) => (
+              <DropdownMenuItem key={store.id} onClick={() => { setCurrentStore(store.id); setCurrentLocation(null) }}>{store.name}</DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem>

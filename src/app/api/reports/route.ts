@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const reportType = searchParams.get('type') || 'sales-summary'
     const storeId = searchParams.get('storeId')
+    const locationId = searchParams.get('locationId')
     const fromDate = searchParams.get('from')
     const toDate = searchParams.get('to')
 
@@ -26,17 +27,17 @@ export async function GET(request: NextRequest) {
 
     switch (reportType) {
       case 'sales-summary':
-        return getSalesSummary(user.tenantId, storeId, dateFilter)
+        return getSalesSummary(user.tenantId, storeId, locationId, dateFilter)
       case 'sales-by-product':
-        return getSalesByProduct(user.tenantId, storeId, dateFilter)
+        return getSalesByProduct(user.tenantId, storeId, locationId, dateFilter)
       case 'sales-by-category':
-        return getSalesByCategory(user.tenantId, storeId, dateFilter)
+        return getSalesByCategory(user.tenantId, storeId, locationId, dateFilter)
       case 'stock-report':
-        return getStockReport(user.tenantId, storeId)
+        return getStockReport(user.tenantId, storeId, locationId)
       case 'stock-movement':
-        return getStockMovement(user.tenantId, storeId, dateFilter)
+        return getStockMovement(user.tenantId, storeId, locationId, dateFilter)
       case 'gst-summary':
-        return getGstSummary(user.tenantId, storeId, dateFilter)
+        return getGstSummary(user.tenantId, storeId, locationId, dateFilter)
       case 'customer-outstanding':
         return getCustomerOutstanding(user.tenantId)
       case 'daily-sales':
@@ -52,10 +53,12 @@ export async function GET(request: NextRequest) {
 async function getSalesSummary(
   tenantId: string,
   storeId: string | null,
+  locationId: string | null,
   dateFilter: { gte?: Date; lte?: Date }
 ) {
   const where: Record<string, unknown> = { tenantId }
   if (storeId) where.storeId = storeId
+  if (locationId) where.locationId = locationId
   if (Object.keys(dateFilter).length > 0) {
     where.invoiceDate = dateFilter
   }
@@ -68,6 +71,7 @@ async function getSalesSummary(
 
   const todayWhere: Record<string, unknown> = { tenantId, invoiceDate: { gte: today, lte: todayEnd } }
   if (storeId) todayWhere.storeId = storeId
+  if (locationId) todayWhere.locationId = locationId
 
   // This month's date filter
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
@@ -160,12 +164,14 @@ async function getSalesSummary(
 async function getSalesByProduct(
   tenantId: string,
   storeId: string | null,
+  locationId: string | null,
   dateFilter: { gte?: Date; lte?: Date }
 ) {
   const where: Record<string, unknown> = {
     invoice: { tenantId }
   }
   if (storeId) where.invoice = { ...where.invoice as Record<string, unknown>, storeId }
+  if (locationId) where.invoice = { ...(where.invoice as Record<string, unknown>), locationId }
   if (Object.keys(dateFilter).length > 0) {
     where.invoice = { ...where.invoice as Record<string, unknown>, invoiceDate: dateFilter }
   }
@@ -219,6 +225,7 @@ async function getSalesByProduct(
 async function getSalesByCategory(
   tenantId: string,
   storeId: string | null,
+  locationId: string | null,
   dateFilter: { gte?: Date; lte?: Date }
 ) {
   const items = await prisma.salesInvoiceItem.findMany({
@@ -226,6 +233,7 @@ async function getSalesByCategory(
       invoice: {
         tenantId,
         ...(storeId && { storeId }),
+        ...(locationId && { locationId }),
         ...(Object.keys(dateFilter).length > 0 && { invoiceDate: dateFilter })
       }
     },
@@ -263,11 +271,12 @@ async function getSalesByCategory(
   })
 }
 
-async function getStockReport(tenantId: string, storeId: string | null) {
+async function getStockReport(tenantId: string, storeId: string | null, locationId: string | null) {
   const where: Record<string, unknown> = {
     store: { tenantId }
   }
   if (storeId) where.storeId = storeId
+  if (locationId) where.locationId = locationId
 
   const stocks = await prisma.inventoryStock.findMany({
     where,
@@ -318,6 +327,7 @@ async function getStockReport(tenantId: string, storeId: string | null) {
 async function getStockMovement(
   tenantId: string,
   storeId: string | null,
+  locationId: string | null,
   dateFilter: { gte?: Date; lte?: Date }
 ) {
   // Get store IDs for this tenant to filter movements
@@ -331,6 +341,7 @@ async function getStockMovement(
     where: {
       storeId: { in: storeIds },
       ...(storeId && { storeId }),
+      ...(locationId && { locationId }),
       ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter })
     },
     orderBy: { createdAt: 'desc' },
@@ -352,6 +363,7 @@ async function getStockMovement(
 async function getGstSummary(
   tenantId: string,
   storeId: string | null,
+  locationId: string | null,
   dateFilter: { gte?: Date; lte?: Date }
 ) {
   const items = await prisma.salesInvoiceItem.findMany({
@@ -359,6 +371,7 @@ async function getGstSummary(
       invoice: {
         tenantId,
         ...(storeId && { storeId }),
+        ...(locationId && { locationId }),
         ...(Object.keys(dateFilter).length > 0 && { invoiceDate: dateFilter })
       }
     },

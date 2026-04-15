@@ -37,7 +37,14 @@ import {
   Split,
   Scan,
   PackagePlus,
+  MapPin,
 } from 'lucide-react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+} from '@/components/ui/select'
 import type { POSCartItem, Customer } from '@/types'
 
 const paymentModes = [
@@ -101,6 +108,10 @@ export default function POSPage() {
   const [lastInvoice, setLastInvoice] = useState<Record<string, unknown> | null>(null)
   const [loyaltyPointsToRedeem, setLoyaltyPointsToRedeem] = useState(0)
 
+  // Locations for counter selector
+  const [locations, setLocations] = useState<Array<{ id: string; name: string; type: string }>>([])
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false)
+
   // POS Store
   const {
     cart,
@@ -109,12 +120,14 @@ export default function POSPage() {
     notes,
     heldBills,
     currentStoreId,
+    currentLocationId,
     addToCart,
     updateCartItem,
     removeFromCart,
     clearCart,
     setCurrentCustomer,
     setCurrentStore,
+    setCurrentLocation,
     setBillingType,
     setNotes,
     holdBill,
@@ -131,6 +144,29 @@ export default function POSPage() {
   useEffect(() => {
     searchRef.current?.focus()
   }, [])
+
+  // Fetch locations for current store (counters)
+  useEffect(() => {
+    if (!currentStoreId) {
+      setLocations([])
+      return
+    }
+    const fetchLocations = async () => {
+      setIsLoadingLocations(true)
+      try {
+        const res = await fetch(`/api/locations?storeId=${currentStoreId}`)
+        if (res.ok) {
+          const data = await res.json()
+          setLocations(data.data || [])
+        }
+      } catch {
+        setLocations([])
+      } finally {
+        setIsLoadingLocations(false)
+      }
+    }
+    fetchLocations()
+  }, [currentStoreId])
 
   // Set default store (fetch user's first store)
   useEffect(() => {
@@ -299,6 +335,7 @@ export default function POSPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           storeId: currentStoreId,
+          locationId: currentLocationId,
           customerId: currentCustomer?.id,
           customerName: currentCustomer ? `${currentCustomer.firstName}${currentCustomer.lastName ? ' ' + currentCustomer.lastName : ''}` : 'Walk-in Customer',
           items: cart.map(item => ({
@@ -405,6 +442,55 @@ export default function POSPage() {
       <div className="flex flex-1 flex-col overflow-hidden rounded-lg border bg-white">
         {/* Search & Category */}
         <div className="border-b p-3 space-y-3">
+          {/* Store & Counter selector */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+              {isLoadingLocations ? (
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              ) : locations.length > 0 ? (
+                <Select
+                  value={currentLocationId || '__all__'}
+                  onValueChange={(val) => setCurrentLocation(val === '__all__' ? null : val)}
+                >
+                  <SelectTrigger className="h-8 text-sm w-full">
+                    {currentLocationId
+                      ? (() => {
+                          const loc = locations.find(l => l.id === currentLocationId)
+                          return loc ? loc.name : 'Select counter'
+                        })()
+                      : 'All Counters'}
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">All Counters</SelectItem>
+                    {locations
+                      .filter((loc) => loc.type === 'COUNTER')
+                      .map((loc) => (
+                        <SelectItem key={loc.id} value={loc.id}>
+                          {loc.name}
+                        </SelectItem>
+                      ))}
+                    {locations.filter((loc) => loc.type !== 'COUNTER').length > 0 && (
+                      <>
+                        <SelectItem value="__non-counter__" disabled className="text-xs text-muted-foreground">
+                          Other locations
+                        </SelectItem>
+                        {locations
+                          .filter((loc) => loc.type !== 'COUNTER')
+                          .map((loc) => (
+                            <SelectItem key={loc.id} value={loc.id}>
+                              {loc.name} ({loc.type})
+                            </SelectItem>
+                          ))}
+                      </>
+                    )}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <span className="text-sm text-muted-foreground">No counters configured</span>
+              )}
+            </div>
+          </div>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Scan className="absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

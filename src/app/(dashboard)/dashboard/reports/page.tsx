@@ -20,7 +20,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select'
 import {
   BarChart3,
@@ -91,12 +90,13 @@ export default function ReportsPage() {
   const [customToDate, setCustomToDate] = useState('')
 
   // Fetch stores for filter
-  const { data: stores } = useQuery<{ data: Store[] }>({
+  const { data: stores } = useQuery<Store[]>({
     queryKey: ['stores'],
     queryFn: async () => {
       const res = await fetch('/api/stores')
       if (!res.ok) throw new Error('Failed to fetch stores')
-      return res.json()
+      const json = await res.json()
+      return json.data || []
     },
   })
 
@@ -359,11 +359,11 @@ export default function ReportsPage() {
             <Label className="text-xs text-muted-foreground">Store</Label>
             <Select value={storeFilter} onValueChange={(v) => v && setStoreFilter(v)}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="All Stores" />
+                {storeFilter === 'all' ? 'All Stores' : (stores || []).find(s => s.id === storeFilter)?.name ?? 'All Stores'}
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Stores</SelectItem>
-                {stores?.data?.map((store) => (
+                {stores?.map((store) => (
                   <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
                 ))}
               </SelectContent>
@@ -373,7 +373,13 @@ export default function ReportsPage() {
             <Label className="text-xs text-muted-foreground">Date Range</Label>
             <Select value={dateRange} onValueChange={(v) => v && setDateRange(v)}>
               <SelectTrigger className="w-40">
-                <SelectValue />
+                {dateRange === 'today' ? 'Today'
+                  : dateRange === '7days' ? 'Last 7 Days'
+                  : dateRange === '30days' ? 'Last 30 Days'
+                  : dateRange === 'thisMonth' ? 'This Month'
+                  : dateRange === 'lastMonth' ? 'Last Month'
+                  : dateRange === 'custom' ? 'Custom Range'
+                  : 'Last 7 Days'}
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="today">Today</SelectItem>

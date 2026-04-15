@@ -18,7 +18,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select'
 import {
   Receipt,
@@ -29,6 +28,7 @@ import {
   IndianRupee,
   Loader2,
   AlertCircle,
+  Store,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -55,15 +55,31 @@ interface Invoice {
 export default function BillingPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [storeFilter, setStoreFilter] = useState<string>('__all__')
   const currentStoreId = usePOSStore((state) => state.currentStoreId)
+
+  // Effective store ID for filtering (use dropdown if selected, otherwise global store)
+  const effectiveStoreId = storeFilter === '__all__' ? currentStoreId : storeFilter === '__none__' ? undefined : storeFilter
+
+  // Fetch stores for filter dropdown
+  const { data: stores } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['stores'],
+    queryFn: async () => {
+      const res = await fetch('/api/stores')
+      if (!res.ok) return []
+      const data = await res.json()
+      return data.data || []
+    },
+  })
 
   // Fetch invoices
   const { data: invoicesData, isLoading, error } = useQuery<{ data: Invoice[]; pagination: { total: number } }>({
-    queryKey: ['invoices', searchQuery, statusFilter],
+    queryKey: ['invoices', searchQuery, statusFilter, effectiveStoreId],
     queryFn: async () => {
       const params = new URLSearchParams()
       if (searchQuery) params.set('search', searchQuery)
       if (statusFilter !== 'all') params.set('status', statusFilter)
+      if (effectiveStoreId) params.set('storeId', effectiveStoreId)
       const res = await fetch(`/api/billing?${params}`)
       if (!res.ok) throw new Error('Failed to fetch invoices')
       return res.json()
@@ -186,9 +202,29 @@ export default function BillingPage() {
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
+        {(stores || []).length > 1 && (
+          <Select value={storeFilter} onValueChange={(v) => v && setStoreFilter(v)}>
+            <SelectTrigger className="w-48">
+              <Store className="h-4 w-4 mr-2 text-muted-foreground" />
+              {storeFilter === '__all__' ? 'Current Store'
+                : storeFilter === '__none__' ? 'All Stores'
+                : (stores || []).find(s => s.id === storeFilter)?.name ?? 'Current Store'}
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Current Store</SelectItem>
+              <SelectItem value="__none__">All Stores</SelectItem>
+              {(stores || []).map((s) => (
+                <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="All Status" />
+            {statusFilter === 'all' ? 'All Status'
+              : statusFilter === 'PAID' ? 'Paid'
+              : statusFilter === 'PARTIAL' ? 'Partial'
+              : statusFilter === 'DUE' ? 'Due' : 'All Status'}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>

@@ -137,7 +137,9 @@ model Location {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  inventoryStocks InventoryStock[]
+  inventoryStocks  InventoryStock[]
+  salesInvoices   SalesInvoice[]
+  shifts          Shift[]
 }
 
 enum LocationType {
@@ -649,6 +651,8 @@ model SalesInvoice {
   tenantId      String
   storeId       String
   store         Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  locationId    String?
+  location      Location?     @relation(fields: [locationId], references: [id])
   invoiceNumber String
   invoiceType   InvoiceType   @default(RETAIL_INVOICE)
   customerId    String?
@@ -879,6 +883,8 @@ model Shift {
   id           String      @id @default(cuid())
   storeId      String
   store        Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  locationId   String?
+  location     Location?   @relation(fields: [locationId], references: [id])
   cashierId    String
   cashier      User        @relation("Cashier", fields: [cashierId], references: [id])
   openingCash  Decimal     @db.Decimal(14, 2)
