@@ -2,8 +2,7 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { BillingType, PaymentMethod, PaymentStatus } from '@prisma/client'
 import {
-  getAuthUser,
-  unauthorizedResponse,
+  requirePermission,
   successResponse,
   createdResponse,
   errorResponse,
@@ -20,8 +19,8 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('BILLING_VIEW', 'VIEW')
+    if (error) return error
 
     const { searchParams } = new URL(request.url)
     const { page, limit, skip } = getPagination(searchParams)
@@ -96,8 +95,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('BILLING_CREATE', 'CREATE')
+    if (error) return error
 
     const body = await request.json()
     const {

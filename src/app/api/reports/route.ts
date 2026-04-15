@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
-  getAuthUser,
-  unauthorizedResponse,
+  requirePermission,
   successResponse,
   handlePrismaError
 } from '@/lib/api'
@@ -12,8 +11,8 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('REPORT_VIEW', 'VIEW')
+    if (error) return error
 
     const { searchParams } = new URL(request.url)
     const reportType = searchParams.get('type') || 'sales-summary'
@@ -321,9 +320,16 @@ async function getStockMovement(
   storeId: string | null,
   dateFilter: { gte?: Date; lte?: Date }
 ) {
+  // Get store IDs for this tenant to filter movements
+  const tenantStores = await prisma.store.findMany({
+    where: { tenantId },
+    select: { id: true }
+  })
+  const storeIds = tenantStores.map(s => s.id)
+
   const movements = await prisma.stockMovement.findMany({
     where: {
-      storeId: tenantId,
+      storeId: { in: storeIds },
       ...(storeId && { storeId }),
       ...(Object.keys(dateFilter).length > 0 && { createdAt: dateFilter })
     },
@@ -423,20 +429,30 @@ async function getCustomerOutstanding(tenantId: string) {
     }
   })
 
-  const withOutstanding = await Promise.all(
-    customers.map(async (customer) => {
-      const invoiceSummary = await prisma.salesInvoice.aggregate({
-        where: { customerId: customer.id },
-        _sum: { amountDue: true, totalAmount: true }
-      })
-
-      return {
-        ...customer,
-        totalDue: Number(invoiceSummary._sum.amountDue || 0),
-        totalPurchases: Number(invoiceSummary._sum.totalAmount || 0)
+  // Single groupBy query instead of N+1 per-customer aggregates
+  const invoiceStats = await prisma.salesInvoice.groupBy({
+    by: ['customerId'],
+    where: { customerId: { in: customers.map(c => c.id) } },
+    _sum: { amountDue: true, totalAmount: true }
+  })
+  const statsByCustomer = new Map(
+    invoiceStats.map(s => [
+      s.customerId,
+      {
+        totalDue: Number(s._sum.amountDue || 0),
+        totalPurchases: Number(s._sum.totalAmount || 0)
       }
-    })
+    ])
   )
+
+  const withOutstanding = customers.map(customer => {
+    const stats = statsByCustomer.get(customer.id)
+    return {
+      ...customer,
+      totalDue: stats?.totalDue || 0,
+      totalPurchases: stats?.totalPurchases || 0
+    }
+  })
 
   const withDue = withOutstanding.filter(c => c.totalDue > 0)
 

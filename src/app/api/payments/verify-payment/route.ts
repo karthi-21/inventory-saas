@@ -24,9 +24,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify signature
+    const keySecret = process.env.RAZORPAY_KEY_SECRET
+    if (!keySecret) {
+      return NextResponse.json({ error: 'RAZORPAY_KEY_SECRET is not configured' }, { status: 500 })
+    }
+
     const sign = razorpay_order_id + '|' + razorpay_payment_id
     const expectedSign = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'placeholder')
+      .createHmac('sha256', keySecret)
       .update(sign.toString())
       .digest('hex')
 

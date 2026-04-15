@@ -37,6 +37,7 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { exportToCSV } from '@/lib/export'
 
 interface Store {
   id: string
@@ -222,8 +223,87 @@ export default function ReportsPage() {
     enabled: reportType === 'outstanding',
   })
 
-  const handleExport = async (format: 'csv' | 'excel') => {
-    toast.info(`${format.toUpperCase()} export coming soon!`)
+  const handleExport = (format: 'csv' | 'excel') => {
+    if (format === 'excel') {
+      toast.info('Excel export coming soon!')
+      return
+    }
+
+    const timestamp = new Date().toISOString().split('T')[0]
+    let csvData: Record<string, unknown>[] = []
+    let filename = `report-${timestamp}.csv`
+
+    switch (reportType) {
+      case 'sales':
+        if (!salesData?.dailySales?.length) {
+          toast.error('No sales data to export')
+          return
+        }
+        csvData = salesData.dailySales.map((row) => ({
+          Date: row.date,
+          Invoices: row.invoices,
+          Revenue: row.revenue,
+          GST: row.gst,
+          Paid: row.paid,
+          Due: row.due,
+        }))
+        filename = `sales-report-${timestamp}.csv`
+        break
+
+      case 'gst':
+        if (!gstData?.summary?.length) {
+          toast.error('No GST data to export')
+          return
+        }
+        csvData = gstData.summary.map((row) => ({
+          HSNCode: row.hsnCode,
+          TaxableAmount: row.taxableAmount,
+          CGST: Math.round(row.cgst),
+          SGST: Math.round(row.sgst),
+          IGST: row.igst,
+          TotalGST: Math.round(row.totalGst),
+          TotalAmount: row.totalAmount,
+          Quantity: row.quantity,
+        }))
+        filename = `gst-report-${timestamp}.csv`
+        break
+
+      case 'inventory':
+        if (!inventoryData?.stocks?.length) {
+          toast.error('No inventory data to export')
+          return
+        }
+        csvData = inventoryData.stocks.map((stock) => ({
+          Product: stock.productName,
+          SKU: stock.sku,
+          Variant: stock.variant || '',
+          Store: stock.store,
+          Location: stock.location || '',
+          Quantity: stock.quantity,
+          ReorderLevel: stock.reorderLevel,
+          Status: stock.quantity === 0 ? 'Out of Stock' : stock.isLowStock ? 'Low Stock' : 'In Stock',
+        }))
+        filename = `inventory-report-${timestamp}.csv`
+        break
+
+      case 'outstanding':
+        if (!outstandingData?.customers?.length) {
+          toast.error('No outstanding data to export')
+          return
+        }
+        csvData = outstandingData.customers.map((c) => ({
+          FirstName: c.firstName,
+          LastName: c.lastName || '',
+          Phone: c.phone,
+          TotalPurchases: c.totalPurchases,
+          Outstanding: c.totalDue,
+        }))
+        filename = `outstanding-report-${timestamp}.csv`
+        break
+    }
+
+    exportToCSV(csvData, filename)
+    toast.success('Exported successfully')
   }
 
   const isLoading = salesLoading || gstLoading || inventoryLoading || outstandingLoading

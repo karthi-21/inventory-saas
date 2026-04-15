@@ -74,6 +74,13 @@ export async function POST(request: NextRequest) {
         pincode: pincode || null,
         storeType: 'MULTI_CATEGORY',
         isActive: true,
+        locations: {
+          create: {
+            name: 'Main Location',
+            type: 'SHOWROOM',
+            isActive: true,
+          }
+        }
       }
     })
 

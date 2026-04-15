@@ -39,60 +39,62 @@ export async function POST(request: NextRequest) {
       return errorResponse('Tenant already exists for this user', 409)
     }
 
-    // Create tenant with owner user
+    // Create tenant, user, store, and store access in a single transaction
     const subdomain = name.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 50)
-    const tenant = await prisma.tenant.create({
-      data: {
-        name,
-        subdomain,
-        users: {
-          create: {
-            email: supabaseUser.email!,
-            firstName: supabaseUser.user_metadata?.store_name || name,
-            phone: supabaseUser.user_metadata?.phone || null,
-            isActive: true,
+    const { tenant, store, user } = await prisma.$transaction(async (tx) => {
+      const tenant = await tx.tenant.create({
+        data: {
+          name,
+          subdomain,
+          users: {
+            create: {
+              email: supabaseUser.email!,
+              firstName: supabaseUser.user_metadata?.store_name || name,
+              phone: supabaseUser.user_metadata?.phone || null,
+              isActive: true,
+            }
+          }
+        },
+        include: {
+          users: true
+        }
+      })
+
+      const store = await tx.store.create({
+        data: {
+          tenantId: tenant.id,
+          name: name,
+          code: 'STR-001',
+          storeType: 'MULTI_CATEGORY',
+          isActive: true,
+          locations: {
+            create: {
+              name: 'Main Location',
+              type: 'SHOWROOM',
+              isActive: true
+            }
+          }
+        },
+        include: {
+          locations: true
+        }
+      })
+
+      await tx.user.update({
+        where: { id: tenant.users[0].id },
+        data: {
+          storeAccess: {
+            create: {
+              storeId: store.id,
+            }
           }
         }
-      },
-      include: {
-        users: true
-      }
+      })
+
+      return { tenant, store, user: tenant.users[0] }
     })
 
-    // Create default store for the tenant
-    const store = await prisma.store.create({
-      data: {
-        tenantId: tenant.id,
-        name: name,
-        code: 'STR-001',
-        storeType: 'MULTI_CATEGORY',
-        isActive: true,
-        locations: {
-          create: {
-            name: 'Main Location',
-            type: 'SHOWROOM',
-            isActive: true
-          }
-        }
-      },
-      include: {
-        locations: true
-      }
-    })
-
-    // Update the user with default store access
-    await prisma.user.update({
-      where: { id: tenant.users[0].id },
-      data: {
-        storeAccess: {
-          create: {
-            storeId: store.id,
-          }
-        }
-      }
-    })
-
-    return createdResponse({ tenant, store, user: tenant.users[0] })
+    return createdResponse({ tenant, store, user })
   } catch (error) {
     return handlePrismaError(error)
   }

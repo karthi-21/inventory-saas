@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import {
   getAuthUser,
   unauthorizedResponse,
+  requirePermission,
   successResponse,
   errorResponse,
   handlePrismaError,
@@ -53,8 +54,8 @@ export async function GET(request: NextRequest) {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('SETTINGS_EDIT', 'EDIT')
+    if (error) return error
 
     const body = await request.json()
     const {

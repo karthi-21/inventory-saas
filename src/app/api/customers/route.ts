@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
-  getAuthUser,
-  unauthorizedResponse,
+  requirePermission,
   successResponse,
   createdResponse,
   errorResponse,
@@ -18,8 +17,8 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('CUSTOMER_VIEW', 'VIEW')
+    if (error) return error
 
     const { searchParams } = new URL(request.url)
     const { page, limit, skip } = getPagination(searchParams)
@@ -65,23 +64,23 @@ export async function GET(request: NextRequest) {
       prisma.customer.count({ where })
     ])
 
-    // Calculate outstanding amount
-    const customersWithBalance = await Promise.all(
-      customers.map(async (customer) => {
-        const invoices = await prisma.salesInvoice.findMany({
-          where: { customerId: customer.id },
-          select: { amountDue: true }
-        })
-        const outstandingAmount = invoices.reduce((sum, inv) =>
-          sum + Number(inv.amountDue), 0
-        )
-
-        return {
-          ...customer,
-          outstandingAmount
-        }
-      })
+    // Calculate outstanding amount with a single groupBy query (avoids N+1)
+    const outstandingMap = await prisma.salesInvoice.groupBy({
+      by: ['customerId'],
+      where: {
+        customerId: { in: customers.map(c => c.id) },
+        amountDue: { gt: 0 }
+      },
+      _sum: { amountDue: true }
+    })
+    const outstandingByCustomer = new Map(
+      outstandingMap.map(o => [o.customerId, Number(o._sum.amountDue || 0)])
     )
+
+    const customersWithBalance = customers.map(customer => ({
+      ...customer,
+      outstandingAmount: outstandingByCustomer.get(customer.id) || 0
+    }))
 
     return paginatedResponse(customersWithBalance, total, page, limit)
   } catch (error) {
@@ -94,8 +93,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('CUSTOMER_CREATE', 'CREATE')
+    if (error) return error
 
     const body = await request.json()
     const {

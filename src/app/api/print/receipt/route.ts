@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requirePermission } from '@/lib/api'
 
 /**
  * POST /api/print/receipt
@@ -8,6 +9,9 @@ import { NextRequest, NextResponse } from 'next/server'
  */
 export async function POST(request: NextRequest) {
   try {
+    const { user, error } = await requirePermission('BILLING_VIEW', 'VIEW')
+    if (error) return error
+
     const body = await request.json()
     const {
       invoiceNumber,
@@ -89,6 +93,15 @@ interface ReceiptData {
   paymentReference?: string
 }
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+}
+
 function generateReceiptHTML(data: ReceiptData): string {
   const date = new Date(data.invoiceDate).toLocaleString('en-IN', {
     day: '2-digit',
@@ -102,7 +115,7 @@ function generateReceiptHTML(data: ReceiptData): string {
     .map(
       (item) => `
       <tr>
-        <td style="text-align:left;padding:4px 8px;">${item.name}</td>
+        <td style="text-align:left;padding:4px 8px;">${escapeHtml(item.name)}</td>
         <td style="text-align:center;padding:4px 8px;">${item.quantity}</td>
         <td style="text-align:right;padding:4px 8px;">₹${item.unitPrice.toLocaleString('en-IN')}</td>
         <td style="text-align:right;padding:4px 8px;">₹${item.totalAmount.toLocaleString('en-IN')}</td>
@@ -115,7 +128,7 @@ function generateReceiptHTML(data: ReceiptData): string {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Receipt - ${data.invoiceNumber}</title>
+  <title>Receipt - ${escapeHtml(data.invoiceNumber)}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -140,17 +153,17 @@ function generateReceiptHTML(data: ReceiptData): string {
 </head>
 <body>
   <div class="center border-bottom">
-    <h2 style="font-size:16px;">${data.storeName}</h2>
-    <p style="font-size:10px;">${data.storeAddress}</p>
-    <p style="font-size:10px;">GSTIN: ${data.storeGstin || 'N/A'}</p>
+    <h2 style="font-size:16px;">${escapeHtml(data.storeName)}</h2>
+    <p style="font-size:10px;">${escapeHtml(data.storeAddress)}</p>
+    <p style="font-size:10px;">GSTIN: ${data.storeGstin ? escapeHtml(data.storeGstin) : 'N/A'}</p>
   </div>
 
   <div class="border-bottom" style="padding:8px 0;">
-    <p><span class="bold">Invoice:</span> ${data.invoiceNumber}</p>
+    <p><span class="bold">Invoice:</span> ${escapeHtml(data.invoiceNumber)}</p>
     <p><span class="bold">Date:</span> ${date}</p>
-    <p><span class="bold">Customer:</span> ${data.customerName}</p>
-    ${data.customerPhone ? `<p><span class="bold">Phone:</span> ${data.customerPhone}</p>` : ''}
-    ${data.customerGstin ? `<p><span class="bold">GSTIN:</span> ${data.customerGstin}</p>` : ''}
+    <p><span class="bold">Customer:</span> ${escapeHtml(data.customerName)}</p>
+    ${data.customerPhone ? `<p><span class="bold">Phone:</span> ${escapeHtml(data.customerPhone)}</p>` : ''}
+    ${data.customerGstin ? `<p><span class="bold">GSTIN:</span> ${escapeHtml(data.customerGstin)}</p>` : ''}
   </div>
 
   <table>
@@ -205,8 +218,8 @@ function generateReceiptHTML(data: ReceiptData): string {
   <div class="divider"></div>
 
   <div>
-    <p style="text-align:center;"><span class="bold">Payment:</span> ${data.paymentMethod}</p>
-    ${data.paymentReference ? `<p style="text-align:center;font-size:10px;">Ref: ${data.paymentReference}</p>` : ''}
+    <p style="text-align:center;"><span class="bold">Payment:</span> ${escapeHtml(data.paymentMethod)}</p>
+    ${data.paymentReference ? `<p style="text-align:center;font-size:10px;">Ref: ${escapeHtml(data.paymentReference)}</p>` : ''}
   </div>
 
   <div class="footer">

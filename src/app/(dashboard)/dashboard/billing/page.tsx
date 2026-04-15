@@ -34,6 +34,8 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { usePOSStore } from '@/stores/pos-store'
 import { Skeleton } from '@/components/ui/skeleton'
+import { exportToCSV } from '@/lib/export'
+import { toast } from 'sonner'
 
 interface Invoice {
   id: string
@@ -91,7 +93,27 @@ export default function BillingPage() {
           <p className="text-sm text-muted-foreground">Manage invoices and sales</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-2">
+          <Button variant="outline" className="gap-2" onClick={() => {
+            if (invoices.length === 0) {
+              toast.error('No invoices to export')
+              return
+            }
+            const csvData = invoices.map((inv) => ({
+              InvoiceNumber: inv.invoiceNumber,
+              Customer: inv.customer
+                ? `${inv.customer.firstName}${inv.customer.lastName ? ' ' + inv.customer.lastName : ''}`
+                : 'Walk-in Customer',
+              Date: new Date(inv.invoiceDate).toLocaleDateString('en-IN'),
+              Store: inv.store?.name || '',
+              TotalAmount: Number(inv.totalAmount),
+              AmountPaid: Number(inv.amountPaid),
+              AmountDue: Number(inv.amountDue),
+              Status: inv.paymentStatus,
+              BillingType: inv.billingType,
+            }))
+            exportToCSV(csvData, `invoices-${new Date().toISOString().split('T')[0]}.csv`)
+            toast.success('Exported successfully')
+          }}>
             <Download className="h-4 w-4" />
             Export
           </Button>

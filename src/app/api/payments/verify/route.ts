@@ -16,8 +16,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify webhook signature
+    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET
+    if (!webhookSecret) {
+      console.error('RAZORPAY_WEBHOOK_SECRET is not configured')
+      return NextResponse.json({ error: 'RAZORPAY_WEBHOOK_SECRET is not configured' }, { status: 500 })
+    }
+
     const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET || 'placeholder')
+      .createHmac('sha256', webhookSecret)
       .update(body)
       .digest('hex')
 

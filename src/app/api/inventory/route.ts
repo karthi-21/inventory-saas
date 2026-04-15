@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
-  getAuthUser,
-  unauthorizedResponse,
+  requirePermission,
   successResponse,
   createdResponse,
   errorResponse,
@@ -18,8 +17,8 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('INVENTORY_VIEW', 'VIEW')
+    if (error) return error
 
     const { searchParams } = new URL(request.url)
     const { page, limit, skip } = getPagination(searchParams)
@@ -74,27 +73,35 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Get recent movements for each stock
-    const stocksWithMovements = await Promise.all(
-      filteredStocks.map(async (stock) => {
-        const recentMovements = await prisma.stockMovement.findMany({
-          where: {
-            OR: [
-              { productId: stock.productId },
-              { variantId: stock.variantId }
-            ],
-            storeId: stock.storeId
-          },
-          orderBy: { createdAt: 'desc' },
-          take: 5
-        })
+    // Get recent movements for all stocks in a single query (avoids N+1)
+    const allRecentMovements = await prisma.stockMovement.findMany({
+      where: {
+        storeId: storeId || undefined,
+        OR: filteredStocks.map(s => ({
+          productId: s.productId,
+          variantId: s.variantId ?? null
+        }))
+      },
+      orderBy: { createdAt: 'desc' },
+      take: filteredStocks.length * 5
+    })
 
-        return {
-          ...stock,
-          recentMovements
-        }
-      })
-    )
+    // Group movements by product/variant key, keeping at most 5 per stock
+    const movementMap = new Map<string, typeof allRecentMovements>()
+    for (const m of allRecentMovements) {
+      const key = `${m.productId}-${m.variantId ?? 'null'}`
+      if (!movementMap.has(key)) movementMap.set(key, [])
+      const list = movementMap.get(key)!
+      if (list.length < 5) list.push(m)
+    }
+
+    const stocksWithMovements = filteredStocks.map(stock => {
+      const key = `${stock.productId}-${stock.variantId ?? 'null'}`
+      return {
+        ...stock,
+        recentMovements: movementMap.get(key) || []
+      }
+    })
 
     return paginatedResponse(stocksWithMovements, type === 'low-stock' ? filteredStocks.length : total, page, limit)
   } catch (error) {
@@ -107,8 +114,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('INVENTORY_ADJUST', 'ADJUST')
+    if (error) return error
 
     const body = await request.json()
     const {

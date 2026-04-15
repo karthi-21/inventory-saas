@@ -16,6 +16,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Store,
   Receipt,
   Bell,
@@ -25,6 +33,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase/client'
 
 interface TenantSettings {
   id: string
@@ -95,6 +104,13 @@ export default function SettingsPage() {
     lowStockAlertDays: '7',
     expiryAlertDays: '7',
   })
+
+  const [passwordForm, setPasswordForm] = useState({
+    newPassword: '',
+    confirmPassword: '',
+  })
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
+  const [isChangingPassword, setIsChangingPassword] = useState(false)
 
   // Populate forms when data loads
   useEffect(() => {
@@ -171,6 +187,39 @@ export default function SettingsPage() {
 
   const handleSaveBusiness = () => updateTenant.mutate(businessForm)
   const handleSaveSettings = () => updateSettings.mutate(settingsForm)
+
+  const handleChangePassword = async () => {
+    if (!passwordForm.newPassword) {
+      toast.error('Please enter a new password')
+      return
+    }
+    if (passwordForm.newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters')
+      return
+    }
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error('Passwords do not match')
+      return
+    }
+
+    setIsChangingPassword(true)
+    try {
+      const { error } = await supabase.auth.updateUser({
+        password: passwordForm.newPassword,
+      })
+      if (error) {
+        toast.error(error.message || 'Failed to change password')
+      } else {
+        toast.success('Password changed successfully')
+        setPasswordDialogOpen(false)
+        setPasswordForm({ newPassword: '', confirmPassword: '' })
+      }
+    } catch {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setIsChangingPassword(false)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -437,7 +486,9 @@ export default function SettingsPage() {
               <p className="font-medium">Team Members</p>
               <p className="text-sm text-muted-foreground">Manage users and permissions</p>
             </div>
-            <Button variant="outline" size="sm">Manage</Button>
+            <Button variant="outline" size="sm" onClick={() => window.location.href = '/dashboard/team'}>
+              Manage
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -457,15 +508,55 @@ export default function SettingsPage() {
               <p className="font-medium">Change Password</p>
               <p className="text-sm text-muted-foreground">Update your account password</p>
             </div>
-            <Button variant="outline" size="sm">Change</Button>
+            <Button variant="outline" size="sm" onClick={() => setPasswordDialogOpen(true)}>Change</Button>
           </div>
+
+          <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Change Password</DialogTitle>
+                <DialogDescription>Enter your new password below.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="new-password">New Password</Label>
+                  <Input
+                    id="new-password"
+                    type="password"
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    placeholder="At least 6 characters"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password">Confirm Password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    placeholder="Re-enter your new password"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleChangePassword} disabled={isChangingPassword} className="gap-2">
+                  {isChangingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Change Password
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Separator />
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Two-Factor Authentication</p>
               <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
             </div>
-            <Button variant="outline" size="sm">Enable</Button>
+            <Button variant="outline" size="sm" onClick={() => toast.info('Two-factor authentication is coming soon')}>
+              Enable
+            </Button>
           </div>
         </CardContent>
       </Card>

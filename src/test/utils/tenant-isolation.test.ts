@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 // Test suite for tenant isolation logic
 describe('Tenant Isolation', () => {
@@ -11,9 +11,8 @@ describe('Tenant Isolation', () => {
         sub: mockUserId,
         tenant_id: mockTenantId,
         email: 'test@example.com',
-      }
+      } as Record<string, unknown>
 
-      // Simulate RLS policy check
       const extractedTenantId = mockJWT.tenant_id
       expect(extractedTenantId).toBe(mockTenantId)
     })
@@ -22,7 +21,7 @@ describe('Tenant Isolation', () => {
       const mockJWTWithoutTenant = {
         sub: mockUserId,
         email: 'test@example.com',
-      }
+      } as Record<string, unknown>
 
       const hasTenantContext = !!mockJWTWithoutTenant.tenant_id
       expect(hasTenantContext).toBe(false)
@@ -48,12 +47,11 @@ describe('Tenant Isolation', () => {
   describe('Multi-tenant Query Patterns', () => {
     it('should scope all queries by tenant', () => {
       const baseQuery = { tenantId: mockTenantId }
-      
-      // Simulate adding filters
+
       const queryWithFilters = {
         ...baseQuery,
         isActive: true,
-        createdAt: { gte: new Date('2024-01-01') }
+        createdAt: { gte: new Date('2024-01-01') },
       }
 
       expect(queryWithFilters.tenantId).toBe(mockTenantId)

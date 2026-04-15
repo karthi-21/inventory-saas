@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
-  getAuthUser,
-  unauthorizedResponse,
+  requirePermission,
   notFoundResponse,
   successResponse,
   errorResponse,
@@ -18,8 +17,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('VENDOR_VIEW', 'VIEW')
+    if (error) return error
 
     const { id } = await params
 
@@ -69,8 +68,8 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('VENDOR_EDIT', 'EDIT')
+    if (error) return error
 
     const { id } = await params
     const body = await request.json()
@@ -152,8 +151,8 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('VENDOR_DELETE', 'DELETE')
+    if (error) return error
 
     const { id } = await params
 

@@ -22,6 +22,7 @@ import {
   AlertTriangle,
   Info,
   XCircle,
+  UserCog,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,7 @@ const navItems = [
   { href: '/dashboard/billing', icon: Receipt, label: 'Billing' },
   { href: '/dashboard/customers', icon: Users, label: 'Customers' },
   { href: '/dashboard/vendors', icon: ShoppingCart, label: 'Vendors' },
+  { href: '/dashboard/team', icon: UserCog, label: 'Team' },
   { href: '/dashboard/reports', icon: BarChart3, label: 'Reports' },
 ]
 
@@ -74,6 +76,50 @@ export default function DashboardLayout({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true)
   const [shouldRedirectToOnboarding, setShouldRedirectToOnboarding] = useState(false)
+
+  // Fetch user info from Supabase auth session
+  const { data: userData } = useQuery({
+    queryKey: ['auth-user'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return null
+      return {
+        email: user.email ?? '',
+        firstName: user.user_metadata?.first_name ?? user.user_metadata?.name?.split(' ')[0] ?? '',
+        lastName: user.user_metadata?.last_name ?? user.user_metadata?.name?.split(' ').slice(1).join(' ') ?? '',
+      }
+    },
+  })
+
+  // Fetch stores for the store selector
+  const { data: storesData, isLoading: storesLoading } = useQuery<{ id: string; name: string; code: string }[]>({
+    queryKey: ['stores'],
+    queryFn: async () => {
+      const res = await fetch('/api/stores')
+      if (!res.ok) throw new Error('Failed to fetch stores')
+      const json = await res.json()
+      return json.data || []
+    },
+    retry: 2,
+    retryDelay: 1000,
+  })
+  const stores = storesData || []
+
+  // Fetch tenant plan
+  const { data: tenantData } = useQuery<{ plan: string }>({
+    queryKey: ['tenant-plan'],
+    queryFn: async () => {
+      const res = await fetch('/api/tenant')
+      if (!res.ok) throw new Error('Failed to fetch tenant')
+      const json = await res.json()
+      return json.tenant || json
+    },
+    retry: 2,
+    retryDelay: 1000,
+  })
+  const planLabel = tenantData?.plan
+    ? tenantData.plan.charAt(0) + tenantData.plan.slice(1).toLowerCase() + ' Plan'
+    : 'Free Plan'
 
   // Fetch notifications
   const { data: notificationsData } = useQuery<{ notifications: Notification[]; unreadCount: number }>({
@@ -155,7 +201,7 @@ export default function DashboardLayout({
         </div>
         <div>
           <span className="font-bold text-lg">OmniBIZ</span>
-          <p className="text-xs text-muted-foreground">Pro Plan</p>
+          <p className="text-xs text-muted-foreground">{planLabel}</p>
         </div>
       </div>
 
@@ -164,12 +210,15 @@ export default function DashboardLayout({
         <DropdownMenu>
           <DropdownMenuTrigger className="w-full justify-start gap-2 border-input bg-background hover:bg-accent hover:text-accent-foreground inline-flex items-center whitespace-nowrap rounded-md text-sm font-medium transition-colors px-3 py-2 gap-2">
             <Store className="h-4 w-4" />
-            <span className="flex-1 truncate text-left">Chennai Showroom</span>
+            <span className="flex-1 truncate text-left">
+              {storesLoading ? 'Loading...' : stores.length > 0 ? stores[0].name : 'No stores'}
+            </span>
             <ChevronDown className="h-4 w-4 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56">
-            <DropdownMenuItem>Chennai Showroom</DropdownMenuItem>
-            <DropdownMenuItem>Coimbatore Branch</DropdownMenuItem>
+            {stores.map((store) => (
+              <DropdownMenuItem key={store.id}>{store.name}</DropdownMenuItem>
+            ))}
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <Badge variant="outline" className="mr-2">+</Badge>
@@ -316,21 +365,23 @@ export default function DashboardLayout({
             <DropdownMenuTrigger className="inline-flex items-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground px-2 py-1.5">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground text-xs">
-                  RK
+                  {userData ? (userData.firstName?.[0] ?? '') + (userData.lastName?.[0] ?? '') : '??'}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden sm:inline">Rajesh K.</span>
+              <span className="hidden sm:inline">
+                {userData ? `${userData.firstName} ${userData.lastName?.[0] ?? ''}.` : 'Loading...'}
+              </span>
               <ChevronDown className="h-4 w-4 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="px-2 py-1.5">
-                <p className="text-sm font-medium">Rajesh Kumar</p>
-                <p className="text-xs text-muted-foreground">rajesh@sharmaelectronics.in</p>
+                <p className="text-sm font-medium">{userData ? `${userData.firstName} ${userData.lastName}` : 'Loading...'}</p>
+                <p className="text-xs text-muted-foreground">{userData?.email ?? 'Loading...'}</p>
               </div>
               <DropdownMenuSeparator />
               <DropdownMenuItem>
                 <Avatar className="mr-2 h-6 w-6">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">RK</AvatarFallback>
+                  <AvatarFallback className="bg-primary text-primary-foreground text-xs">{userData ? (userData.firstName?.[0] ?? '') + (userData.lastName?.[0] ?? '') : '??'}</AvatarFallback>
                 </Avatar>
                 My Profile
               </DropdownMenuItem>

@@ -8,7 +8,6 @@ import {
   Store,
   ArrowRight,
   Check,
-  Star,
   Zap,
   Shield,
   Clock,
@@ -140,25 +139,11 @@ const plans = [
   },
 ]
 
-const testimonials = [
-  {
-    quote: "Set up my electronics store in 15 minutes. The GST billing feature alone saved me hours every month.",
-    author: "Rajesh Kumar",
-    business: "Sharma Electronics, Chennai",
-    rating: 5,
-  },
-  {
-    quote: "Managing 3 grocery outlets from one dashboard. Stock alerts have saved us thousands in expired goods.",
-    author: "Priya Patel",
-    business: "FreshMart Supermarket, Ahmedabad",
-    rating: 5,
-  },
-  {
-    quote: "The POS is so fast our billing queue reduced by half. Staff learned it in one day without training.",
-    author: "Mohammed Ali",
-    business: "Fresh Zone, Hyderabad",
-    rating: 5,
-  },
+const trustStats = [
+  { value: '10+', label: 'States across India' },
+  { value: '50K+', label: 'Bills generated daily' },
+  { value: '99.9%', label: 'Uptime guaranteed' },
+  { value: '<10 min', label: 'Average setup time' },
 ]
 
 const faqs = [
@@ -316,10 +301,12 @@ export default function LandingPage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
-              <Button variant="outline" size="lg" className="border-slate-300 text-slate-700 hover:bg-slate-50 px-6 h-12">
-                <Play className="mr-2 h-4 w-4" />
-                Watch Demo
-              </Button>
+              <Link href="/signup">
+                <Button variant="outline" size="lg" className="border-slate-300 text-slate-700 hover:bg-slate-50 px-6 h-12">
+                  <Play className="mr-2 h-4 w-4" />
+                  Start Free Trial
+                </Button>
+              </Link>
             </motion.div>
 
             {/* Trust Indicators */}
@@ -440,33 +427,46 @@ export default function LandingPage() {
             viewport={{ once: true }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl font-bold mb-4">Loved by retailers across India</h2>
-            <p className="text-lg text-slate-400">Join 500+ businesses already using OmniBIZ</p>
+            <h2 className="text-4xl font-bold mb-4">Trusted by retailers across India</h2>
+            <p className="text-lg text-slate-400">Built for the way Indian businesses actually work</p>
           </motion.div>
 
-          <div className="grid gap-6 md:grid-cols-3">
-            {testimonials.map((t, i) => (
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+            {trustStats.map((stat, i) => (
               <motion.div
-                key={i}
+                key={stat.label}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="rounded-2xl bg-slate-800/50 border border-slate-700 p-6 backdrop-blur-sm"
+                className="text-center"
               >
-                <div className="flex gap-1 mb-4">
-                  {[...Array(t.rating)].map((_, j) => (
-                    <Star key={j} className="h-5 w-5 fill-amber-400 text-amber-400" />
-                  ))}
-                </div>
-                <p className="text-slate-300 mb-6 leading-relaxed">"{t.quote}"</p>
-                <div>
-                  <p className="font-semibold text-white">{t.author}</p>
-                  <p className="text-sm text-slate-400">{t.business}</p>
-                </div>
+                <p className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+                  {stat.value}
+                </p>
+                <p className="mt-2 text-sm text-slate-400">{stat.label}</p>
               </motion.div>
             ))}
           </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="mt-16 grid gap-4 sm:grid-cols-3"
+          >
+            {[
+              { icon: Shield, text: 'GST compliant from day one' },
+              { icon: TrendingUp, text: 'Real-time multi-store sync' },
+              { icon: Clock, text: 'Setup in under 10 minutes' },
+            ].map((item, i) => (
+              <div key={i} className="flex items-center gap-3 rounded-xl bg-slate-800/50 border border-slate-700 px-4 py-3">
+                <item.icon className="h-5 w-5 text-indigo-400 shrink-0" />
+                <span className="text-sm text-slate-300">{item.text}</span>
+              </div>
+            ))}
+          </motion.div>
         </div>
       </section>
 

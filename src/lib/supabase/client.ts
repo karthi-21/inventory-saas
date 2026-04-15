@@ -15,10 +15,18 @@ export function getSupabaseClient(): SupabaseClient {
     return supabaseClient
   }
 
-  // During build-time, env vars may not be available yet
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('Supabase environment variables not found - using mock client')
+  // In production, missing env vars are a fatal misconfiguration
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error(
+      'Missing Supabase environment variables: NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be set.'
+    )
   }
+
+  // In development, return a mock client but warn loudly
+  console.error(
+    'WARNING: Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY) are missing. ' +
+    'Auth and database features will not work. Please set them in .env.local.'
+  )
   return {
     auth: {
       signOut: async () => ({ error: null }),

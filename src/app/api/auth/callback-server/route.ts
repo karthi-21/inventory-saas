@@ -20,53 +20,55 @@ export async function POST(request: NextRequest) {
       include: { tenant: { include: { subscriptions: true } } }
     })
 
-    // First time user - create minimal tenant and subscription for payment
+    // First time user - create tenant, user, and subscription in a transaction
     if (!dbUser) {
-      // Create tenant FIRST
       const subdomain = (user.user_metadata?.store_name || user.email?.split('@')[0] || 'store')
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')
         .slice(0, 50)
 
-      const tenant = await prisma.tenant.create({
-        data: {
-          name: user.user_metadata?.store_name || `${user.email?.split('@')[0]}'s Store`,
-          subdomain,
-        }
-      })
-
-      // Create user linked to tenant
-      dbUser = await prisma.user.create({
-        data: {
-          email: user.email,
-          phone: user.phone || null,
-          firstName: user.user_metadata?.first_name || user.user_metadata?.name?.split(' ')[0] || 'User',
-          lastName: user.user_metadata?.last_name || user.user_metadata?.name?.split(' ').slice(1).join(' ') || null,
-          isOwner: true,
-          isActive: true,
-          emailVerified: user.email_confirmed_at != null,
-          tenantId: tenant.id,
-        },
-        include: { tenant: { include: { subscriptions: true } } }
-      })
-
-      // Create trial subscription if not exists
-      const existingSub = await prisma.subscription.findFirst({
-        where: { tenantId: tenant.id }
-      })
-
-      if (!existingSub) {
-        await prisma.subscription.create({
+      dbUser = await prisma.$transaction(async (tx) => {
+        const tenant = await tx.tenant.create({
           data: {
-            tenantId: tenant.id,
-            plan: 'PRO',
-            status: 'TRIALING',
-            currentPeriodStart: new Date(),
-            currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            name: user.user_metadata?.store_name || `${user.email?.split('@')[0]}'s Store`,
+            subdomain,
           }
         })
-      }
+
+        const createdUser = await tx.user.create({
+          data: {
+            email: user.email,
+            phone: user.phone || null,
+            firstName: user.user_metadata?.first_name || user.user_metadata?.name?.split(' ')[0] || 'User',
+            lastName: user.user_metadata?.last_name || user.user_metadata?.name?.split(' ').slice(1).join(' ') || null,
+            isOwner: true,
+            isActive: true,
+            emailVerified: user.email_confirmed_at != null,
+            tenantId: tenant.id,
+          },
+          include: { tenant: { include: { subscriptions: true } } }
+        })
+
+        // Create trial subscription if not exists
+        const existingSub = await tx.subscription.findFirst({
+          where: { tenantId: tenant.id }
+        })
+
+        if (!existingSub) {
+          await tx.subscription.create({
+            data: {
+              tenantId: tenant.id,
+              plan: 'PRO',
+              status: 'TRIALING',
+              currentPeriodStart: new Date(),
+              currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            }
+          })
+        }
+
+        return createdUser
+      })
     }
 
     return NextResponse.json({ success: true, plan: plan || 'grow' })

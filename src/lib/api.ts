@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from './db'
 import { createServerSupabaseClient } from './supabase/server'
-import { Prisma } from '@prisma/client'
+import { Prisma, PermissionModule, PermissionAction } from '@prisma/client'
 
 /**
  * Get the current authenticated user and their tenant info
@@ -39,7 +39,7 @@ export async function getAuthUserWithAccess() {
     include: {
       tenant: true,
       storeAccess: { include: { store: true } },
-      userPersonas: { include: { persona: true } }
+      userPersonas: { include: { persona: { include: { permissions: true } } } }
     }
   })
 
@@ -209,15 +209,46 @@ export async function logActivity(params: {
  * Check if user has permission
  */
 export function hasPermission(
-  userPersonas: { persona: { permissions: { module: string; action: string }[] } }[],
-  module: string,
-  action: string
+  userPersonas: { persona: { permissions: { module: PermissionModule; action: PermissionAction }[] } }[],
+  module: PermissionModule,
+  action: PermissionAction
 ): boolean {
   return userPersonas.some(up =>
     up.persona.permissions.some(p =>
       p.module === module && p.action === action
     )
   )
+}
+
+/**
+ * Standard forbidden response
+ */
+export function forbiddenResponse(message = 'Forbidden: insufficient permissions') {
+  return NextResponse.json({ error: message }, { status: 403 })
+}
+
+/**
+ * Require permission for an API route.
+ * Owner users (isOwner: true) bypass all permission checks.
+ * Returns the authenticated user with access info, or an error response.
+ */
+export async function requirePermission(
+  module: PermissionModule,
+  action: PermissionAction
+): Promise<{ user: NonNullable<Awaited<ReturnType<typeof getAuthUserWithAccess>>>; error?: never } | { user?: never; error: NextResponse }> {
+  const user = await getAuthUserWithAccess()
+  if (!user) {
+    return { error: unauthorizedResponse() }
+  }
+  // Owner users bypass permission checks
+  if (user.isOwner) {
+    return { user }
+  }
+  // Check assigned permissions
+  if (!hasPermission(user.userPersonas, module, action)) {
+    return { error: forbiddenResponse() }
+  }
+  return { user }
 }
 
 /**

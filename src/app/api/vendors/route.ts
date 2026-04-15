@@ -1,8 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
-  getAuthUser,
-  unauthorizedResponse,
+  requirePermission,
   successResponse,
   createdResponse,
   errorResponse,
@@ -18,8 +17,8 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('VENDOR_VIEW', 'VIEW')
+    if (error) return error
 
     const { searchParams } = new URL(request.url)
     const { page, limit, skip } = getPagination(searchParams)
@@ -56,25 +55,32 @@ export async function GET(request: NextRequest) {
       prisma.vendor.count({ where })
     ])
 
-    // Calculate total purchases and outstanding
-    const vendorsWithStats = await Promise.all(
-      vendors.map(async (vendor) => {
-        const purchaseStats = await prisma.purchaseInvoice.aggregate({
-          where: { vendorId: vendor.id },
-          _sum: { totalAmount: true, amountPaid: true }
-        })
-
-        const totalPurchases = Number(purchaseStats._sum.totalAmount || 0)
-        const amountPaid = Number(purchaseStats._sum.amountPaid || 0)
-        const outstandingAmount = totalPurchases - amountPaid
-
-        return {
-          ...vendor,
-          totalPurchases,
-          outstandingAmount
+    // Calculate total purchases and outstanding with a single groupBy query (avoids N+1)
+    const vendorStats = await prisma.purchaseInvoice.groupBy({
+      by: ['vendorId'],
+      where: { vendorId: { in: vendors.map(v => v.id) } },
+      _sum: { totalAmount: true, amountPaid: true }
+    })
+    const statsByVendor = new Map(
+      vendorStats.map(s => [
+        s.vendorId,
+        {
+          total: Number(s._sum.totalAmount || 0),
+          paid: Number(s._sum.amountPaid || 0)
         }
-      })
+      ])
     )
+
+    const vendorsWithStats = vendors.map(vendor => {
+      const stats = statsByVendor.get(vendor.id)
+      const totalPurchases = stats?.total || 0
+      const amountPaid = stats?.paid || 0
+      return {
+        ...vendor,
+        totalPurchases,
+        outstandingAmount: totalPurchases - amountPaid
+      }
+    })
 
     return paginatedResponse(vendorsWithStats, total, page, limit)
   } catch (error) {
@@ -87,8 +93,8 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('VENDOR_CREATE', 'CREATE')
+    if (error) return error
 
     const body = await request.json()
     const {

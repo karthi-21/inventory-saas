@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
-import { getAuthUser, unauthorizedResponse, errorResponse, handlePrismaError } from '@/lib/api'
+import { requirePermission, errorResponse, handlePrismaError } from '@/lib/api'
 import { generateSKU } from '@/lib/api'
 
 interface CSVRow {
@@ -34,8 +34,8 @@ interface ImportResult {
  */
 export async function POST(request: NextRequest) {
   try {
-    const user = await getAuthUser()
-    if (!user) return unauthorizedResponse()
+    const { user, error } = await requirePermission('PRODUCT_CREATE', 'CREATE')
+    if (error) return error
 
     const body = await request.json()
     const { rows } = body as { rows: CSVRow[] }
