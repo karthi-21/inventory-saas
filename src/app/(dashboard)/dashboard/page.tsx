@@ -1,5 +1,10 @@
+'use client'
+
+import { useQuery } from '@tanstack/react-query'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   ArrowUpRight,
   ArrowDownRight,
@@ -10,61 +15,181 @@ import {
   IndianRupee,
   Users,
   AlertTriangle,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
+import Link from 'next/link'
+import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
 
-const stats = [
-  {
-    title: "Today's Sales",
-    value: '₹45,230',
-    change: '+12.5%',
-    changeType: 'up',
-    icon: IndianRupee,
-  },
-  {
-    title: 'Invoices',
-    value: '38',
-    change: '+8',
-    changeType: 'up',
-    icon: Receipt,
-  },
-  {
-    title: 'New Customers',
-    value: '12',
-    change: '+3',
-    changeType: 'up',
-    icon: Users,
-  },
-  {
-    title: 'Low Stock Items',
-    value: '7',
-    change: '-2',
-    changeType: 'down',
-    icon: AlertTriangle,
-  },
-]
+interface DashboardStats {
+  todaySales: number
+  todayInvoices: number
+  newCustomers: number
+  lowStockCount: number
+  pendingPayments: number
+}
 
-const recentSales = [
-  { id: 'INV-2026-001', customer: 'Walk-in Customer', amount: '₹2,450', time: '2 mins ago', items: 3 },
-  { id: 'INV-2026-002', customer: 'Priya Sharma', amount: '₹8,999', time: '15 mins ago', items: 1 },
-  { id: 'INV-2026-003', customer: 'Quick Mart', amount: '₹15,200', time: '32 mins ago', items: 12 },
-  { id: 'INV-2026-004', customer: 'Walk-in Customer', amount: '₹890', time: '45 mins ago', items: 2 },
-  { id: 'INV-2026-005', customer: 'Anil Reddy', amount: '₹32,500', time: '1 hour ago', items: 5 },
-]
+interface RecentSale {
+  id: string
+  invoiceNumber: string
+  customerName: string
+  totalAmount: number
+  createdAt: string
+  itemCount: number
+}
 
-const topItems = [
-  { name: 'Samsung 43" Smart TV', qty: 12, revenue: '₹2,16,000' },
-  { name: 'iPhone 15 Pro (256GB)', qty: 8, revenue: '₹7,99,920' },
-  { name: 'LG Front Load Washing Machine', qty: 6, revenue: '₹2,70,000' },
-  { name: 'Sony WH-1000XM5 Headphones', qty: 15, revenue: '₹2,24,850' },
-  { name: 'MacBook Air M3', qty: 4, revenue: '₹3,99,600' },
-]
+interface TopProduct {
+  name: string
+  quantity: number
+  revenue: number
+}
 
-const alerts = [
-  { type: 'warning', message: '4 items below reorder level', href: '/dashboard/inventory?filter=low-stock' },
-  { type: 'info', message: '2 invoices awaiting payment', href: '/dashboard/billing?status=pending' },
-]
+interface LowStockItem {
+  id: string
+  name: string
+  sku: string
+  quantity: number
+  reorderLevel: number
+}
 
 export default function DashboardPage() {
+  // Fetch dashboard stats
+  const { data: statsData, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>({
+    queryKey: ['dashboard-stats'],
+    queryFn: async () => {
+      const res = await fetch('/api/reports?type=sales-summary')
+      if (!res.ok) throw new Error('Failed to fetch stats')
+      const data = await res.json()
+      return {
+        todaySales: data.todayTotal || 0,
+        todayInvoices: data.todayCount || 0,
+        newCustomers: data.newCustomers || 0,
+        lowStockCount: data.lowStockCount || 0,
+        pendingPayments: data.pendingPayments || 0,
+      }
+    },
+  })
+
+  // Fetch recent sales
+  const { data: recentSales, isLoading: salesLoading } = useQuery<RecentSale[]>({
+    queryKey: ['recent-sales'],
+    queryFn: async () => {
+      const res = await fetch('/api/billing?limit=5')
+      if (!res.ok) throw new Error('Failed to fetch recent sales')
+      const data = await res.json()
+      return (data.data || []).map((inv: Record<string, unknown>) => ({
+        id: inv.id as string,
+        invoiceNumber: inv.invoiceNumber as string,
+        customerName: (inv.customer as Record<string, unknown>)?.firstName
+          ? `${(inv.customer as Record<string, unknown>).firstName}${(inv.customer as Record<string, unknown>).lastName ? ' ' + (inv.customer as Record<string, unknown>).lastName : ''}`
+          : 'Walk-in Customer',
+        totalAmount: Number(inv.totalAmount) || 0,
+        createdAt: inv.createdAt as string,
+        itemCount: ((inv.items as Array<unknown>) || []).length,
+      }))
+    },
+  })
+
+  // Fetch low stock items
+  const { data: lowStockItems, isLoading: lowStockLoading } = useQuery<LowStockItem[]>({
+    queryKey: ['low-stock-alerts'],
+    queryFn: async () => {
+      const res = await fetch('/api/inventory?lowStock=true&limit=5')
+      if (!res.ok) throw new Error('Failed to fetch low stock')
+      const data = await res.json()
+      return (data.stocks || []).map((item: Record<string, unknown>) => ({
+        id: item.id as string,
+        name: (item.product as Record<string, unknown>)?.name as string || 'Unknown',
+        sku: (item.product as Record<string, unknown>)?.sku as string || '',
+        quantity: Number(item.quantity) || 0,
+        reorderLevel: Number((item.product as Record<string, unknown>)?.reorderLevel) || 10,
+      }))
+    },
+  })
+
+  // Fetch top products
+  const { data: topProducts, isLoading: topLoading } = useQuery<TopProduct[]>({
+    queryKey: ['top-products'],
+    queryFn: async () => {
+      const res = await fetch('/api/reports?type=sales-by-product&limit=5')
+      if (!res.ok) throw new Error('Failed to fetch top products')
+      const data = await res.json()
+      return (data.products || []).map((p: Record<string, unknown>) => ({
+        name: p.name as string,
+        quantity: Number(p.totalQty) || 0,
+        revenue: Number(p.totalRevenue) || 0,
+      }))
+    },
+  })
+
+  // Fetch stores for store name
+  const { data: stores } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['stores'],
+    queryFn: async () => {
+      const res = await fetch('/api/stores')
+      if (!res.ok) throw new Error('Failed to fetch stores')
+      const data = await res.json()
+      return data.data || []
+    },
+  })
+
+  const stats = [
+    {
+      title: "Today's Sales",
+      value: statsData ? `₹${statsData.todaySales.toLocaleString('en-IN')}` : '₹0',
+      change: '+12.5%',
+      changeType: 'up' as const,
+      icon: IndianRupee,
+      loading: statsLoading,
+    },
+    {
+      title: 'Invoices',
+      value: statsData?.todayInvoices?.toString() || '0',
+      change: '+8',
+      changeType: 'up' as const,
+      icon: Receipt,
+      loading: statsLoading,
+    },
+    {
+      title: 'New Customers',
+      value: statsData?.newCustomers?.toString() || '0',
+      change: '+3',
+      changeType: 'up' as const,
+      icon: Users,
+      loading: statsLoading,
+    },
+    {
+      title: 'Low Stock Items',
+      value: statsData?.lowStockCount?.toString() || '0',
+      change: '-2',
+      changeType: 'down' as const,
+      icon: AlertTriangle,
+      loading: statsLoading,
+    },
+  ]
+
+  // Client-side only date to avoid hydration mismatch
+  const [dateStr, setDateStr] = useState('')
+  useEffect(() => {
+    const today = new Date()
+    setDateStr(today.toLocaleDateString('en-IN', {
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    }))
+  }, [])
+
+  if (statsError) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <AlertCircle className="h-12 w-12 text-red-500" />
+        <p className="text-red-500">Failed to load dashboard data</p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -72,59 +197,86 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Saturday, 4 April 2026 • Chennai Showroom
+            {dateStr} • {stores?.[0]?.name || 'Your Store'}
           </p>
         </div>
         <div className="flex gap-2">
-          <Badge variant="outline">This Month</Badge>
-          <Badge variant="outline">Last Month</Badge>
+          <Link href="/dashboard/billing/new">
+            <Button>
+              <Receipt className="h-4 w-4 mr-2" />
+              New Sale
+            </Button>
+          </Link>
         </div>
       </div>
 
       {/* Alerts */}
-      {alerts.length > 0 && (
+      {lowStockItems && lowStockItems.length > 0 && (
         <div className="space-y-2">
-          {alerts.map((alert, i) => (
-            <Card key={i} className={`border-l-4 ${
-              alert.type === 'warning' ? 'border-l-yellow-500 bg-yellow-50 dark:bg-yellow-950/20' : 'border-l-blue-500 bg-blue-50 dark:bg-blue-950/20'
-            }`}>
+          <Link href="/dashboard/inventory?tab=low">
+            <Card className="border-l-4 border-l-yellow-500 bg-yellow-50 dark:bg-yellow-950/20 cursor-pointer hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-3 p-3">
-                <AlertTriangle className={`h-4 w-4 ${
-                  alert.type === 'warning' ? 'text-yellow-600' : 'text-blue-600'
-                }`} />
-                <span className="text-sm">{alert.message}</span>
+                <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                <span className="text-sm">{lowStockItems.length} items below reorder level</span>
               </CardContent>
             </Card>
-          ))}
+          </Link>
+          {statsData && statsData.pendingPayments > 0 && (
+            <Link href="/dashboard/billing?status=pending">
+              <Card className="border-l-4 border-l-blue-500 bg-blue-50 dark:bg-blue-950/20 cursor-pointer hover:shadow-md transition-shadow">
+                <CardContent className="flex items-center gap-3 p-3">
+                  <IndianRupee className="h-4 w-4 text-blue-600" />
+                  <span className="text-sm">{statsData.pendingPayments} invoices awaiting payment</span>
+                </CardContent>
+              </Card>
+            </Link>
+          )}
         </div>
       )}
 
       {/* Stats Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <Card key={stat.title}>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                {stat.title}
-              </CardTitle>
-              <stat.icon className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                {stat.changeType === 'up' ? (
-                  <ArrowUpRight className="h-3 w-3 text-green-600" />
-                ) : (
-                  <ArrowDownRight className="h-3 w-3 text-red-600" />
-                )}
-                <span className={stat.changeType === 'up' ? 'text-green-600' : 'text-red-600'}>
-                  {stat.change}
-                </span>{' '}
-                vs yesterday
-              </p>
-            </CardContent>
-          </Card>
-        ))}
+        {statsLoading ? (
+          <>
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i}>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-4 w-4 rounded-full" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-8 w-20 mb-1" />
+                  <Skeleton className="h-3 w-16" />
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : (
+          stats.map((stat) => (
+            <Card key={stat.title}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  {stat.title}
+                </CardTitle>
+                <stat.icon className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stat.value}</div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {stat.changeType === 'up' ? (
+                    <ArrowUpRight className="h-3 w-3 text-green-600" />
+                  ) : (
+                    <ArrowDownRight className="h-3 w-3 text-red-600" />
+                  )}
+                  <span className={stat.changeType === 'up' ? 'text-green-600' : 'text-red-600'}>
+                    {stat.change}
+                  </span>{' '}
+                  vs yesterday
+                </p>
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {/* Main Content Grid */}
@@ -138,35 +290,72 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentSales.map((sale) => (
-                <div
-                  key={sale.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                      <Receipt className="h-5 w-5 text-primary" />
+            {salesLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="flex items-center justify-between rounded-lg border p-3">
+                    <div className="flex items-center gap-3">
+                      <Skeleton className="h-10 w-10 rounded-full" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-24" />
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{sale.id}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {sale.customer} • {sale.items} items
+                    <div className="text-right space-y-2">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-3 w-12" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : recentSales && recentSales.length > 0 ? (
+              <div className="space-y-4">
+                {recentSales.map((sale) => (
+                  <Link
+                    key={sale.id}
+                    href={`/dashboard/billing?id=${sale.id}`}
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                        <Receipt className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium">{sale.invoiceNumber}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {sale.customerName} • {sale.itemCount} items
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-medium">₹{sale.totalAmount.toLocaleString('en-IN')}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(sale.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium">{sale.amount}</p>
-                    <p className="text-xs text-muted-foreground">{sale.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-4">
-              <a href="/dashboard/billing" className="text-sm text-primary hover:underline">
-                View all invoices →
-              </a>
-            </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <Receipt className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-lg font-medium">No sales today</p>
+                <p className="text-sm text-muted-foreground mb-4">Start your first sale</p>
+                <Link href="/dashboard/billing/new">
+                  <Button size="sm">
+                    <Receipt className="h-4 w-4 mr-2" />
+                    New Sale
+                  </Button>
+                </Link>
+              </div>
+            )}
+            {recentSales && recentSales.length > 0 && (
+              <div className="mt-4">
+                <Link href="/dashboard/billing" className="text-sm text-primary hover:underline">
+                  View all invoices →
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -179,27 +368,108 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {topItems.map((item, i) => (
-                <div key={item.name} className="flex items-center gap-3">
-                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium">
-                    {i + 1}
-                  </span>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{item.name}</p>
-                    <p className="text-xs text-muted-foreground">{item.qty} sold</p>
+            {topLoading ? (
+              <div className="space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <Skeleton className="h-6 w-6 rounded-full" />
+                    <div className="flex-1 space-y-1">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-3 w-12" />
+                    </div>
+                    <Skeleton className="h-4 w-16" />
                   </div>
-                  <p className="text-sm font-medium text-green-600">{item.revenue}</p>
+                ))}
+              </div>
+            ) : topProducts && topProducts.length > 0 ? (
+              <div className="space-y-4">
+                {topProducts.map((item, i) => (
+                  <div key={item.name} className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-muted text-xs font-medium">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{item.name}</p>
+                      <p className="text-xs text-muted-foreground">{item.quantity} sold</p>
+                    </div>
+                    <p className="text-sm font-medium text-green-600">₹{item.revenue.toLocaleString('en-IN')}</p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <TrendingUp className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                <p className="text-sm text-muted-foreground">No sales data yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Low Stock Alert */}
+      {lowStockLoading ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Skeleton className="h-5 w-5 rounded" />
+                <Skeleton className="h-5 w-32" />
+              </CardTitle>
+              <Skeleton className="h-8 w-20" />
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between rounded-lg border p-3">
+                  <div className="space-y-1">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <div className="text-right space-y-1">
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
-      </div>
+      ) : lowStockItems && lowStockItems.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                Low Stock Alerts
+              </CardTitle>
+              <Link href="/dashboard/inventory?tab=low">
+                <Button variant="outline" size="sm">View All</Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {lowStockItems.slice(0, 5).map((item) => (
+                <div key={item.id} className="flex items-center justify-between rounded-lg border p-3">
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-xs text-muted-foreground">{item.sku}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-red-600">{item.quantity} left</p>
+                    <p className="text-xs text-muted-foreground">Reorder: {item.reorderLevel}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {/* Quick Actions */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <a
+        <Link
           href="/dashboard/billing/new"
           className="flex items-center gap-4 rounded-lg border bg-white p-4 transition-shadow hover:shadow-md dark:bg-card"
         >
@@ -210,8 +480,8 @@ export default function DashboardPage() {
             <p className="font-medium">New Sale</p>
             <p className="text-sm text-muted-foreground">Start billing</p>
           </div>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/dashboard/inventory"
           className="flex items-center gap-4 rounded-lg border bg-white p-4 transition-shadow hover:shadow-md dark:bg-card"
         >
@@ -222,8 +492,8 @@ export default function DashboardPage() {
             <p className="font-medium">Add Stock</p>
             <p className="text-sm text-muted-foreground">Purchase entry</p>
           </div>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/dashboard/customers"
           className="flex items-center gap-4 rounded-lg border bg-white p-4 transition-shadow hover:shadow-md dark:bg-card"
         >
@@ -234,8 +504,8 @@ export default function DashboardPage() {
             <p className="font-medium">Add Customer</p>
             <p className="text-sm text-muted-foreground">New registration</p>
           </div>
-        </a>
-        <a
+        </Link>
+        <Link
           href="/dashboard/reports"
           className="flex items-center gap-4 rounded-lg border bg-white p-4 transition-shadow hover:shadow-md dark:bg-card"
         >
@@ -246,7 +516,7 @@ export default function DashboardPage() {
             <p className="font-medium">Reports</p>
             <p className="text-sm text-muted-foreground">View analytics</p>
           </div>
-        </a>
+        </Link>
       </div>
     </div>
   )

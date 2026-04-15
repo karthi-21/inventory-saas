@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { StoreType } from '@/types'
+import { supabase } from '@/lib/supabase/client'
 
 const storeTypes: { value: StoreType; label: string; description: string }[] = [
   { value: 'ELECTRONICS', label: 'Electronics', description: 'Serial & warranty tracking' },
@@ -62,6 +63,39 @@ export default function OnboardingPage() {
   const [selectedStoreType, setSelectedStoreType] = useState<StoreType | null>(null)
   const [selectedPersonas, setSelectedPersonas] = useState<string[]>([])
   const [selectedState, setSelectedState] = useState('')
+  const [isChecking, setIsChecking] = useState(true)
+  const [hasExistingStore, setHasExistingStore] = useState(false)
+
+  // Check if user already has a store set up
+  useEffect(() => {
+    const checkExistingStore = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          router.push('/login')
+          return
+        }
+
+        // Check if user has a tenant with stores already
+        const res = await fetch('/api/onboarding/status')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.hasExistingStore) {
+            setHasExistingStore(true)
+            // Redirect to dashboard after a short delay
+            setTimeout(() => {
+              router.push('/dashboard')
+            }, 2000)
+          }
+        }
+      } catch (e) {
+        console.error('Error checking existing store:', e)
+      } finally {
+        setIsChecking(false)
+      }
+    }
+    checkExistingStore()
+  }, [router])
 
   // Form data
   const [formData, setFormData] = useState({
@@ -515,6 +549,37 @@ export default function OnboardingPage() {
       default:
         return null
     }
+  }
+
+  // Show loading while checking for existing store
+  if (isChecking) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
+        <Card>
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Show message if already has a store
+  if (hasExistingStore) {
+    return (
+      <div className="min-h-screen bg-muted/30 flex items-center justify-center p-4">
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle>Store Already Set Up</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <p className="text-muted-foreground mb-4">You have already completed store setup.</p>
+            <p className="text-sm text-muted-foreground">Redirecting to dashboard...</p>
+            <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mt-4" />
+          </CardContent>
+        </Card>
+      </div>
+    )
   }
 
   return (

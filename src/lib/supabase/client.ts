@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 let supabaseClient: SupabaseClient | null = null
 
@@ -8,7 +9,8 @@ export function getSupabaseClient(): SupabaseClient {
 
   if (supabaseUrl && supabaseAnonKey) {
     if (!supabaseClient) {
-      supabaseClient = createClient(supabaseUrl, supabaseAnonKey)
+      // Use createBrowserClient from @supabase/ssr for proper cookie sync
+      supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
     }
     return supabaseClient
   }
@@ -21,6 +23,9 @@ export function getSupabaseClient(): SupabaseClient {
     auth: {
       signOut: async () => ({ error: null }),
       getUser: async () => ({ data: { user: null }, error: null }),
+      getSession: async () => ({ data: { session: null }, error: null }),
+      exchangeCodeForSession: async () => ({ data: { session: null, user: null }, error: null }),
+      refreshSession: async () => ({ data: { session: null, user: null }, error: null }),
     },
   } as unknown as SupabaseClient
 }

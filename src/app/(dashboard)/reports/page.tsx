@@ -1,5 +1,7 @@
 'use client'
 
+import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,35 +32,201 @@ import {
   ShoppingCart,
   Receipt,
   FileText,
+  Users,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
-import { useState } from 'react'
+import { toast } from 'sonner'
+
+interface Store {
+  id: string
+  name: string
+}
+
+interface DailySales {
+  date: string
+  invoices: number
+  revenue: number
+  paid: number
+  due: number
+  gst: number
+}
+
+interface GstSummary {
+  hsnCode: string
+  taxableAmount: number
+  cgst: number
+  sgst: number
+  igst: number
+  totalGst: number
+  totalAmount: number
+  quantity: number
+}
+
+interface StockReport {
+  productId: string
+  productName: string
+  sku: string
+  variant?: string
+  store: string
+  location?: string
+  quantity: number
+  reorderLevel: number
+  isLowStock: boolean
+}
 
 const reportTypes = [
-  { id: 'sales', label: 'Sales Report', icon: TrendingUp, description: 'Daily, weekly, monthly sales by store' },
-  { id: 'gst', label: 'GST Summary', icon: FileText, description: 'HSN-wise GST breakdown for filing' },
-  { id: 'inventory', label: 'Inventory Report', icon: Package, description: 'Current stock levels across locations' },
-  { id: 'stock-movement', label: 'Stock Movement', icon: ShoppingCart, description: 'In/out/adjustment history' },
-]
-
-const mockSalesData = [
-  { date: '2026-04-04', invoices: 38, sales: 45230, gst: 6800, customers: 12 },
-  { date: '2026-04-03', invoices: 42, sales: 67890, gst: 10200, customers: 18 },
-  { date: '2026-04-02', invoices: 35, sales: 38900, gst: 5800, customers: 10 },
-  { date: '2026-04-01', invoices: 40, sales: 52100, gst: 7800, customers: 15 },
-  { date: '2026-03-31', invoices: 45, sales: 71200, gst: 10700, customers: 20 },
-]
-
-const mockGstData = [
-  { hsn: '8415', description: 'Air Conditioning Machines', taxableAmount: 120000, cgst: 10800, sgst: 10800, igst: 0, qty: 8 },
-  { hsn: '8528', description: 'TV Monitors', taxableAmount: 80000, cgst: 7200, sgst: 7200, igst: 0, qty: 12 },
-  { hsn: '8517', description: 'Telephones', taxableAmount: 240000, cgst: 21600, sgst: 21600, igst: 0, qty: 20 },
-  { hsn: 'N/A', description: 'Exempt Items', taxableAmount: 5000, cgst: 0, sgst: 0, igst: 0, qty: 50 },
+  { id: 'sales', label: 'Sales Report', icon: TrendingUp, description: 'Daily, weekly, monthly sales' },
+  { id: 'gst', label: 'GST Summary', icon: FileText, description: 'HSN-wise GST breakdown' },
+  { id: 'inventory', label: 'Inventory', icon: Package, description: 'Current stock levels' },
+  { id: 'outstanding', label: 'Outstanding', icon: Users, description: 'Customer credit balance' },
 ]
 
 export default function ReportsPage() {
   const [reportType, setReportType] = useState('sales')
   const [storeFilter, setStoreFilter] = useState('all')
   const [dateRange, setDateRange] = useState('7days')
+  const [customFromDate, setCustomFromDate] = useState('')
+  const [customToDate, setCustomToDate] = useState('')
+
+  // Fetch stores for filter
+  const { data: stores } = useQuery<{ data: Store[] }>({
+    queryKey: ['stores'],
+    queryFn: async () => {
+      const res = await fetch('/api/stores')
+      if (!res.ok) throw new Error('Failed to fetch stores')
+      return res.json()
+    },
+  })
+
+  // Calculate date range
+  const getDateRange = () => {
+    const now = new Date()
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    let from: Date
+    let to: Date = today
+
+    switch (dateRange) {
+      case 'today':
+        from = today
+        break
+      case '7days':
+        from = new Date(today)
+        from.setDate(from.getDate() - 7)
+        break
+      case '30days':
+        from = new Date(today)
+        from.setDate(from.getDate() - 30)
+        break
+      case 'thisMonth':
+        from = new Date(today.getFullYear(), today.getMonth(), 1)
+        break
+      case 'lastMonth':
+        from = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+        to = new Date(today.getFullYear(), today.getMonth(), 0)
+        break
+      case 'custom':
+        from = customFromDate ? new Date(customFromDate) : new Date(today)
+        to = customToDate ? new Date(customToDate) : today
+        break
+      default:
+        from = new Date(today)
+        from.setDate(from.getDate() - 7)
+    }
+
+    return { from: from.toISOString(), to: to.toISOString() }
+  }
+
+  const dateRangeParams = dateRange === 'custom' && customFromDate && customToDate
+    ? `&from=${customFromDate}&to=${customToDate}`
+    : ''
+
+  // Fetch sales report
+  const { data: salesData, isLoading: salesLoading, error: salesError } = useQuery<{
+    dailySales: DailySales[]
+    totals: { revenue: number; paid: number; due: number; gst: number }
+  }>({
+    queryKey: ['reports', 'sales', storeFilter, dateRange, customFromDate, customToDate],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      params.set('type', 'daily-sales')
+      if (storeFilter !== 'all') params.set('storeId', storeFilter)
+      const { from, to } = getDateRange()
+      params.set('from', from)
+      params.set('to', to)
+      const res = await fetch(`/api/reports?${params}`)
+      if (!res.ok) throw new Error('Failed to fetch sales report')
+      return res.json()
+    },
+    enabled: reportType === 'sales',
+  })
+
+  // Fetch GST report
+  const { data: gstData, isLoading: gstLoading } = useQuery<{
+    summary: GstSummary[]
+    totals: { taxableAmount: number; cgst: number; sgst: number; igst: number; totalGst: number; totalAmount: number }
+  }>({
+    queryKey: ['reports', 'gst', storeFilter, dateRange, customFromDate, customToDate],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      params.set('type', 'gst-summary')
+      if (storeFilter !== 'all') params.set('storeId', storeFilter)
+      const { from, to } = getDateRange()
+      params.set('from', from)
+      params.set('to', to)
+      const res = await fetch(`/api/reports?${params}`)
+      if (!res.ok) throw new Error('Failed to fetch GST report')
+      return res.json()
+    },
+    enabled: reportType === 'gst',
+  })
+
+  // Fetch inventory report
+  const { data: inventoryData, isLoading: inventoryLoading } = useQuery<{
+    totalProducts: number
+    stockValue: number
+    lowStockCount: number
+    outOfStockCount: number
+    stocks: StockReport[]
+  }>({
+    queryKey: ['reports', 'inventory', storeFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      params.set('type', 'stock-report')
+      if (storeFilter !== 'all') params.set('storeId', storeFilter)
+      const res = await fetch(`/api/reports?${params}`)
+      if (!res.ok) throw new Error('Failed to fetch inventory report')
+      return res.json()
+    },
+    enabled: reportType === 'inventory',
+  })
+
+  // Fetch outstanding report
+  const { data: outstandingData, isLoading: outstandingLoading } = useQuery<{
+    customers: Array<{
+      id: string
+      firstName: string
+      lastName?: string
+      phone: string
+      totalDue: number
+      totalPurchases: number
+    }>
+    totalOutstanding: number
+  }>({
+    queryKey: ['reports', 'outstanding'],
+    queryFn: async () => {
+      const res = await fetch('/api/reports?type=customer-outstanding')
+      if (!res.ok) throw new Error('Failed to fetch outstanding report')
+      return res.json()
+    },
+    enabled: reportType === 'outstanding',
+  })
+
+  const handleExport = async (format: 'csv' | 'excel') => {
+    toast.info(`${format.toUpperCase()} export coming soon!`)
+  }
+
+  const isLoading = salesLoading || gstLoading || inventoryLoading || outstandingLoading
 
   return (
     <div className="space-y-6">
@@ -67,10 +235,16 @@ export default function ReportsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
           <p className="text-sm text-muted-foreground">Business intelligence and exportable reports</p>
         </div>
-        <Button className="gap-2">
-          <Download className="h-4 w-4" />
-          Export
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleExport('csv')} className="gap-1">
+            <Download className="h-3.5 w-3.5" />
+            CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleExport('excel')} className="gap-1">
+            <Download className="h-3.5 w-3.5" />
+            Excel
+          </Button>
+        </div>
       </div>
 
       {/* Report Type Selector */}
@@ -105,12 +279,13 @@ export default function ReportsPage() {
             <Label className="text-xs text-muted-foreground">Store</Label>
             <Select value={storeFilter} onValueChange={(v) => v && setStoreFilter(v)}>
               <SelectTrigger className="w-48">
-                <SelectValue />
+                <SelectValue placeholder="All Stores" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Stores</SelectItem>
-                <SelectItem value="chennai">Chennai Showroom</SelectItem>
-                <SelectItem value="coimbatore">Coimbatore Branch</SelectItem>
+                {stores?.data?.map((store) => (
+                  <SelectItem key={store.id} value={store.id}>{store.name}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -130,139 +305,398 @@ export default function ReportsPage() {
               </SelectContent>
             </Select>
           </div>
-          <div className="ml-auto flex gap-2">
-            <Button variant="outline" size="sm" className="gap-1">
-              <Download className="h-3.5 w-3.5" />
-              CSV
-            </Button>
-            <Button variant="outline" size="sm" className="gap-1">
-              <Download className="h-3.5 w-3.5" />
-              Excel
-            </Button>
-          </div>
+          {dateRange === 'custom' && (
+            <>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">From</Label>
+                <Input
+                  type="date"
+                  value={customFromDate}
+                  onChange={(e) => setCustomFromDate(e.target.value)}
+                  className="w-36"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">To</Label>
+                <Input
+                  type="date"
+                  value={customToDate}
+                  onChange={(e) => setCustomToDate(e.target.value)}
+                  className="w-36"
+                />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* Report Content */}
+      {/* Sales Report */}
       {reportType === 'sales' && (
         <div className="space-y-6">
-          {/* Summary */}
-          <div className="grid gap-4 sm:grid-cols-4">
-            <Card>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <IndianRupee className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Sales</p>
-                  <p className="text-xl font-bold">₹2,75,320</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-                  <Receipt className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Invoices</p>
-                  <p className="text-xl font-bold">200</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
-                  <ShoppingCart className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">GST Collected</p>
-                  <p className="text-xl font-bold">₹41,300</p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
-                  <TrendingUp className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Avg Order</p>
-                  <p className="text-xl font-bold">₹1,376</p>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : salesError ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <AlertCircle className="h-12 w-12 text-red-500" />
+              <p className="text-muted-foreground">Failed to load sales data</p>
+              <Button variant="outline" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+          ) : salesData ? (
+            <>
+              {/* Summary */}
+              <div className="grid gap-4 sm:grid-cols-4">
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <IndianRupee className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Revenue</p>
+                      <p className="text-xl font-bold">₹{(salesData.totals?.revenue || 0).toLocaleString('en-IN')}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                      <Receipt className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Invoices</p>
+                      <p className="text-xl font-bold">{salesData.dailySales?.reduce((sum, d) => sum + d.invoices, 0) || 0}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                      <ShoppingCart className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">GST Collected</p>
+                      <p className="text-xl font-bold">₹{(salesData.totals?.gst || 0).toLocaleString('en-IN')}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+                      <TrendingUp className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Avg Order Value</p>
+                      <p className="text-xl font-bold">
+                        ₹{salesData.dailySales?.length > 0
+                          ? Math.round(salesData.totals.revenue / salesData.dailySales.reduce((sum, d) => sum + d.invoices, 0)).toLocaleString('en-IN')
+                          : '0'}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
-          {/* Sales Table */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Daily Sales</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Invoices</TableHead>
-                    <TableHead className="text-right">Sales (₹)</TableHead>
-                    <TableHead className="text-right">GST (₹)</TableHead>
-                    <TableHead className="text-right">Customers</TableHead>
-                    <TableHead className="text-right">Avg Order</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockSalesData.map((row) => (
-                    <TableRow key={row.date}>
-                      <TableCell>{row.date}</TableCell>
-                      <TableCell className="text-right">{row.invoices}</TableCell>
-                      <TableCell className="text-right font-medium">₹{row.sales.toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right text-muted-foreground">₹{row.gst.toLocaleString('en-IN')}</TableCell>
-                      <TableCell className="text-right">{row.customers}</TableCell>
-                      <TableCell className="text-right">₹{Math.round(row.sales / row.invoices).toLocaleString('en-IN')}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+              {/* Sales Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Daily Sales</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {salesData.dailySales?.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <BarChart3 className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="text-muted-foreground">No sales data for this period</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date</TableHead>
+                          <TableHead className="text-right">Invoices</TableHead>
+                          <TableHead className="text-right">Revenue</TableHead>
+                          <TableHead className="text-right">GST</TableHead>
+                          <TableHead className="text-right">Paid</TableHead>
+                          <TableHead className="text-right">Due</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {salesData.dailySales?.map((row) => (
+                          <TableRow key={row.date}>
+                            <TableCell className="font-medium">
+                              {new Date(row.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                            </TableCell>
+                            <TableCell className="text-right">{row.invoices}</TableCell>
+                            <TableCell className="text-right font-medium">₹{row.revenue.toLocaleString('en-IN')}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">₹{row.gst.toLocaleString('en-IN')}</TableCell>
+                            <TableCell className="text-right text-green-600">₹{row.paid.toLocaleString('en-IN')}</TableCell>
+                            <TableCell className="text-right text-orange-600">₹{row.due.toLocaleString('en-IN')}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
         </div>
       )}
 
+      {/* GST Report */}
       {reportType === 'gst' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">HSN-wise GST Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>HSN Code</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead className="text-right">Taxable Amount</TableHead>
-                  <TableHead className="text-right">CGST</TableHead>
-                  <TableHead className="text-right">SGST</TableHead>
-                  <TableHead className="text-right">Total GST</TableHead>
-                  <TableHead className="text-right">Qty</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mockGstData.map((row) => (
-                  <TableRow key={row.hsn}>
-                    <TableCell className="font-mono text-sm">{row.hsn}</TableCell>
-                    <TableCell>{row.description}</TableCell>
-                    <TableCell className="text-right font-medium">₹{row.taxableAmount.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">₹{row.cgst.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right text-muted-foreground">₹{row.sgst.toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right font-medium">₹{(row.cgst + row.sgst).toLocaleString('en-IN')}</TableCell>
-                    <TableCell className="text-right">{row.qty}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <div className="space-y-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : gstData ? (
+            <>
+              {/* GST Summary Cards */}
+              <div className="grid gap-4 sm:grid-cols-3">
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                      <IndianRupee className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Taxable Amount</p>
+                      <p className="text-xl font-bold">₹{(gstData.totals?.taxableAmount || 0).toLocaleString('en-IN')}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                      <FileText className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total GST</p>
+                      <p className="text-xl font-bold">₹{(gstData.totals?.totalGst || 0).toLocaleString('en-IN')}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
+                      <TrendingUp className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">CGST + SGST</p>
+                      <p className="text-xl font-bold">₹{((gstData.totals?.cgst || 0) + (gstData.totals?.sgst || 0)).toLocaleString('en-IN')}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* HSN-wise Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">HSN-wise GST Summary</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {gstData.summary?.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="text-muted-foreground">No GST data for this period</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>HSN Code</TableHead>
+                          <TableHead className="text-right">Taxable Amount</TableHead>
+                          <TableHead className="text-right">CGST</TableHead>
+                          <TableHead className="text-right">SGST</TableHead>
+                          <TableHead className="text-right">Total GST</TableHead>
+                          <TableHead className="text-right">Qty</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {gstData.summary?.map((row) => (
+                          <TableRow key={row.hsnCode}>
+                            <TableCell className="font-mono text-sm">{row.hsnCode}</TableCell>
+                            <TableCell className="text-right font-medium">₹{row.taxableAmount.toLocaleString('en-IN')}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">₹{Math.round(row.cgst).toLocaleString('en-IN')}</TableCell>
+                            <TableCell className="text-right text-muted-foreground">₹{Math.round(row.sgst).toLocaleString('en-IN')}</TableCell>
+                            <TableCell className="text-right font-medium">₹{Math.round(row.totalGst).toLocaleString('en-IN')}</TableCell>
+                            <TableCell className="text-right">{row.quantity}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
+        </div>
+      )}
+
+      {/* Inventory Report */}
+      {reportType === 'inventory' && (
+        <div className="space-y-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : inventoryData ? (
+            <>
+              {/* Summary Cards */}
+              <div className="grid gap-4 sm:grid-cols-4">
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                      <Package className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Products</p>
+                      <p className="text-xl font-bold">{inventoryData.totalProducts}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                      <IndianRupee className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Stock Value</p>
+                      <p className="text-xl font-bold">₹{(inventoryData.stockValue / 100000).toFixed(1)}L</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                      <TrendingDown className="h-5 w-5 text-yellow-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Low Stock</p>
+                      <p className="text-xl font-bold text-yellow-600">{inventoryData.lowStockCount}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="flex items-center gap-4 p-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+                      <AlertCircle className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Out of Stock</p>
+                      <p className="text-xl font-bold text-red-600">{inventoryData.outOfStockCount}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Stock Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Stock Levels</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Product</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Store</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Reorder</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {inventoryData.stocks?.slice(0, 50).map((stock) => (
+                        <TableRow key={`${stock.productId}-${stock.store}`} className={stock.quantity === 0 ? 'bg-red-50 dark:bg-red-950/20' : stock.isLowStock ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                          <TableCell className="font-medium">{stock.productName}</TableCell>
+                          <TableCell className="font-mono text-xs text-muted-foreground">{stock.sku}</TableCell>
+                          <TableCell>{stock.store}</TableCell>
+                          <TableCell className="text-right font-medium">{stock.quantity}</TableCell>
+                          <TableCell className="text-right text-muted-foreground">{stock.reorderLevel}</TableCell>
+                          <TableCell>
+                            {stock.quantity === 0 ? (
+                              <Badge variant="destructive">Out</Badge>
+                            ) : stock.isLowStock ? (
+                              <Badge variant="outline" className="border-yellow-500 text-yellow-600">Low</Badge>
+                            ) : (
+                              <Badge variant="outline" className="border-green-500 text-green-600">OK</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
+        </div>
+      )}
+
+      {/* Outstanding Report */}
+      {reportType === 'outstanding' && (
+        <div className="space-y-6">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : outstandingData ? (
+            <>
+              {/* Summary Card */}
+              <Card>
+                <CardContent className="flex items-center gap-4 p-4">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+                    <Users className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Outstanding Credit</p>
+                    <p className="text-2xl font-bold text-orange-600">₹{(outstandingData.totalOutstanding || 0).toLocaleString('en-IN')}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Customer Table */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">Customers with Outstanding Balance</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  {outstandingData.customers?.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
+                      <p className="text-muted-foreground">No customers with outstanding balance</p>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Customer</TableHead>
+                          <TableHead>Phone</TableHead>
+                          <TableHead className="text-right">Total Purchases</TableHead>
+                          <TableHead className="text-right">Outstanding</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {outstandingData.customers?.map((customer) => (
+                          <TableRow key={customer.id}>
+                            <TableCell className="font-medium">
+                              {customer.firstName}{customer.lastName ? ` ${customer.lastName}` : ''}
+                            </TableCell>
+                            <TableCell className="text-muted-foreground font-mono text-sm">{customer.phone}</TableCell>
+                            <TableCell className="text-right">₹{customer.totalPurchases.toLocaleString('en-IN')}</TableCell>
+                            <TableCell className="text-right font-medium text-orange-600">₹{customer.totalDue.toLocaleString('en-IN')}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </>
+          ) : null}
+        </div>
       )}
     </div>
   )

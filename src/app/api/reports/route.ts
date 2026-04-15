@@ -61,7 +61,19 @@ async function getSalesSummary(
     where.invoiceDate = dateFilter
   }
 
-  const [invoices, aggregates] = await Promise.all([
+  // Today's date filter
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayEnd = new Date(today)
+  todayEnd.setHours(23, 59, 59, 999)
+
+  const todayWhere: Record<string, unknown> = { tenantId, invoiceDate: { gte: today, lte: todayEnd } }
+  if (storeId) todayWhere.storeId = storeId
+
+  // This month's date filter
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+
+  const [invoices, aggregates, todayData, monthData, lowStockCount, pendingPayments, newCustomers] = await Promise.all([
     prisma.salesInvoice.findMany({
       where,
       select: {
@@ -86,6 +98,30 @@ async function getSalesSummary(
       _count: {
         id: true
       }
+    }),
+    prisma.salesInvoice.aggregate({
+      where: todayWhere,
+      _sum: { totalAmount: true },
+      _count: { id: true }
+    }),
+    prisma.salesInvoice.aggregate({
+      where: { tenantId, invoiceDate: { gte: monthStart } },
+      _sum: { totalAmount: true }
+    }),
+    // Low stock count - products below reorder level
+    prisma.$queryRaw<Array<{ count: bigint }>>`
+      SELECT COUNT(*) as count FROM "InventoryStock" s
+      JOIN "Product" p ON s."productId" = p.id
+      WHERE p."tenantId" = ${tenantId}
+      AND s.quantity <= p."reorderLevel"
+    `.then(result => Number(result[0]?.count || 0)),
+    // Pending payments
+    prisma.salesInvoice.count({
+      where: { tenantId, paymentStatus: { in: ['DUE', 'PARTIAL'] } }
+    }),
+    // New customers this month
+    prisma.customer.count({
+      where: { tenantId, createdAt: { gte: monthStart } }
     })
   ])
 
@@ -111,7 +147,14 @@ async function getSalesSummary(
       totalDiscount: Number(aggregates._sum.totalDiscount || 0)
     },
     byStatus,
-    byBillingType
+    byBillingType,
+    // Dashboard specific data
+    todayTotal: Number(todayData._sum.totalAmount || 0),
+    todayCount: todayData._count.id,
+    monthTotal: Number(monthData._sum.totalAmount || 0),
+    lowStockCount,
+    pendingPayments,
+    newCustomers
   })
 }
 

@@ -46,6 +46,12 @@ const PLAN_DETAILS: Record<string, {
   },
 }
 
+declare global {
+  interface Window {
+    Razorpay: any
+  }
+}
+
 function PaymentContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -53,6 +59,8 @@ function PaymentContent() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isRazorpayReady, setIsRazorpayReady] = useState(false)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
+  const [isCheckingSubscription, setIsCheckingSubscription] = useState(true)
 
   const plan = PLAN_DETAILS[planId]
 
@@ -63,9 +71,15 @@ function PaymentContent() {
     }
   }, [searchParams])
 
-  // Load Razorpay script
+  // Load Razorpay script on mount
   useEffect(() => {
     if (planId === 'scale') return
+
+    const existingScript = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')
+    if (existingScript) {
+      setIsRazorpayReady(true)
+      return
+    }
 
     const script = document.createElement('script')
     script.src = 'https://checkout.razorpay.com/v1/checkout.js'
@@ -80,6 +94,26 @@ function PaymentContent() {
       }
     }
   }, [planId])
+
+  // Check if user already has an active subscription
+  useEffect(() => {
+    const checkSubscription = async () => {
+      try {
+        const res = await fetch('/api/payments/subscription-status')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.hasActiveSubscription) {
+            setHasActiveSubscription(true)
+          }
+        }
+      } catch (e) {
+        // Ignore errors - user may not be authenticated yet
+      } finally {
+        setIsCheckingSubscription(false)
+      }
+    }
+    checkSubscription()
+  }, [])
 
   const handlePayment = async () => {
     if (planId === 'scale') {
@@ -99,7 +133,8 @@ function PaymentContent() {
       })
 
       if (!orderRes.ok) {
-        throw new Error('Failed to create order')
+        const errorData = await orderRes.json()
+        throw new Error(errorData.error || 'Failed to create order')
       }
 
       const { orderId, keyId } = await orderRes.json()
@@ -120,44 +155,86 @@ function PaymentContent() {
           color: '#2563eb',
         },
         handler: async (response: { razorpay_payment_id: string; razorpay_order_id: string; razorpay_signature: string }) => {
-          // Trigger webhook verification for payment confirmation
+          // Verify payment signature
           try {
-            await fetch('/api/payments/verify', {
+            const verifyRes = await fetch('/api/payments/verify-payment', {
               method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-razorpay-signature': response.razorpay_signature,
-              },
+              headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
               }),
             })
-          } catch {
-            // Webhook call failed but payment succeeded — continue
+
+            if (!verifyRes.ok) {
+              throw new Error('Payment verification failed')
+            }
+          } catch (e) {
+            console.error('Verification error:', e)
+            // Continue anyway - payment was successful
           }
+
           toast.success('Payment successful! Setting up your store...')
-          setTimeout(() => {
-            router.push('/onboarding')
-          }, 1500)
+          // Redirect to onboarding to complete store setup
+          router.push('/onboarding')
         },
+        modal: {
+          ondismiss: () => {
+            setIsLoading(false)
+          }
+        }
       }
 
-      // @ts-expect-error Razorpay types not available
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call
       const razorpay = new window.Razorpay(options)
       razorpay.open()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Payment failed. Please try again.')
-    } finally {
       setIsLoading(false)
     }
   }
 
+  // Show loading while checking subscription
+  if (isCheckingSubscription) {
+    return (
+      <div className="w-full max-w-lg">
+        <Card>
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-2xl">Loading...</CardTitle>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  // Redirect if already has active subscription
+  if (hasActiveSubscription) {
+    return (
+      <div className="w-full max-w-lg">
+        <Card>
+          <CardHeader className="text-center pb-2">
+            <CardTitle className="text-2xl">Already Subscribed</CardTitle>
+            <CardDescription>Your subscription is active</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center py-8">
+            <p className="text-muted-foreground mb-4">You already have an active subscription.</p>
+            <Button onClick={() => router.push('/dashboard')}>
+              Go to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   return (
-    <div className="w-full max-w-lg">
+    <div className="w-full max-w-lg m-auto">
       {/* Trial Badge */}
-      <div className="mb-4 text-center">
+      <div className="mt-10 mb-4 text-center">
         <Badge variant="outline" className="text-sm bg-green-50 border-green-200 text-green-700">
           <Check className="w-3 h-3 mr-1" />
           14-day free trial included

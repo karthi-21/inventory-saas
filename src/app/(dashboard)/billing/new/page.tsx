@@ -99,6 +99,7 @@ export default function POSPage() {
   const [discountType, setDiscountType] = useState<'₹' | '%'>('₹')
   const [paymentNote, setPaymentNote] = useState('')
   const [lastInvoice, setLastInvoice] = useState<Record<string, unknown> | null>(null)
+  const [loyaltyPointsToRedeem, setLoyaltyPointsToRedeem] = useState(0)
 
   // POS Store
   const {
@@ -265,10 +266,12 @@ export default function POSPage() {
     setBillDiscount(value)
   }
 
-  // Cart totals with discount
+  // Cart totals with discount and loyalty
+  const loyaltyValue = loyaltyPointsToRedeem * 0.25 // ₹0.25 per point
   const afterDiscount = cartTotal.subtotal - billDiscount
   const discountedGst = (afterDiscount * cartTotal.totalGst) / Math.max(cartTotal.subtotal, 1)
-  const finalTotal = Math.round(afterDiscount + discountedGst)
+  const finalTotal = Math.max(0, Math.round(afterDiscount + discountedGst - loyaltyValue))
+  const maxLoyaltyPoints = currentCustomer ? Math.min((currentCustomer as unknown as CustomerSearchResult).loyaltyPoints, Math.floor(finalTotal / 0.25)) : 0
 
   // Hold bill
   const handleHoldBill = () => {
@@ -319,6 +322,7 @@ export default function POSPage() {
           amountPaid: finalTotal,
           billingType,
           notes,
+          loyaltyPointsUsed: loyaltyPointsToRedeem,
           payments: [{ amount: finalTotal, method: billingType, reference: paymentNote }],
         }),
       })
@@ -334,6 +338,7 @@ export default function POSPage() {
       setShowPaymentDialog(false)
       setBillDiscount(0)
       setPaymentNote('')
+      setLoyaltyPointsToRedeem(0)
       setCurrentCustomer(null)
       toast.success('Sale completed!')
       setShowReceiptDialog(true)
@@ -704,14 +709,35 @@ export default function POSPage() {
               />
             </div>
             {currentCustomer && (currentCustomer as unknown as CustomerSearchResult).loyaltyPoints > 0 && (
-              <div className="rounded-lg border p-3 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">Use Loyalty Points</p>
-                  <p className="text-xs text-muted-foreground">
-                    {(currentCustomer as unknown as CustomerSearchResult).loyaltyPoints} points available
-                  </p>
+              <div className="rounded-lg border p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium">Redeem Loyalty Points</p>
+                    <p className="text-xs text-muted-foreground">
+                      {(currentCustomer as unknown as CustomerSearchResult).loyaltyPoints} points available • 1 pt = ₹0.25
+                    </p>
+                  </div>
+                  <Badge variant="outline">₹{loyaltyValue.toFixed(2)} off</Badge>
                 </div>
-                <Badge variant="outline">1 pt = ₹0.25</Badge>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={0}
+                    max={maxLoyaltyPoints}
+                    value={loyaltyPointsToRedeem}
+                    onChange={(e) => setLoyaltyPointsToRedeem(Math.min(maxLoyaltyPoints, Math.max(0, parseInt(e.target.value) || 0)))}
+                    className="w-24"
+                    placeholder="0"
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLoyaltyPointsToRedeem(maxLoyaltyPoints)}
+                    disabled={maxLoyaltyPoints === 0}
+                  >
+                    Max
+                  </Button>
+                </div>
               </div>
             )}
           </div>

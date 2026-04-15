@@ -44,8 +44,10 @@ import {
   Hash,
   Box,
   ArrowUpDown,
+  ImageIcon,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ImageUpload } from '@/components/ui/image-upload'
 import type { InventoryStock, Product, Store, Location } from '@/types'
 
 interface CSVRow {
@@ -122,6 +124,8 @@ export default function InventoryPage() {
     costPrice: '',
     sellingPrice: '',
     reorderLevel: '10',
+    hasVariants: false,
+    imageUrls: [] as string[],
   })
 
   // CSV import state
@@ -706,11 +710,12 @@ export default function InventoryPage() {
       </Dialog>
 
       {/* Add Product Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={(open) => {
-        setShowAddDialog(open)
-        if (!open) setProductForm({ name: '', sku: '', barcode: '', categoryId: '', brand: '', hsnCode: '', gstRate: '18', mrp: '', costPrice: '', sellingPrice: '', reorderLevel: '10' })
+      {/* Add Product Dialog */}
+      <Dialog open={showAddProductDialog} onOpenChange={(open) => {
+        setShowAddProductDialog(open)
+        if (!open) setProductForm({ name: '', sku: '', barcode: '', categoryId: '', brand: '', hsnCode: '', gstRate: '18', mrp: '', costPrice: '', sellingPrice: '', reorderLevel: '10', hasVariants: false, imageUrls: [] })
       }}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Add Product</DialogTitle>
             <DialogDescription>Fill in product details. Fields marked * are required.</DialogDescription>
@@ -734,6 +739,8 @@ export default function InventoryPage() {
                     costPrice: parseFloat(productForm.costPrice) || 0,
                     sellingPrice: parseFloat(productForm.sellingPrice) || 0,
                     reorderLevel: parseInt(productForm.reorderLevel) || 10,
+                    hasVariants: productForm.hasVariants,
+                    imageUrls: productForm.imageUrls,
                   })
                 })
                 if (!res.ok) throw new Error('Failed to create product')
@@ -868,9 +875,35 @@ export default function InventoryPage() {
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id="prod-variants"
+                    checked={productForm.hasVariants}
+                    onChange={(e) => setProductForm({ ...productForm, hasVariants: e.target.checked })}
+                    className="h-4 w-4"
+                  />
+                  <Label htmlFor="prod-variants" className="font-normal cursor-pointer">
+                    This product has variants (sizes, colors, etc.)
+                  </Label>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <ImageIcon className="h-4 w-4" />
+                  Product Images
+                </Label>
+                <ImageUpload
+                  value={productForm.imageUrls}
+                  onChange={(urls) => setProductForm({ ...productForm, imageUrls: urls })}
+                  maxImages={5}
+                  folder="products"
+                />
+              </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setShowAddProductDialog(false)}>Cancel</Button>
               <Button type="submit">Save Product</Button>
             </DialogFooter>
           </form>

@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -126,5 +126,181 @@
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
+  }
+}
+
+/* Custom Brand Colors */
+:root {
+  --indigo-500: #6366F1;
+  --indigo-600: #4F46E5;
+  --indigo-100: #E0E7FF;
+  --indigo-50: #EEF2FF;
+  --emerald-500: #10B981;
+  --emerald-600: #059669;
+  --emerald-100: #D1FAE5;
+  --emerald-50: #ECFDF5;
+  --violet-500: #8B5CF6;
+  --violet-100: #EDE9FE;
+  --amber-500: #F59E0B;
+  --amber-100: #FEF3C7;
+  --rose-500: #F43F5E;
+  --rose-100: #FFE4E6;
+  --cyan-500: #06B6D4;
+  --cyan-100: #CFFAFE;
+  --slate-900: #0F172A;
+  --slate-700: #334155;
+  --slate-500: #64748B;
+  --slate-200: #E2E8F0;
+  --slate-100: #F1F5F9;
+  --slate-50: #F8FAFC;
+}
+
+/* Geist Font Configuration */
+.font-geist {
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+}
+
+.font-mono {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* Gradient Backgrounds */
+.gradient-hero {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+}
+
+.gradient-mesh {
+  background-color: #F5F3FF;
+  background-image:
+    radial-gradient(at 40% 20%, hsla(253,100%,74%,0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, hsla(189,100%,76%,0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(340,100%,76%,0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsla(266,100%,76%,0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, hsla(189,100%,76%,0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 100%, hsla(253,100%,74%,0.1) 0px, transparent 50%);
+}
+
+/* Bento Grid - Proper Asymmetric Layout */
+.bento-grid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: 220px;
+}
+
+/* Large cards span 2 columns and 2 rows */
+.bento-item-large {
+  grid-column: span 2;
+  grid-row: span 2;
+}
+
+/* Wide cards span 2 columns, 1 row */
+.bento-item-wide {
+  grid-column: span 2;
+  grid-row: span 1;
+}
+
+/* Small cards are 1x1 */
+.bento-item-small {
+  grid-column: span 1;
+  grid-row: span 1;
+}
+
+/* Tall cards span 1 column, 2 rows */
+.bento-item-tall {
+  grid-column: span 1;
+  grid-row: span 2;
+}
+
+@media (max-width: 1024px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+    grid-auto-rows: 200px;
+  }
+
+  .bento-item-large {
+    grid-column: span 2;
+    grid-row: span 2;
+  }
+
+  .bento-item-wide,
+  .bento-item-tall,
+  .bento-item-small {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+}
+
+@media (max-width: 640px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+    grid-auto-rows: auto;
+  }
+
+  .bento-item-large,
+  .bento-item-wide,
+  .bento-item-tall,
+  .bento-item-small {
+    grid-column: span 1;
+    grid-row: span 1;
+  }
+}
+
+/* Glass Effect */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.glass-dark {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.6); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+/* Text Gradient */
+.text-gradient {
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

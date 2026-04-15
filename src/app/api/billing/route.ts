@@ -264,28 +264,52 @@ export async function POST(request: NextRequest) {
       if (customerId) {
         const customer = await tx.customer.findUnique({
           where: { id: customerId },
-          select: { loyaltyMultiplier: true }
+          select: { loyaltyMultiplier: true, loyaltyPoints: true }
         })
 
-        if (customer && customer.loyaltyMultiplier > 0) {
-          const pointsEarned = Math.floor(Number(totalAmount) * customer.loyaltyMultiplier / 100)
-          if (pointsEarned > 0) {
+        if (customer) {
+          // Handle loyalty points redemption
+          const loyaltyPointsUsed = body.loyaltyPointsUsed || 0
+          if (loyaltyPointsUsed > 0) {
             await tx.customer.update({
               where: { id: customerId },
               data: {
-                loyaltyPoints: { increment: pointsEarned }
+                loyaltyPoints: { decrement: loyaltyPointsUsed }
               }
             })
 
             await tx.loyaltyPointsLog.create({
               data: {
                 customerId,
-                points: pointsEarned,
+                points: -loyaltyPointsUsed,
                 referenceType: 'SalesInvoice',
                 referenceId: invoice.id,
-                notes: `Points earned from invoice ${invoiceNumber}`
+                notes: `Points redeemed on invoice ${invoiceNumber}`
               }
             })
+          }
+
+          // Award new loyalty points
+          if (customer.loyaltyMultiplier > 0) {
+            const pointsEarned = Math.floor(Number(totalAmount) * customer.loyaltyMultiplier / 100)
+            if (pointsEarned > 0) {
+              await tx.customer.update({
+                where: { id: customerId },
+                data: {
+                  loyaltyPoints: { increment: pointsEarned }
+                }
+              })
+
+              await tx.loyaltyPointsLog.create({
+                data: {
+                  customerId,
+                  points: pointsEarned,
+                  referenceType: 'SalesInvoice',
+                  referenceId: invoice.id,
+                  notes: `Points earned from invoice ${invoiceNumber}`
+                }
+              })
+            }
           }
         }
       }

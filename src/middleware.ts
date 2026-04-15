@@ -11,7 +11,8 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/signup') ||
     pathname.startsWith('/onboarding') ||
     pathname.startsWith('/api') ||
-    pathname.startsWith('/demo')
+    pathname.startsWith('/demo') ||
+    pathname.startsWith('/payment')
 
   // If Supabase env vars are missing, only allow public routes
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -27,8 +28,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  let supabaseResponse = NextResponse.next({
-    request,
+  // Create response that we'll modify with cookies
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
   })
 
   const supabase = createServerClient(
@@ -40,13 +44,12 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll()
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
+          // Update request cookies for subsequent getAll calls
+          cookiesToSet.forEach(({ name, value, options }) => {
+            request.cookies.set(name, value)
+            // Set on the response to be sent to browser
+            response.cookies.set(name, value, options)
           })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
         },
       },
     }
@@ -59,9 +62,18 @@ export async function middleware(request: NextRequest) {
   const isAuthPage = pathname.startsWith('/login') ||
     pathname.startsWith('/signup')
   const isDashboard = pathname.startsWith('/dashboard')
+  const isOnboarding = pathname.startsWith('/onboarding')
+  const isPayment = pathname.startsWith('/payment')
 
   // Redirect unauthenticated users away from dashboard
   if (isDashboard && !user) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
+
+  // Redirect unauthenticated users away from onboarding to login
+  if (isOnboarding && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
@@ -74,7 +86,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  return supabaseResponse
+  // Redirect authenticated users from payment page if they already have a store set up
+  // (This check would require DB access, so we'll handle it client-side)
+
+  return response
 }
 
 export const config = {

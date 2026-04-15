@@ -1,10 +1,10 @@
 'use client'
 
+import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
 import {
   Table,
   TableBody,
@@ -13,13 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -31,38 +24,64 @@ import {
   Receipt,
   Search,
   Download,
-  Filter,
   TrendingUp,
   TrendingDown,
   IndianRupee,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
+import { usePOSStore } from '@/stores/pos-store'
+import { Skeleton } from '@/components/ui/skeleton'
 
-const mockInvoices = [
-  { id: 'inv1', invoiceNumber: 'INV202600001', invoiceDate: '2026-04-04', customer: 'Walk-in Customer', store: 'Chennai', items: 3, subtotal: 23220, totalGst: 4180, totalAmount: 27400, paymentStatus: 'PAID', billingType: 'UPI' },
-  { id: 'inv2', invoiceNumber: 'INV202600002', invoiceDate: '2026-04-04', customer: 'Priya Sharma', store: 'Chennai', items: 1, subtotal: 101695, totalGst: 18305, totalAmount: 120000, paymentStatus: 'PAID', billingType: 'CARD' },
-  { id: 'inv3', invoiceNumber: 'INV202600003', invoiceDate: '2026-04-03', customer: 'Quick Mart', store: 'Chennai', items: 12, subtotal: 13636, totalGst: 2455, totalAmount: 16091, paymentStatus: 'PAID', billingType: 'CASH' },
-  { id: 'inv4', invoiceNumber: 'INV202600004', invoiceDate: '2026-04-03', customer: 'Anil Reddy', store: 'Coimbatore', items: 5, subtotal: 84746, totalGst: 15254, totalAmount: 100000, paymentStatus: 'PARTIAL', billingType: 'CREDIT' },
-  { id: 'inv5', invoiceNumber: 'INV202600005', invoiceDate: '2026-04-02', customer: 'Walk-in Customer', store: 'Chennai', items: 2, subtotal: 763, totalGst: 0, totalAmount: 763, paymentStatus: 'PAID', billingType: 'CASH' },
-]
+interface Invoice {
+  id: string
+  invoiceNumber: string
+  invoiceDate: string
+  customer: { firstName: string; lastName?: string } | null
+  store: { name: string }
+  totalAmount: number
+  amountPaid: number
+  amountDue: number
+  paymentStatus: string
+  billingType: string
+  items: Array<{ id: string }>
+  createdAt: string
+}
 
 export default function BillingPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [dateFilter, setDateFilter] = useState('')
+  const currentStoreId = usePOSStore((state) => state.currentStoreId)
 
-  const filtered = mockInvoices.filter((inv) => {
-    const matchesSearch =
-      inv.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      inv.customer.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesStatus = statusFilter === 'all' || inv.paymentStatus === statusFilter
-    const matchesDate = !dateFilter || inv.invoiceDate === dateFilter
-    return matchesSearch && matchesStatus && matchesDate
+  // Fetch invoices
+  const { data: invoicesData, isLoading, error } = useQuery<{ data: Invoice[]; pagination: { total: number } }>({
+    queryKey: ['invoices', searchQuery, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams()
+      if (searchQuery) params.set('search', searchQuery)
+      if (statusFilter !== 'all') params.set('status', statusFilter)
+      const res = await fetch(`/api/billing?${params}`)
+      if (!res.ok) throw new Error('Failed to fetch invoices')
+      return res.json()
+    },
   })
 
-  const totalSales = mockInvoices.reduce((a, inv) => a + inv.totalAmount, 0)
-  const paidCount = mockInvoices.filter((inv) => inv.paymentStatus === 'PAID').length
+  const invoices = invoicesData?.data || []
+  const totalSales = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0)
+  const paidCount = invoices.filter((inv) => inv.paymentStatus === 'PAID').length
+  const pendingAmount = invoices.filter((inv) => inv.paymentStatus !== 'PAID').reduce((sum, inv) => sum + Number(inv.amountDue), 0)
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <AlertCircle className="h-12 w-12 text-red-500" />
+        <p className="text-red-500">Failed to load invoices</p>
+        <Button onClick={() => window.location.reload()}>Retry</Button>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-6">
@@ -94,7 +113,11 @@ export default function BillingPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Total Sales</p>
-              <p className="text-2xl font-bold">₹{(totalSales / 100000).toFixed(2)}L</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                <p className="text-2xl font-bold">₹{(totalSales / 100000).toFixed(2)}L</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -105,7 +128,11 @@ export default function BillingPage() {
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Paid Invoices</p>
-              <p className="text-2xl font-bold">{paidCount} / {mockInvoices.length}</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-12" />
+              ) : (
+                <p className="text-2xl font-bold">{paidCount}</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -115,29 +142,31 @@ export default function BillingPage() {
               <TrendingDown className="h-5 w-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Pending / Due</p>
-              <p className="text-2xl font-bold">
-                ₹{mockInvoices.filter((inv) => inv.paymentStatus !== 'PAID').reduce((a, inv) => a + inv.totalAmount, 0).toLocaleString('en-IN')}
-              </p>
+              <p className="text-sm text-muted-foreground">Pending Amount</p>
+              {isLoading ? (
+                <Skeleton className="h-8 w-16" />
+              ) : (
+                <p className="text-2xl font-bold">₹{(pendingAmount / 1000).toFixed(1)}K</p>
+              )}
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4">
-        <div className="relative flex-1 min-w-64 max-w-md">
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search invoice or customer..."
+            placeholder="Search by invoice or customer..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-          <SelectTrigger className="w-36">
-            <SelectValue />
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="All Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
@@ -146,61 +175,78 @@ export default function BillingPage() {
             <SelectItem value="DUE">Due</SelectItem>
           </SelectContent>
         </Select>
-        <Input
-          type="date"
-          className="w-40"
-          value={dateFilter}
-          onChange={(e) => setDateFilter(e.target.value)}
-        />
       </div>
 
       {/* Table */}
       <Card>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice #</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Store</TableHead>
-                <TableHead className="text-right">Items</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="font-medium font-mono">{inv.invoiceNumber}</TableCell>
-                  <TableCell className="text-muted-foreground">{inv.invoiceDate}</TableCell>
-                  <TableCell>{inv.customer}</TableCell>
-                  <TableCell>{inv.store}</TableCell>
-                  <TableCell className="text-right">{inv.items}</TableCell>
-                  <TableCell className="text-right font-medium">
-                    ₹{inv.totalAmount.toLocaleString('en-IN')}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        inv.paymentStatus === 'PAID'
-                          ? 'default'
-                          : inv.paymentStatus === 'PARTIAL'
-                          ? 'secondary'
-                          : 'destructive'
-                      }
-                    >
-                      {inv.paymentStatus}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{inv.billingType}</Badge>
-                  </TableCell>
-                </TableRow>
+          {isLoading ? (
+            <div className="p-4 space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center justify-between py-3 border-b last:border-0">
+                  <div className="flex items-center gap-4 flex-1">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-4 w-16" />
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-5 w-16 rounded" />
+                  </div>
+                </div>
               ))}
-            </TableBody>
-          </Table>
+            </div>
+          ) : invoices.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Receipt className="h-12 w-12 text-muted-foreground/50 mb-4" />
+              <p className="text-lg font-medium">No invoices yet</p>
+              <p className="text-sm text-muted-foreground mb-4">Create your first sale to see invoices here</p>
+              <Link href="/dashboard/billing/new">
+                <Button>
+                  <Receipt className="h-4 w-4 mr-2" />
+                  New Sale
+                </Button>
+              </Link>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Store</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invoices.map((invoice) => (
+                  <TableRow key={invoice.id}>
+                    <TableCell className="font-mono text-sm">{invoice.invoiceNumber}</TableCell>
+                    <TableCell className="font-medium">
+                      {invoice.customer
+                        ? `${invoice.customer.firstName}${invoice.customer.lastName ? ' ' + invoice.customer.lastName : ''}`
+                        : 'Walk-in Customer'}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}
+                    </TableCell>
+                    <TableCell>{invoice.store?.name || '-'}</TableCell>
+                    <TableCell className="text-right font-medium">
+                      ₹{Number(invoice.totalAmount).toLocaleString('en-IN')}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={invoice.paymentStatus === 'PAID' ? 'default' : invoice.paymentStatus === 'DUE' ? 'destructive' : 'outline'}>
+                        {invoice.paymentStatus}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
     </div>
