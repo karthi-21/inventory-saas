@@ -61,3 +61,4 @@ prisma/
 - Role-based personas (Admin, Manager, Billing, etc.)
 - Export to Excel/CSV
 - Offline-capable POS
+# inventory-saas
