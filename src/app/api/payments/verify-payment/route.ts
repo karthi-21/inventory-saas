@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
 import { prisma } from '@/lib/db'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { isDodoConfigured, getSubscription } from '@/lib/dodo'
 
 /**
  * POST /api/payments/verify-payment
- * Verifies Razorpay payment signature and activates subscription
+ * Verifies Dodo Payments checkout session and activates subscription
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,26 +17,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body
+    const { checkoutId, sessionId } = body as { checkoutId?: string; sessionId?: string }
 
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return NextResponse.json({ error: 'Missing payment details' }, { status: 400 })
-    }
-
-    // Verify signature
-    const keySecret = process.env.RAZORPAY_KEY_SECRET
-    if (!keySecret) {
-      return NextResponse.json({ error: 'RAZORPAY_KEY_SECRET is not configured' }, { status: 500 })
-    }
-
-    const sign = razorpay_order_id + '|' + razorpay_payment_id
-    const expectedSign = crypto
-      .createHmac('sha256', keySecret)
-      .update(sign.toString())
-      .digest('hex')
-
-    if (expectedSign !== razorpay_signature) {
-      return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 })
+    if (!checkoutId && !sessionId) {
+      return NextResponse.json({ error: 'Missing checkout session ID' }, { status: 400 })
     }
 
     // Get user's tenant
@@ -49,19 +33,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not fully set up' }, { status: 400 })
     }
 
-    // Find and update subscription
+    // Find subscription by Dodo checkout ID
     const subscription = await prisma.subscription.findFirst({
-      where: { tenantId: dbUser.tenantId, razorpayOrderId: razorpay_order_id }
+      where: {
+        tenantId: dbUser.tenantId,
+        dodoSubscriptionId: checkoutId || sessionId
+      }
     })
 
     if (subscription) {
-      await prisma.subscription.update({
-        where: { id: subscription.id },
-        data: {
-          status: 'ACTIVE',
-          razorpaySubscriptionId: razorpay_payment_id,
+      // If Dodo is configured, verify subscription status
+      if (isDodoConfigured() && subscription.dodoSubscriptionId) {
+        try {
+          const dodoSub = await getSubscription(subscription.dodoSubscriptionId)
+          // Update status based on Dodo's response
+          if (dodoSub && (dodoSub.status === 'active' || dodoSub.status === 'trialing')) {
+            await prisma.subscription.update({
+              where: { id: subscription.id },
+              data: { status: 'ACTIVE' }
+            })
+          }
+        } catch (err) {
+          console.error('Failed to verify Dodo subscription:', err)
+          // Continue even if verification fails - webhook will handle it
         }
-      })
+      } else {
+        // Dodo not configured - mark as active (for development)
+        await prisma.subscription.update({
+          where: { id: subscription.id },
+          data: { status: 'ACTIVE' }
+        })
+      }
     }
 
     return NextResponse.json({ success: true })

@@ -1,72 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import crypto from 'crypto'
-import { prisma } from '@/lib/db'
 
 /**
  * POST /api/payments/verify
- * Handles Razorpay webhook for payment confirmation
+ * Legacy Razorpay webhook — now redirects to Dodo webhook
+ * Kept for backward compatibility during migration
  */
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.text()
-    const signature = request.headers.get('x-razorpay-signature')
-
-    if (!signature) {
-      return NextResponse.json({ error: 'Missing signature' }, { status: 400 })
-    }
-
-    // Verify webhook signature
-    const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET
-    if (!webhookSecret) {
-      console.error('RAZORPAY_WEBHOOK_SECRET is not configured')
-      return NextResponse.json({ error: 'RAZORPAY_WEBHOOK_SECRET is not configured' }, { status: 500 })
-    }
-
-    const expectedSignature = crypto
-      .createHmac('sha256', webhookSecret)
-      .update(body)
-      .digest('hex')
-
-    if (signature !== expectedSignature) {
-      console.error('Invalid webhook signature')
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
-    }
-
-    const event = JSON.parse(body)
-
-    // Handle different event types
-    switch (event.event) {
-      case 'order.paid': {
-        const orderData = event.payload.order.entity
-
-        // Find subscription by razorpayOrderId
-        const subscription = await prisma.subscription.findFirst({
-          where: { razorpayOrderId: orderData.id }
-        })
-
-        if (subscription) {
-          await prisma.subscription.update({
-            where: { id: subscription.id },
-            data: {
-              status: 'ACTIVE',
-              razorpaySubscriptionId: orderData.id,
-            }
-          })
-        }
-        break
-      }
-
-      case 'order.failed': {
-        const orderData = event.payload.order.entity
-        console.log('Payment failed for order:', orderData.id)
-        // Could: send notification email, clean up pending orders, etc.
-        break
-      }
-    }
-
-    return NextResponse.json({ received: true })
-  } catch (error) {
-    console.error('Webhook error:', error)
-    return NextResponse.json({ error: 'Webhook processing failed' }, { status: 500 })
-  }
+export async function POST(_request: NextRequest) {
+  // Dodo Payments webhooks are handled by /api/payments/dodo-webhook
+  // This endpoint is kept as a redirect for any legacy Razorpay webhooks
+  return NextResponse.json({ 
+    error: 'This endpoint is deprecated. Payment webhooks are now handled by /api/payments/dodo-webhook',
+    redirect: '/api/payments/dodo-webhook'
+  }, { status: 410 })
 }

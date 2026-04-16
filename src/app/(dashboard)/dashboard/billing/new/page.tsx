@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { usePOSStore } from '@/stores/pos-store'
+import { useOfflineSync } from '@/hooks/use-online-status'
+import { useBarcodeScanner } from '@/lib/use-barcode-scanner'
+import { UPIPaymentDialog } from '@/components/billing/upi-payment-dialog'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+// Card components available for future use
 import { Separator } from '@/components/ui/separator'
 import {
   Dialog,
@@ -45,7 +47,7 @@ import {
   SelectItem,
   SelectTrigger,
 } from '@/components/ui/select'
-import type { POSCartItem, Customer } from '@/types'
+import type { Customer } from '@/types'
 
 const paymentModes = [
   { value: 'CASH', label: 'Cash', icon: Banknote },
@@ -80,12 +82,12 @@ interface CustomerSearchResult {
   firstName: string
   lastName?: string
   phone?: string
+  email?: string
   creditBalance: string
   loyaltyPoints: number
 }
 
 export default function POSPage() {
-  const router = useRouter()
   const searchRef = useRef<HTMLInputElement>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('All')
@@ -98,6 +100,8 @@ export default function POSPage() {
   const [showRecallDialog, setShowRecallDialog] = useState(false)
   const [showReceiptDialog, setShowReceiptDialog] = useState(false)
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false)
+  const [showUPIDialog, setShowUPIDialog] = useState(false)
+  const [_upiPaymentRef, setUpiPaymentRef] = useState<string | null>(null)
   const [heldBillName, setHeldBillName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerResults, setCustomerResults] = useState<CustomerSearchResult[]>([])
@@ -117,6 +121,24 @@ export default function POSPage() {
   const [locations, setLocations] = useState<Array<{ id: string; name: string; type: string }>>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(false)
 
+  // Offline connectivity
+  const { isOnline, pendingCount, isSyncing } = useOfflineSync()
+  const [wasOffline, setWasOffline] = useState(false)
+
+  useEffect(() => {
+    if (!isOnline && !wasOffline) {
+      setWasOffline(true)
+      toast.info('You\'re offline — billing will continue normally')
+    } else if (isOnline && wasOffline) {
+      setWasOffline(false)
+      if (pendingCount > 0) {
+        toast.info(`Back online — syncing ${pendingCount} invoice${pendingCount > 1 ? 's' : ''}...`)
+      } else {
+        toast.success('Back online')
+      }
+    }
+  }, [isOnline, wasOffline, pendingCount])
+
   // POS Store
   const {
     cart,
@@ -134,7 +156,7 @@ export default function POSPage() {
     setCurrentStore,
     setCurrentLocation,
     setBillingType,
-    setNotes,
+    setNotes: _setNotes,
     holdBill,
     recallBill,
     deleteHeldBill,
@@ -261,6 +283,7 @@ export default function POSPage() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart.length, lastInvoice])
 
   // Add product to cart
@@ -305,6 +328,36 @@ export default function POSPage() {
       updateCartItem(productId, variantId, { quantity: newQty, totalAmount, gstAmount })
     }
   }
+
+  // Barcode scanner: when a USB scanner reads a barcode, search and add
+  useBarcodeScanner({
+    enabled: true,
+    onScan: async (barcode: string) => {
+      // First check cart for existing item with this barcode
+      const existingItem = cart.find((item) => item.barcode === barcode)
+      if (existingItem) {
+        handleQuantityChange(existingItem.productId, existingItem.variantId, 1)
+        toast.info(`Added another ${existingItem.name}`)
+        return
+      }
+      // Search for product by barcode
+      try {
+        const res = await fetch(`/api/products?search=${encodeURIComponent(barcode)}`)
+        if (res.ok) {
+          const json = await res.json()
+          const products = json.data || json
+          if (Array.isArray(products) && products.length > 0) {
+            const match = products.find((p: { barcode?: string }) => p.barcode === barcode) || products[0]
+            handleAddProduct(match)
+          } else {
+            toast.error('Product not found — add it in Inventory first')
+          }
+        }
+      } catch {
+        toast.error('Error searching for product')
+      }
+    },
+  })
 
   // Apply bill discount
   const handleBillDiscountChange = (value: number) => {
@@ -364,38 +417,56 @@ export default function POSPage() {
         paymentsToSend = [{ amount: finalTotal, method: billingType, reference: paymentNote }]
       }
 
+      const invoiceData = {
+        storeId: currentStoreId,
+        locationId: currentLocationId,
+        customerId: currentCustomer?.id,
+        customerName: currentCustomer ? `${currentCustomer.firstName}${currentCustomer.lastName ? ' ' + currentCustomer.lastName : ''}` : 'Walk-in Customer',
+        items: cart.map(item => ({
+          productId: item.productId,
+          variantId: item.variantId,
+          name: item.name,
+          sku: item.sku,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          discountPercent: item.discountPercent,
+          discountAmount: item.discountAmount,
+          gstRate: item.gstRate,
+          gstAmount: item.gstAmount,
+          totalAmount: item.totalAmount,
+        })),
+        subtotal: cartTotal.subtotal,
+        totalDiscount: billDiscount,
+        totalGst: cartTotal.totalGst,
+        roundOff: 0,
+        totalAmount: finalTotal,
+        amountPaid: billingType === 'MIXED' ? splitPayments.reduce((sum, p) => sum + p.amount, 0) : finalTotal,
+        billingType,
+        notes,
+        loyaltyPointsUsed: loyaltyPointsToRedeem,
+        payments: paymentsToSend,
+      }
+
+      // Offline: queue locally instead of calling API
+      if (!isOnline) {
+        const { queueOfflineInvoice } = await import('@/lib/offline-sync')
+        await queueOfflineInvoice(invoiceData, 'offline', currentStoreId || 'unknown')
+        clearCart()
+        setShowPaymentDialog(false)
+        setBillDiscount(0)
+        setPaymentNote('')
+        setLoyaltyPointsToRedeem(0)
+        setCurrentCustomer(null)
+        setSplitPayments([{ method: 'CASH', amount: 0, reference: '' }])
+        toast.success('Sale saved (offline — will sync when connected)')
+        setShowReceiptDialog(true)
+        return
+      }
+
       const res = await fetch('/api/billing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          storeId: currentStoreId,
-          locationId: currentLocationId,
-          customerId: currentCustomer?.id,
-          customerName: currentCustomer ? `${currentCustomer.firstName}${currentCustomer.lastName ? ' ' + currentCustomer.lastName : ''}` : 'Walk-in Customer',
-          items: cart.map(item => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            name: item.name,
-            sku: item.sku,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            discountPercent: item.discountPercent,
-            discountAmount: item.discountAmount,
-            gstRate: item.gstRate,
-            gstAmount: item.gstAmount,
-            totalAmount: item.totalAmount,
-          })),
-          subtotal: cartTotal.subtotal,
-          totalDiscount: billDiscount,
-          totalGst: cartTotal.totalGst,
-          roundOff: 0,
-          totalAmount: finalTotal,
-          amountPaid: billingType === 'MIXED' ? splitPayments.reduce((sum, p) => sum + p.amount, 0) : finalTotal,
-          billingType,
-          notes,
-          loyaltyPointsUsed: loyaltyPointsToRedeem,
-          payments: paymentsToSend,
-        }),
+        body: JSON.stringify(invoiceData),
       })
 
       if (!res.ok) {
@@ -412,8 +483,24 @@ export default function POSPage() {
       setLoyaltyPointsToRedeem(0)
       setCurrentCustomer(null)
       setSplitPayments([{ method: 'CASH', amount: 0, reference: '' }])
-      toast.success('Sale completed!')
-      setShowReceiptDialog(true)
+
+      // If UPI was selected, show UPI payment dialog for PhonePe integration
+      if (billingType === 'UPI') {
+        setShowUPIDialog(true)
+        setUpiPaymentRef(null)
+      } else {
+        toast.success('Sale completed!')
+        setShowReceiptDialog(true)
+      }
+
+      // Auto-send receipt email if customer has email address
+      if (invoice?.id && currentCustomer?.email) {
+        fetch('/api/emails/send-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ invoiceId: invoice.id }),
+        }).catch(() => { /* non-blocking, ignore errors */ })
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to complete sale')
     } finally {
@@ -466,6 +553,61 @@ export default function POSPage() {
     setShowReceiptDialog(false)
     window.print()
   }
+
+  // Auto-print via thermal printer when receipt dialog opens
+  useEffect(() => {
+    if (!showReceiptDialog || !lastInvoice) return
+    let cancelled = false
+    const autoPrint = async () => {
+      try {
+        const res = await fetch('/api/print/config')
+        if (!res.ok) return
+        const data = await res.json()
+        const defaultPrinter = (data.data || []).find((p: { isDefault: boolean; autoPrint: boolean }) => p.isDefault && p.autoPrint)
+        if (!defaultPrinter || cancelled) return
+        // Generate ESC/POS receipt and send to printer
+        const { generateReceipt, connectUSBPrinter, printViaSerial, printViaNetwork } = await import('@/lib/escpos')
+        const store = JSON.parse(localStorage.getItem('currentStore') || '{}')
+        const items = cart.map(item => ({
+          name: item.name,
+          qty: item.quantity,
+          rate: item.unitPrice,
+          amount: item.totalAmount,
+          gstRate: item.gstRate,
+        }))
+        const receipt = generateReceipt({
+          storeName: store.name || 'OmniBIZ Store',
+          storeAddress: store.address,
+          storePhone: store.phone,
+          storeGstin: store.gstin,
+          invoiceNumber: String(lastInvoice.invoiceNumber || lastInvoice.id || ''),
+          date: new Date().toLocaleString('en-IN'),
+          items,
+          subtotal: cartTotal.subtotal,
+          totalDiscount: billDiscount,
+          totalGst: cartTotal.totalGst,
+          roundOff: 0,
+          totalAmount: finalTotal,
+          paymentMethod: billingType,
+          amountPaid: finalTotal,
+        })
+        if (defaultPrinter.autoCut) receipt.cut()
+        if (defaultPrinter.cashDrawer) receipt.cashDrawer()
+        const escData = receipt.build()
+        if (defaultPrinter.connectionType === 'USB') {
+          const port = await connectUSBPrinter()
+          if (port && !cancelled) await printViaSerial(port, escData)
+        } else if (defaultPrinter.connectionType === 'NETWORK' && defaultPrinter.ipAddress) {
+          await printViaNetwork(defaultPrinter.ipAddress, defaultPrinter.port || 9100, escData)
+        }
+      } catch (err) {
+        console.error('Auto-print failed:', err)
+      }
+    }
+    autoPrint()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showReceiptDialog])
 
   const selectedCustomerName = currentCustomer
     ? `${currentCustomer.firstName}${currentCustomer.lastName ? ' ' + currentCustomer.lastName : ''}`
@@ -535,6 +677,7 @@ export default function POSPage() {
               className="pl-9 pr-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              data-barcode-target="true"
             />
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1">
@@ -627,6 +770,15 @@ export default function POSPage() {
             <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">?</kbd>
             Shortcuts
           </Button>
+          <div className="flex items-center gap-1.5 text-xs">
+            <span className={`h-2 w-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
+            {!isOnline && pendingCount > 0 && (
+              <span className="text-red-600 font-medium">{pendingCount} pending</span>
+            )}
+            {isSyncing && (
+              <span className="text-amber-600 font-medium">Syncing...</span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1141,6 +1293,29 @@ export default function POSPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* UPI Payment Dialog */}
+      <UPIPaymentDialog
+        open={showUPIDialog}
+        onClose={() => {
+          setShowUPIDialog(false)
+          toast.success('Bill created. Awaiting UPI payment.')
+          setShowReceiptDialog(true)
+        }}
+        invoiceId={lastInvoice ? String(lastInvoice.id) : null}
+        amount={getCartTotal().totalAmount}
+        onSuccess={(ref) => {
+          setUpiPaymentRef(ref)
+          setShowUPIDialog(false)
+          toast.success('UPI payment received! Sale completed.')
+          setShowReceiptDialog(true)
+        }}
+        onFail={() => {
+          setShowUPIDialog(false)
+          toast.success('Bill created. Payment pending — customer can pay later.')
+          setShowReceiptDialog(true)
+        }}
+      />
     </div>
   )
 }

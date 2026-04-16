@@ -1,22 +1,48 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Check, Store, ArrowRight, Loader2 } from 'lucide-react'
+import { Suspense } from 'react'
 
-export default function PaymentSuccessPage() {
+function PaymentSuccessContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [isVerifying, setIsVerifying] = useState(true)
 
   useEffect(() => {
-    // Auto-redirect to onboarding after 3 seconds
+    // Verify the payment with the backend
+    const verifyPayment = async () => {
+      try {
+        const planId = searchParams.get('plan')
+        const sessionId = searchParams.get('session_id')
+
+        if (sessionId) {
+          // Call verify-payment endpoint to confirm Dodo payment
+          await fetch('/api/payments/verify-payment', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId, planId }),
+          })
+        }
+      } catch (e) {
+        console.error('Payment verification error:', e)
+      } finally {
+        setIsVerifying(false)
+      }
+    }
+    verifyPayment()
+  }, [searchParams])
+
+  useEffect(() => {
+    if (isVerifying) return
     const timer = setTimeout(() => {
       router.push('/onboarding')
     }, 3000)
-
     return () => clearTimeout(timer)
-  }, [router])
+  }, [isVerifying, router])
 
   return (
     <div className="w-full max-w-md text-center">
@@ -68,5 +94,17 @@ export default function PaymentSuccessPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function PaymentSuccessPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <PaymentSuccessContent />
+    </Suspense>
   )
 }

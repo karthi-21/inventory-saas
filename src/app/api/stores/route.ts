@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
   requirePermission,
-  successResponse,
   createdResponse,
   errorResponse,
   paginatedResponse,
@@ -12,6 +11,7 @@ import {
   handlePrismaError,
   logActivity
 } from '@/lib/api'
+import { checkLimit } from '@/lib/plan-limits'
 
 /**
  * GET /api/stores - List all stores for the current tenant
@@ -75,6 +75,14 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     const validationError = validateRequired(body, ['name', 'storeType'])
     if (validationError) return errorResponse(validationError, 400)
+
+    // Check plan limits
+    const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } })
+    const storeCount = await prisma.store.count({ where: { tenantId: user.tenantId } })
+    const limitCheck = checkLimit({ plan: tenant?.plan || 'STARTER', limitType: 'stores', currentCount: storeCount })
+    if (!limitCheck.allowed) {
+      return errorResponse(limitCheck.upgradeMessage || 'Store limit reached for your plan. Upgrade to add more.', 403)
+    }
 
     // Generate store code
     const code = await generateStoreCode(user.tenantId)

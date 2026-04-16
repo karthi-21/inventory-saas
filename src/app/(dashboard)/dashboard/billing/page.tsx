@@ -39,6 +39,7 @@ import {
   Store,
   XCircle,
   RotateCcw,
+  Printer,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -51,8 +52,13 @@ interface Invoice {
   id: string
   invoiceNumber: string
   invoiceDate: string
-  customer: { firstName: string; lastName?: string } | null
-  store: { name: string }
+  store: { name: string; address?: string; gstin?: string }
+  customer?: { firstName: string; lastName?: string; phone?: string } | null
+  customerName?: string
+  subtotal?: number
+  totalDiscount?: number
+  totalGst?: number
+  roundOff?: number
   totalAmount: number
   amountPaid: number
   amountDue: number
@@ -466,6 +472,49 @@ export default function BillingPage() {
                             </Button>
                           </>
                         )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                          onClick={async () => {
+                            try {
+                              const res = await fetch('/api/print/receipt', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  invoiceNumber: invoice.invoiceNumber,
+                                  invoiceDate: invoice.invoiceDate,
+                                  storeName: invoice.store?.name || '',
+                                  storeAddress: invoice.store?.address || '',
+                                  storeGstin: invoice.store?.gstin || '',
+                                  customerName: invoice.customerName || 'Walk-in Customer',
+                                  customerPhone: invoice.customer?.phone || '',
+                                  items: [],
+                                  subtotal: Number(invoice.subtotal || 0),
+                                  totalDiscount: Number(invoice.totalDiscount || 0),
+                                  totalGst: Number(invoice.totalGst || 0),
+                                  roundOff: Number(invoice.roundOff || 0),
+                                  totalAmount: Number(invoice.totalAmount || 0),
+                                  amountPaid: Number(invoice.amountPaid || 0),
+                                  amountDue: Number(invoice.totalAmount || 0) - Number(invoice.amountPaid || 0),
+                                  paymentMethod: invoice.billingType || '',
+                                }),
+                              })
+                              if (res.ok) {
+                                const html = await res.text()
+                                const w = window.open('', '_blank', 'width=320,height=600')
+                                if (w) { w.document.write(html); w.document.close(); w.print() }
+                              } else {
+                                toast.error('Failed to generate receipt')
+                              }
+                            } catch {
+                              toast.error('Failed to print receipt')
+                            }
+                          }}
+                          title="Reprint Receipt"
+                        >
+                          <Printer className="h-4 w-4" />
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>
@@ -546,7 +595,7 @@ export default function BillingPage() {
               setCancelReason('')
               setCustomReason('')
             }}>
-              Don't Cancel
+              Don&apos;t Cancel
             </Button>
             <Button
               variant="destructive"
@@ -577,7 +626,7 @@ export default function BillingPage() {
             <DialogTitle>Return Items</DialogTitle>
             <DialogDescription>
               Select items to return from bill <strong>{selectedInvoice?.invoiceNumber}</strong>.
-              Items go back to stock. Money adjusted in customer's account.
+              Items go back to stock. Money adjusted in customer&apos;s account.
             </DialogDescription>
           </DialogHeader>
 

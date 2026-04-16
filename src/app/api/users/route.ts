@@ -2,7 +2,6 @@ import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import {
   requirePermission,
-  successResponse,
   createdResponse,
   errorResponse,
   paginatedResponse,
@@ -11,6 +10,7 @@ import {
   handlePrismaError,
   logActivity,
 } from '@/lib/api'
+import { checkLimit } from '@/lib/plan-limits'
 
 /**
  * GET /api/users - List users in the tenant
@@ -70,6 +70,14 @@ export async function POST(request: NextRequest) {
 
     const validationError = validateRequired(body, ['email', 'firstName'])
     if (validationError) return errorResponse(validationError, 400)
+
+    // Check plan limits
+    const tenant = await prisma.tenant.findUnique({ where: { id: user.tenantId } })
+    const userCount = await prisma.user.count({ where: { tenantId: user.tenantId, isActive: true } })
+    const limitCheck = checkLimit({ plan: tenant?.plan || 'STARTER', limitType: 'users', currentCount: userCount })
+    if (!limitCheck.allowed) {
+      return errorResponse(limitCheck.upgradeMessage || 'User limit reached for your plan. Upgrade to add more.', 403)
+    }
 
     // Check for duplicate email in tenant
     const existing = await prisma.user.findFirst({

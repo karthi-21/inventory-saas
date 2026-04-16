@@ -47,7 +47,7 @@ interface PurchaseInvoice {
   invoiceNumber: string
   invoiceDate: string
   vendor: { id: string; name: string; phone?: string }
-  store: { id: string; name: string }
+  Store: { id: string; name: string }
   subtotal: number
   totalGst: number
   totalAmount: number
@@ -383,7 +383,7 @@ export default function PurchasesPage() {
                     <TableCell className="text-muted-foreground">
                       {new Date(invoice.invoiceDate).toLocaleDateString('en-IN')}
                     </TableCell>
-                    <TableCell>{invoice.store.name}</TableCell>
+                    <TableCell>{invoice.Store?.name || '—'}</TableCell>
                     <TableCell className="text-right font-medium">
                       ₹{Number(invoice.totalAmount).toLocaleString('en-IN')}
                     </TableCell>

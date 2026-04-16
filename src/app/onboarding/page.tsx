@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Store, Loader2, CheckCircle2, Building2, MapPin, Phone } from 'lucide-react'
+import { Store, Loader2, CheckCircle2, Building2, MapPin, Phone, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface OnboardingStatus {
   hasExistingStore: boolean
@@ -33,6 +34,15 @@ export default function OnboardingPage() {
     state: '',
     pincode: '',
   })
+  const [additionalStoreForm, setAdditionalStoreForm] = useState({
+    storeName: '',
+    storeCode: '',
+    address: '',
+    phone: '',
+    state: '',
+    pincode: '',
+  })
+  const [createdStores, setCreatedStores] = useState<string[]>([])
 
   // Check if user already has a store
   useEffect(() => {
@@ -80,13 +90,49 @@ export default function OnboardingPage() {
         throw new Error(data.error || 'Failed to create store')
       }
 
-      // Store created successfully, redirect to dashboard
-      router.push('/dashboard')
+      // Store created successfully, show add more stores option
+      setCreatedStores([formData.storeName])
+      setStep(2)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
     } finally {
       setIsSubmitting(false)
     }
+  }
+
+  const handleAddAnotherStore = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!additionalStoreForm.storeName.trim() || !additionalStoreForm.storeCode.trim()) {
+      setError('Store name and code are required')
+      return
+    }
+    setIsSubmitting(true)
+    setError(null)
+
+    try {
+      const res = await fetch('/api/onboarding/create-store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(additionalStoreForm),
+      })
+
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to create store')
+      }
+
+      setCreatedStores([...createdStores, additionalStoreForm.storeName])
+      setAdditionalStoreForm({ storeName: '', storeCode: '', address: '', phone: '', state: '', pincode: '' })
+      toast.success('Store added successfully!')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSkipToDashboard = () => {
+    router.push('/dashboard')
   }
 
   if (isLoading) {
@@ -124,22 +170,24 @@ export default function OnboardingPage() {
           className="flex items-center justify-center gap-4 mb-8"
         >
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-indigo-600 text-white flex items-center justify-center text-sm font-medium">
-              1
+            <div className={`h-8 w-8 rounded-full ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-sm font-medium`}>
+              {step > 1 ? <CheckCircle2 className="h-5 w-5" /> : '1'}
             </div>
-            <span className="text-sm font-medium text-indigo-600">Store Details</span>
+            <span className={`text-sm font-medium ${step >= 1 ? 'text-indigo-600' : 'text-slate-500'}`}>Store Details</span>
           </div>
-          <div className="w-12 h-0.5 bg-slate-200" />
+          <div className={`w-12 h-0.5 ${step > 1 ? 'bg-indigo-300' : 'bg-slate-200'}`} />
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center text-sm font-medium">
+            <div className={`h-8 w-8 rounded-full ${step > 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-sm font-medium`}>
               2
             </div>
-            <span className="text-sm text-slate-500">Complete</span>
+            <span className={`text-sm ${step > 1 ? 'font-medium text-indigo-600' : 'text-slate-500'}`}>{step > 1 ? 'More Stores' : 'Complete'}</span>
           </div>
         </motion.div>
 
-        {/* Form Card */}
-        <motion.div
+        {/* Step 1: Store Form */}
+        {step === 1 && (
+          <>
+            <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
@@ -277,6 +325,122 @@ export default function OnboardingPage() {
         >
           You can update these details later in Settings
         </motion.p>
+          </>
+        )}
+
+        {/* Step 2: Add More Stores or Skip to Dashboard */}
+        {step === 2 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <Card className="shadow-xl shadow-slate-200/50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CheckCircle2 className="h-5 w-5 text-green-600" />
+                Store Created!
+              </CardTitle>
+              <CardDescription>
+                Your first store has been created. You can add more stores now or skip to the dashboard.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Created stores list */}
+              <div className="space-y-2">
+                {createdStores.map((name, i) => (
+                  <div key={i} className="flex items-center gap-2 rounded-lg bg-green-50 border border-green-200 p-3">
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                    <span className="font-medium text-green-800">{name}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add another store form */}
+              {error && (
+                <div className="p-3 rounded-lg bg-red-50 text-red-600 text-sm">{error}</div>
+              )}
+
+              <div className="border-t pt-4">
+                <h3 className="font-medium mb-4">Add Another Store</h3>
+                <form onSubmit={handleAddAnotherStore} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="addStoreName">Store Name *</Label>
+                      <Input
+                        id="addStoreName"
+                        placeholder="e.g., Branch Store"
+                        value={additionalStoreForm.storeName}
+                        onChange={(e) => setAdditionalStoreForm({ ...additionalStoreForm, storeName: e.target.value })}
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="addStoreCode">Store Code *</Label>
+                      <Input
+                        id="addStoreCode"
+                        placeholder="e.g., BRANCH01"
+                        value={additionalStoreForm.storeCode}
+                        onChange={(e) => setAdditionalStoreForm({ ...additionalStoreForm, storeCode: e.target.value.toUpperCase() })}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="addStoreAddress">Address</Label>
+                    <Input
+                      id="addStoreAddress"
+                      placeholder="Store address"
+                      value={additionalStoreForm.address}
+                      onChange={(e) => setAdditionalStoreForm({ ...additionalStoreForm, address: e.target.value })}
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="addStorePhone">Phone</Label>
+                      <Input
+                        id="addStorePhone"
+                        placeholder="+91 98765 43210"
+                        value={additionalStoreForm.phone}
+                        onChange={(e) => setAdditionalStoreForm({ ...additionalStoreForm, phone: e.target.value })}
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="addStoreState">State</Label>
+                      <Input
+                        id="addStoreState"
+                        placeholder="e.g., Tamil Nadu"
+                        value={additionalStoreForm.state}
+                        onChange={(e) => setAdditionalStoreForm({ ...additionalStoreForm, state: e.target.value })}
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant="outline"
+                    className="w-full gap-2"
+                    disabled={isSubmitting || !additionalStoreForm.storeName.trim() || !additionalStoreForm.storeCode.trim()}
+                  >
+                    {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                    Add Another Store
+                  </Button>
+                </form>
+              </div>
+
+              <Button
+                onClick={handleSkipToDashboard}
+                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
+              >
+                Go to Dashboard
+              </Button>
+            </CardContent>
+          </Card>
+        </motion.div>
+        )}
       </div>
     </div>
   )

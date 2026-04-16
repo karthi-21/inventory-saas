@@ -14,7 +14,7 @@
  * Outputs: { email, password, tenantId, storeIds, locationIds }
  */
 
-import { PrismaClient, StoreType, LocationType, TenantPlan } from '@prisma/client'
+import { PrismaClient, StoreType, LocationType, TenantPlan, PermissionModule, PermissionAction } from '@prisma/client'
 import { createClient } from '@supabase/supabase-js'
 import { hash } from 'bcrypt'
 
@@ -257,7 +257,7 @@ async function main() {
 
   // Get the auth user ID
   const { data: { users } } = await supabase.auth.admin.listUsers()
-  const authUser = users.find((u: any) => u.email === email)
+  const authUser = users.find((u: { email?: string }) => u.email === email)
   const authUserId = authUser?.id || authData?.user?.id
 
   if (!authUserId) {
@@ -288,7 +288,7 @@ async function main() {
   // 3. Create DB user linked to auth
   const passwordHash = await hash(TEST_PASSWORD, 10)
   const dbUser = await prisma.user.upsert({
-    where: { email: scenario.email },
+    where: { tenantId_email: { tenantId: tenant.id, email: scenario.email } },
     update: {},
     create: {
       id: authUserId,
@@ -431,8 +431,8 @@ async function main() {
           'PURCHASE_VIEW', 'PURCHASE_CREATE', 'PURCHASE_EDIT',
           'REPORT_VIEW', 'REPORT_EXPORT', 'SETTINGS_VIEW', 'SETTINGS_EDIT',
         ].map((mod) => ({
-          module: mod as any,
-          action: 'VIEW' as any,
+          module: mod as PermissionModule,
+          action: 'VIEW' as PermissionAction,
         })),
       },
     },
@@ -456,7 +456,7 @@ async function main() {
       tenantId: tenant.id,
       currency: 'INR',
       invoicePrefix: 'INV',
-      fiscalYearStart: 'APRIL',
+      fiscalYearStart: 4,
       lowStockAlertDays: 7,
       expiryAlertDays: 30,
       roundOffEnabled: true,
@@ -472,7 +472,8 @@ async function main() {
       tenantId: tenant.id,
       plan: TenantPlan.PRO,
       status: 'TRIALING',
-      trialEndsAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
     },
   })
 

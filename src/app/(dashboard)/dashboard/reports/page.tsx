@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -37,6 +37,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { exportToCSV } from '@/lib/export'
+import { exportToExcel, exportSalesReport, exportInventoryReport, exportOutstandingReport } from '@/lib/export-excel'
 
 interface Store {
   id: string
@@ -138,7 +139,7 @@ export default function ReportsPage() {
     return { from: from.toISOString(), to: to.toISOString() }
   }
 
-  const dateRangeParams = dateRange === 'custom' && customFromDate && customToDate
+  const _dateRangeParams = dateRange === 'custom' && customFromDate && customToDate
     ? `&from=${customFromDate}&to=${customToDate}`
     : ''
 
@@ -224,12 +225,56 @@ export default function ReportsPage() {
   })
 
   const handleExport = (format: 'csv' | 'excel') => {
+    const timestamp = new Date().toISOString().split('T')[0]
+
     if (format === 'excel') {
-      toast.info('Excel export coming soon!')
+      switch (reportType) {
+        case 'sales':
+          if (!salesData?.dailySales?.length) {
+            toast.error('No sales data to export')
+            return
+          }
+          exportSalesReport(salesData.dailySales, `sales-report-${timestamp}`)
+          toast.success('Excel report downloaded')
+          return
+        case 'gst':
+          if (!gstData?.summary?.length) {
+            toast.error('No GST data to export')
+            return
+          }
+          exportToExcel([{
+            name: 'GST Summary',
+            headers: ['HSN Code', 'Taxable Amount (₹)', 'CGST (₹)', 'SGST (₹)', 'IGST (₹)', 'Total GST (₹)', 'Total Amount (₹)', 'Quantity'],
+            rows: gstData.summary.map((row) => [row.hsnCode, row.taxableAmount, Math.round(row.cgst), Math.round(row.sgst), row.igst, Math.round(row.totalGst), row.totalAmount, row.quantity]),
+          }], `gst-report-${timestamp}`)
+          toast.success('Excel report downloaded')
+          return
+        case 'inventory':
+          if (!inventoryData?.stocks?.length) {
+            toast.error('No inventory data to export')
+            return
+          }
+          exportInventoryReport(
+            inventoryData.stocks.map((s) => ({ name: s.productName, sku: s.sku, category: '', stock: s.quantity, reorderLevel: s.reorderLevel, sellingPrice: 0 })),
+            `inventory-report-${timestamp}`
+          )
+          toast.success('Excel report downloaded')
+          return
+        case 'outstanding':
+          if (!outstandingData?.customers?.length) {
+            toast.error('No outstanding data to export')
+            return
+          }
+          exportOutstandingReport(
+            outstandingData.customers.map((c) => ({ firstName: c.firstName, lastName: c.lastName, phone: c.phone, totalPurchases: c.totalPurchases, totalDue: c.totalDue })),
+            `outstanding-report-${timestamp}`
+          )
+          toast.success('Excel report downloaded')
+          return
+      }
       return
     }
 
-    const timestamp = new Date().toISOString().split('T')[0]
     let csvData: Record<string, unknown>[] = []
     let filename = `report-${timestamp}.csv`
 
@@ -732,14 +777,17 @@ export default function ReportsPage() {
             <>
               {/* Summary Card */}
               <Card>
-                <CardContent className="flex items-center gap-4 p-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
-                    <Users className="h-5 w-5 text-orange-600" />
+                <CardContent className="flex items-center justify-between p-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100 dark:bg-orange-900/30">
+                      <Users className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Total Amount Due</p>
+                      <p className="text-2xl font-bold text-orange-600">₹{(outstandingData.totalOutstanding || 0).toLocaleString('en-IN')}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Amount Due</p>
-                    <p className="text-2xl font-bold text-orange-600">₹{(outstandingData.totalOutstanding || 0).toLocaleString('en-IN')}</p>
-                  </div>
+                  <a href="/dashboard/customers/outstanding" className="text-sm text-primary hover:underline">View Details &rarr;</a>
                 </CardContent>
               </Card>
 

@@ -15,12 +15,11 @@ import {
   IndianRupee,
   Users,
   AlertTriangle,
-  Loader2,
   AlertCircle,
   Award,
 } from 'lucide-react'
 import Link from 'next/link'
-import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
+import { Skeleton } from '@/components/ui/skeleton'
 import { usePOSStore } from '@/stores/pos-store'
 
 interface DashboardStats {
@@ -57,9 +56,22 @@ interface LowStockItem {
 export default function DashboardPage() {
   const currentStoreId = usePOSStore((state) => state.currentStoreId)
 
+  // Fetch stores for store name display and validation
+  const { data: stores } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['stores'],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const res = await fetch('/api/stores')
+      if (!res.ok) throw new Error('Failed to fetch stores')
+      const data = await res.json()
+      return data.data || []
+    },
+  })
+
   // Fetch dashboard stats
   const { data: statsData, isLoading: statsLoading, error: statsError } = useQuery<DashboardStats>({
     queryKey: ['dashboard-stats', currentStoreId],
+    staleTime: 30_000,
     queryFn: async () => {
       const params = new URLSearchParams({ type: 'sales-summary' })
       if (currentStoreId) params.set('storeId', currentStoreId)
@@ -79,6 +91,7 @@ export default function DashboardPage() {
   // Fetch recent sales
   const { data: recentSales, isLoading: salesLoading } = useQuery<RecentSale[]>({
     queryKey: ['recent-sales', currentStoreId],
+    staleTime: 30_000,
     queryFn: async () => {
       const params = new URLSearchParams({ limit: '5' })
       if (currentStoreId) params.set('storeId', currentStoreId)
@@ -101,6 +114,7 @@ export default function DashboardPage() {
   // Fetch low stock items
   const { data: lowStockItems, isLoading: lowStockLoading } = useQuery<LowStockItem[]>({
     queryKey: ['low-stock-alerts', currentStoreId],
+    staleTime: 30_000,
     queryFn: async () => {
       const params = new URLSearchParams({ lowStock: 'true', limit: '5' })
       if (currentStoreId) params.set('storeId', currentStoreId)
@@ -129,17 +143,6 @@ export default function DashboardPage() {
         quantity: Number(p.quantity || p.totalQty) || 0,
         revenue: Number(p.revenue || p.totalRevenue) || 0,
       }))
-    },
-  })
-
-  // Fetch stores for store name
-  const { data: stores } = useQuery<Array<{ id: string; name: string }>>({
-    queryKey: ['stores'],
-    queryFn: async () => {
-      const res = await fetch('/api/stores')
-      if (!res.ok) throw new Error('Failed to fetch stores')
-      const data = await res.json()
-      return data.data || []
     },
   })
 
@@ -198,6 +201,7 @@ export default function DashboardPage() {
   const [dateStr, setDateStr] = useState('')
   useEffect(() => {
     const today = new Date()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDateStr(today.toLocaleDateString('en-IN', {
       weekday: 'long',
       day: 'numeric',

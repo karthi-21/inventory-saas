@@ -207,6 +207,135 @@ CREATE POLICY activity_log_tenant_isolation ON "ActivityLog"
     USING (tenantId = current_setting('app.current_tenant', true)::text)
     WITH CHECK (tenantId = current_setting('app.current_tenant', true)::text);
 
+CREATE POLICY email_log_tenant_isolation ON "EmailLog"
+    FOR ALL
+    TO authenticated
+    USING (tenantId = current_setting('app.current_tenant', true)::text)
+    WITH CHECK (tenantId = current_setting('app.current_tenant', true)::text);
+
+CREATE POLICY follow_up_tenant_isolation ON "FollowUp"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "Customer" c
+            WHERE c.id = "FollowUp".customerId
+            AND c.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY store_payment_config_tenant_isolation ON "StorePaymentConfig"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "Store" s
+            WHERE s.id = "StorePaymentConfig".storeId
+            AND s.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY printer_config_tenant_isolation ON "PrinterConfig"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "Store" s
+            WHERE s.id = "PrinterConfig".storeId
+            AND s.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY shift_tenant_isolation ON "Shift"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "Store" s
+            WHERE s.id = "Shift".storeId
+            AND s.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY subscription_tenant_isolation ON "Subscription"
+    FOR ALL
+    TO authenticated
+    USING (tenantId = current_setting('app.current_tenant', true)::text)
+    WITH CHECK (tenantId = current_setting('app.current_tenant', true)::text);
+
+CREATE POLICY tenant_settings_tenant_isolation ON "TenantSettings"
+    FOR ALL
+    TO authenticated
+    USING (tenantId = current_setting('app.current_tenant', true)::text)
+    WITH CHECK (tenantId = current_setting('app.current_tenant', true)::text);
+
+CREATE POLICY user_store_access_tenant_isolation ON "UserStoreAccess"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "User" u
+            WHERE u.id = "UserStoreAccess".userId
+            AND u.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY user_persona_tenant_isolation ON "UserPersona"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "User" u
+            WHERE u.id = "UserPersona".userId
+            AND u.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY loyalty_tenant_isolation ON "LoyaltyTransaction"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "Customer" c
+            WHERE c.id = "LoyaltyTransaction".customerId
+            AND c.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY stock_transfer_tenant_isolation ON "StockTransfer"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "Store" s
+            WHERE s.id = "StockTransfer".fromStoreId
+            AND s.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY stock_transfer_item_tenant_isolation ON "StockTransferItem"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "StockTransfer" st
+            JOIN "Store" s ON s.id = st.fromStoreId
+            WHERE st.id = "StockTransferItem".transferId
+            AND s.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
+CREATE POLICY location_tenant_isolation ON "Location"
+    FOR ALL
+    TO authenticated
+    USING (
+        EXISTS (
+            SELECT 1 FROM "Store" s
+            WHERE s.id = "Location".storeId
+            AND s.tenantId = current_setting('app.current_tenant', true)::text
+        )
+    );
+
 -- ============================================
 -- FUNCTIONS FOR SETTING TENANT CONTEXT
 -- ============================================

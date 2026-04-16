@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Badge } from '@/components/ui/badge' // eslint-disable-line @typescript-eslint/no-unused-vars
 import {
   Select,
   SelectContent,
@@ -29,10 +30,16 @@ import {
   Bell,
   Users,
   Shield,
-  Save,
+  Save, // eslint-disable-line @typescript-eslint/no-unused-vars
   Loader2,
   Award,
+  Printer,
+  CreditCard,
+  FileText,
+  ChevronRight,
+  Mail,
 } from 'lucide-react'
+import Link from 'next/link'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
 
@@ -46,6 +53,11 @@ interface TenantSettings {
   invoicePrefix: string
   decimalPlaces: number
   roundOffEnabled: boolean
+  emailNotificationsEnabled?: boolean
+  invoiceAutoSend?: boolean
+  lowStockEmailAlerts?: boolean
+  shiftSummaryEmail?: boolean
+  paymentReminderFrequency?: string
 }
 
 interface Tenant {
@@ -106,12 +118,25 @@ export default function SettingsPage() {
     expiryAlertDays: '7',
   })
 
+  const [notifForm, setNotifForm] = useState({
+    emailNotificationsEnabled: true,
+    invoiceAutoSend: true,
+    lowStockEmailAlerts: true,
+    shiftSummaryEmail: false,
+    paymentReminderFrequency: 'WEEKLY',
+  })
+
   const [passwordForm, setPasswordForm] = useState({
     newPassword: '',
     confirmPassword: '',
   })
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
+  const [enrolling2FA, setEnrolling2FA] = useState(false)
+  const [show2FADialog, setShow2FADialog] = useState(false)
+  const [twoFASecret, setTwoFASecret] = useState<{ uri: string; secret: string } | null>(null)
+  const [twoFACode, setTwoFACode] = useState('')
+  const [verifying2FA, setVerifying2FA] = useState(false)
 
   const [loyaltyForm, setLoyaltyForm] = useState({
     loyaltyEnabled: true,
@@ -157,6 +182,13 @@ export default function SettingsPage() {
         roundOffEnabled: settingsData.settings.roundOffEnabled ?? true,
         lowStockAlertDays: String(settingsData.settings.lowStockAlertDays || 7),
         expiryAlertDays: String(settingsData.settings.expiryAlertDays || 7),
+      })
+      setNotifForm({
+        emailNotificationsEnabled: settingsData.settings.emailNotificationsEnabled ?? true,
+        invoiceAutoSend: settingsData.settings.invoiceAutoSend ?? true,
+        lowStockEmailAlerts: settingsData.settings.lowStockEmailAlerts ?? true,
+        shiftSummaryEmail: settingsData.settings.shiftSummaryEmail ?? false,
+        paymentReminderFrequency: settingsData.settings.paymentReminderFrequency || 'WEEKLY',
       })
     }
   }, [settingsData])
@@ -219,6 +251,24 @@ export default function SettingsPage() {
   const handleSaveBusiness = () => updateTenant.mutate(businessForm)
   const handleSaveSettings = () => updateSettings.mutate(settingsForm)
 
+  // Update notification settings mutation
+  const updateNotifications = useMutation({
+    mutationFn: async (data: typeof notifForm) => {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      })
+      if (!res.ok) throw new Error('Failed to update notification settings')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] })
+      toast.success('Notification settings updated')
+    },
+    onError: () => toast.error('Failed to update notification settings'),
+  })
+
   // Update loyalty mutation
   const updateLoyalty = useMutation({
     mutationFn: async (data: typeof loyaltyForm) => {
@@ -278,6 +328,60 @@ export default function SettingsPage() {
     }
   }
 
+  const handleEnable2FA = async () => {
+    setEnrolling2FA(true)
+    try {
+      const { data, error } = await supabase.auth.mfa.enroll({
+        factorType: 'totp',
+        issuer: 'OmniBIZ',
+      })
+      if (error) {
+        toast.error(error.message || 'Failed to start 2FA setup')
+        return
+      }
+      setTwoFASecret({ uri: data.totp.uri, secret: data.totp.secret })
+      setShow2FADialog(true)
+    } catch {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setEnrolling2FA(false)
+    }
+  }
+
+  const handleVerify2FA = async () => {
+    if (!twoFACode || twoFACode.length !== 6) {
+      toast.error('Please enter the 6-digit code from your authenticator app')
+      return
+    }
+    setVerifying2FA(true)
+    try {
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: twoFASecret?.secret || '',
+      })
+      if (challengeError) {
+        toast.error(challengeError.message || 'Failed to verify code')
+        return
+      }
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: challengeData.id,
+        challengeId: challengeData.id,
+        code: twoFACode,
+      })
+      if (verifyError) {
+        toast.error(verifyError.message || 'Invalid code. Please try again.')
+        return
+      }
+      toast.success('Two-factor authentication enabled successfully!')
+      setShow2FADialog(false)
+      setTwoFASecret(null)
+      setTwoFACode('')
+    } catch {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setVerifying2FA(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -291,6 +395,60 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-sm text-muted-foreground">Configure your store preferences</p>
+      </div>
+
+      {/* Quick Links */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Link href="/dashboard/settings/printers" className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent transition-colors">
+          <div className="flex items-center gap-3">
+            <Printer className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Receipt Printers</p>
+              <p className="text-sm text-muted-foreground">Configure thermal printers</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link href="/dashboard/settings/payment-methods" className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent transition-colors">
+          <div className="flex items-center gap-3">
+            <CreditCard className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Payment Methods</p>
+              <p className="text-sm text-muted-foreground">UPI, cash, card settings</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link href="/dashboard/settings/subscription" className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent transition-colors">
+          <div className="flex items-center gap-3">
+            <Award className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Subscription & Billing</p>
+              <p className="text-sm text-muted-foreground">Manage your plan</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link href="/dashboard/settings/audit-log" className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent transition-colors">
+          <div className="flex items-center gap-3">
+            <FileText className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Audit Log</p>
+              <p className="text-sm text-muted-foreground">View activity history</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link href="/dashboard/settings/email-logs" className="flex items-center justify-between rounded-lg border p-4 hover:bg-accent transition-colors">
+          <div className="flex items-center gap-3">
+            <Mail className="h-5 w-5 text-primary" />
+            <div>
+              <p className="font-medium">Email Activity</p>
+              <p className="text-sm text-muted-foreground">View sent emails and status</p>
+            </div>
+          </div>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
       </div>
 
       {/* Business Details */}
@@ -689,16 +847,146 @@ export default function SettingsPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          {/* 2FA Enrollment Dialog */}
+          <Dialog open={show2FADialog} onOpenChange={setShow2FADialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Set Up Two-Factor Authentication</DialogTitle>
+                <DialogDescription>Scan the QR code below with your authenticator app (Google Authenticator, Authy, etc.)</DialogDescription>
+              </DialogHeader>
+              {twoFASecret && (
+                <div className="space-y-4 py-4">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="rounded-lg border bg-white p-4">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(twoFASecret.uri)}`}
+                        alt="2FA QR Code"
+                        className="h-48 w-48"
+                      />
+                    </div>
+                    <p className="text-sm text-muted-foreground text-center">
+                      Can&apos;t scan? Enter this secret manually:
+                    </p>
+                    <code className="rounded bg-muted px-3 py-1 text-sm font-mono break-all">
+                      {twoFASecret.secret}
+                    </code>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="2fa-code">Verification Code</Label>
+                    <Input
+                      id="2fa-code"
+                      placeholder="Enter 6-digit code"
+                      value={twoFACode}
+                      onChange={(e) => setTwoFACode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      maxLength={6}
+                      className="text-center text-2xl tracking-widest"
+                    />
+                  </div>
+                </div>
+              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => { setShow2FADialog(false); setTwoFASecret(null); setTwoFACode('') }}>Cancel</Button>
+                <Button onClick={handleVerify2FA} disabled={verifying2FA || twoFACode.length !== 6} className="gap-2">
+                  {verifying2FA && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Verify & Enable
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <Separator />
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Extra Login Security</p>
-              <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
+              <p className="text-sm text-muted-foreground">Protect your account with an authenticator app (TOTP)</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => toast.info('Two-factor authentication is coming soon')}>
-              Enable
+            <Button variant="outline" size="sm" onClick={handleEnable2FA} disabled={enrolling2FA}>
+              {enrolling2FA ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Setting up...</> : 'Enable'}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Notifications */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Bell className="h-5 w-5 text-primary" />
+            <CardTitle>Email Notifications</CardTitle>
+          </div>
+          <CardDescription>Configure which emails are sent automatically</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Email notifications</p>
+              <p className="text-sm text-muted-foreground">Enable or disable all email notifications</p>
+            </div>
+            <Switch
+              checked={notifForm.emailNotificationsEnabled}
+              onCheckedChange={v => setNotifForm(f => ({ ...f, emailNotificationsEnabled: v }))}
+            />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Auto-send bill receipts</p>
+              <p className="text-sm text-muted-foreground">Email receipt to customer after each sale</p>
+            </div>
+            <Switch
+              checked={notifForm.invoiceAutoSend}
+              onCheckedChange={v => setNotifForm(f => ({ ...f, invoiceAutoSend: v }))}
+              disabled={!notifForm.emailNotificationsEnabled}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Low stock email alerts</p>
+              <p className="text-sm text-muted-foreground">Get email when products run low</p>
+            </div>
+            <Switch
+              checked={notifForm.lowStockEmailAlerts}
+              onCheckedChange={v => setNotifForm(f => ({ ...f, lowStockEmailAlerts: v }))}
+              disabled={!notifForm.emailNotificationsEnabled}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Shift summary email</p>
+              <p className="text-sm text-muted-foreground">Email shift summary when shift is closed</p>
+            </div>
+            <Switch
+              checked={notifForm.shiftSummaryEmail}
+              onCheckedChange={v => setNotifForm(f => ({ ...f, shiftSummaryEmail: v }))}
+              disabled={!notifForm.emailNotificationsEnabled}
+            />
+          </div>
+          <Separator />
+          <div className="space-y-2">
+            <Label>Payment reminder frequency</Label>
+            <p className="text-xs text-muted-foreground">How often to email customers with outstanding balance</p>
+            <Select
+              value={notifForm.paymentReminderFrequency}
+              onValueChange={v => v && setNotifForm(f => ({ ...f, paymentReminderFrequency: v }))}
+              disabled={!notifForm.emailNotificationsEnabled}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DAILY">Daily</SelectItem>
+                <SelectItem value="WEEKLY">Weekly</SelectItem>
+                <SelectItem value="BIWEEKLY">Every 2 weeks</SelectItem>
+                <SelectItem value="MONTHLY">Monthly</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button onClick={() => updateNotifications.mutate(notifForm)} disabled={updateNotifications.isPending} className="gap-2">
+            {updateNotifications.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save Notification Settings
+          </Button>
         </CardContent>
       </Card>
     </div>

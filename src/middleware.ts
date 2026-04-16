@@ -1,11 +1,37 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { apiLimiter, authLimiter } from '@/lib/rate-limit'
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // Rate limiting
+  const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'
+
+  // Auth route rate limiting (20 requests per 15 min per IP)
+  if (pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/forgot-password')) {
+    const { allowed, remaining } = authLimiter(`auth:${clientIp}`)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+    const response = NextResponse.next()
+    response.headers.set('X-RateLimit-Remaining', remaining.toString())
+    return response
+  }
+
+  // API route rate limiting (100 requests per min per IP)
+  if (pathname.startsWith('/api/')) {
+    const { allowed, remaining } = apiLimiter(`api:${clientIp}`)
+    if (!allowed) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+    const response = NextResponse.next()
+    response.headers.set('X-RateLimit-Remaining', remaining.toString())
+    return response
+  }
+
   // Public routes that don't need auth
-  const isPublicRoute =
+  const _isPublicRoute =
     pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/signup') ||
@@ -29,7 +55,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Create response that we'll modify with cookies
-  let response = NextResponse.next({
+  const response = NextResponse.next({
     request: {
       headers: request.headers,
     },
@@ -63,7 +89,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/signup')
   const isDashboard = pathname.startsWith('/dashboard')
   const isOnboarding = pathname.startsWith('/onboarding')
-  const isPayment = pathname.startsWith('/payment')
+  const _isPayment = pathname.startsWith('/payment')
 
   // Redirect unauthenticated users away from dashboard
   if (isDashboard && !user) {

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { PrismaClient, StoreType, TenantPlan } from '@prisma/client'
 import { hash } from 'bcrypt'
 
@@ -1201,7 +1202,7 @@ async function main() {
       totalGst: pi2Gst,
       totalAmount: pi2Total,
       amountPaid: 1000000,
-      status: 'PARTIAL',
+      status: 'PENDING',
       createdById: user.id,
       items: {
         create: pi2Items.map((item, idx) => ({

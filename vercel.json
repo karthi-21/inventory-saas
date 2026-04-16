@@ -1,10 +1,11 @@
 {
-  "framework": "nextjs",
   "buildCommand": "npx prisma generate && next build",
   "installCommand": "npm ci",
-  "outputDirectory": ".next",
   "regions": ["bom1"],
-  "env": {
-    "NEXT_PUBLIC_APP_URL": "https://omnibiz.vercel.app"
-  }
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 3 * * *"
+    }
+  ]
 }

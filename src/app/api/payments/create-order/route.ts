@@ -1,35 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
-import Razorpay from 'razorpay'
 import { prisma } from '@/lib/db'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-
-const PLAN_PRICES: Record<string, { amount: number; plan: 'STARTER' | 'PRO' | 'ENTERPRISE' }> = {
-  launch: { amount: 99900, plan: 'STARTER' },   // ₹999 in paise
-  grow:   { amount: 249900, plan: 'PRO' },     // ₹2,499 in paise
-  // scale is custom - handled separately
-}
-
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET
-
-if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-  throw new Error(
-    `RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be configured. Missing: ${!RAZORPAY_KEY_ID ? 'RAZORPAY_KEY_ID' : ''}${!RAZORPAY_KEY_SECRET ? ' RAZORPAY_KEY_SECRET' : ''}`.trim()
-  )
-}
-
-const razorpay = new Razorpay({
-  key_id: RAZORPAY_KEY_ID,
-  key_secret: RAZORPAY_KEY_SECRET,
-})
+import { createCheckout, isDodoConfigured, PLAN_MAPPING } from '@/lib/dodo'
 
 /**
  * POST /api/payments/create-order
- * Creates a Razorpay order for the selected plan
+ * Creates a Dodo Payments checkout session for the selected plan
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get authenticated user
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
@@ -40,11 +19,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { planId } = body
 
-    if (!planId || !PLAN_PRICES[planId]) {
+    if (!planId || !PLAN_MAPPING[planId]) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 })
     }
 
-    const price = PLAN_PRICES[planId]
+    if (!isDodoConfigured()) {
+      return NextResponse.json({ error: 'Payment system is not configured. Please contact support.' }, { status: 503 })
+    }
 
     // Get user from DB to get tenantId
     const dbUser = await prisma.user.findFirst({
@@ -56,40 +37,42 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not fully set up' }, { status: 400 })
     }
 
-    // Create Razorpay order
-    const razorpayOrder = await razorpay.orders.create({
-      amount: price.amount,
-      currency: 'INR',
-      receipt: `rcpt_${user.id.slice(0, 8)}_${Date.now()}`,
-      notes: {
-        userId: user.id,
-        email: user.email || '',
-        plan: price.plan,
-      },
+    // Create Dodo Payments checkout session
+    const checkout = await createCheckout({
+      planId,
+      customerEmail: user.email || '',
+      customerName: dbUser.firstName ? `${dbUser.firstName} ${dbUser.lastName || ''}`.trim() : user.email || '',
+      successUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?plan=${planId}`,
+      cancelUrl: `${process.env.NEXT_PUBLIC_APP_URL}/payment?plan=${planId}`,
     })
 
-    // Find existing TRIALING subscription and update it
+    // Create or update subscription record
     const existingSub = await prisma.subscription.findFirst({
-      where: { tenantId: dbUser.tenantId, status: 'TRIALING' }
+      where: { tenantId: dbUser.tenantId, status: { in: ['TRIALING', 'ACTIVE'] } }
     })
+
+    const plan = PLAN_MAPPING[planId]
+    const planEnum = planId === 'launch' ? 'STARTER' : planId === 'grow' ? 'PRO' : 'ENTERPRISE'
 
     if (existingSub) {
       await prisma.subscription.update({
         where: { id: existingSub.id },
         data: {
-          plan: price.plan,
-          razorpayOrderId: razorpayOrder.id,
+          plan: planEnum as 'STARTER' | 'PRO' | 'ENTERPRISE',
+          dodoCustomerId: checkout.id,
+          dodoSubscriptionId: checkout.id,
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         }
       })
     } else {
       await prisma.subscription.create({
         data: {
           tenantId: dbUser.tenantId,
-          plan: price.plan,
+          plan: planEnum as 'STARTER' | 'PRO' | 'ENTERPRISE',
           status: 'TRIALING',
-          razorpayOrderId: razorpayOrder.id,
+          dodoCustomerId: checkout.id,
+          dodoSubscriptionId: checkout.id,
           currentPeriodStart: new Date(),
           currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         }
@@ -97,13 +80,14 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      orderId: razorpayOrder.id,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      checkoutUrl: checkout.url,
+      checkoutId: checkout.id,
+      planId,
+      amount: plan.price,
+      planName: plan.name,
     })
   } catch (error) {
-    console.error('Create order error:', error)
-    return NextResponse.json({ error: 'Failed to create order' }, { status: 500 })
+    console.error('Create checkout error:', error)
+    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 })
   }
 }

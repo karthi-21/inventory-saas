@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { seedIndustryCategories, INDUSTRY_PRESETS, type IndustryType } from '@/lib/industry-presets'
+import { sendEmail, welcomeEmail } from '@/lib/emails'
 
 /**
  * POST /api/onboarding/create-store
@@ -104,6 +105,20 @@ export async function POST(request: NextRequest) {
         isDefault: true,
       }
     })
+
+    // Send welcome email (non-blocking)
+    if (dbUser.email) {
+      sendEmail({
+        to: dbUser.email,
+        subject: `Welcome to OmniBIZ! Your store "${storeName}" is ready`,
+        html: welcomeEmail({
+          userName: dbUser.firstName || dbUser.email?.split('@')[0] || 'Store Owner',
+          storeName,
+          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003'}/dashboard`,
+        }),
+        tags: { type: 'welcome', tenantId: dbUser.tenantId },
+      }).catch(err => console.error('Welcome email failed:', err))
+    }
 
     return NextResponse.json({
       success: true,

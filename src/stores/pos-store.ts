@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { POSCartItem, POSBill, BillingType, Customer } from '@/types'
+import type { POSCartItem, BillingType, Customer } from '@/types'
 
 interface POSState {
   // Cart
@@ -179,6 +179,7 @@ export const usePOSStore = create<POSState>()(
     }),
     {
       name: 'pos-storage',
+      version: 1, // Bumped to invalidate stale demo-store-001 from localStorage
       partialize: (state) => ({
         currentStoreId: state.currentStoreId,
         currentLocationId: state.currentLocationId,
@@ -186,6 +187,19 @@ export const usePOSStore = create<POSState>()(
         currentShiftId: state.currentShiftId,
         heldBills: state.heldBills,
       }),
+      migrate: (persistedState, version) => {
+        // Clear stale demo IDs when upgrading from version 0
+        if (version === 0) {
+          const state = persistedState as Record<string, unknown>
+          if (state.currentStoreId && typeof state.currentStoreId === 'string' && !state.currentStoreId.startsWith('cm')) {
+            state.currentStoreId = null
+          }
+          if (state.currentLocationId && typeof state.currentLocationId === 'string' && !state.currentLocationId.startsWith('cm')) {
+            state.currentLocationId = null
+          }
+        }
+        return persistedState
+      },
     }
   )
 )

@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================
@@ -40,6 +41,7 @@ model Tenant {
   vendors       Vendor[]
   settings      TenantSettings?
   subscriptions Subscription[]
+  emailLogs      EmailLog[]
 }
 
 // Per-store pricing tiers
@@ -57,8 +59,11 @@ model Subscription {
   status                 SubscriptionStatus @default(ACTIVE)
   currentPeriodStart     DateTime
   currentPeriodEnd       DateTime
-  razorpayOrderId       String?
-  razorpaySubscriptionId String?
+  dodoCustomerId         String?
+  dodoSubscriptionId     String?
+  dodoPaymentId          String?
+  razorpayOrderId        String?  
+  razorpaySubscriptionId String?  
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
 }
@@ -87,9 +92,14 @@ model TenantSettings {
   pointsPerRupee    Decimal  @default(1) @db.Decimal(8, 2) // points earned per ₹100 spent
   rupeePerPoint     Decimal  @default(0.25) @db.Decimal(8, 2) // ₹value per point for redemption
   minimumRedemption Int      @default(100) // minimum points needed to redeem
-  pointsExpiryDays  Int      @default(365) // days until points expire, 0 = never
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  pointsExpiryDays       Int      @default(365) // days until points expire, 0 = never
+  emailNotificationsEnabled Boolean @default(true)
+  invoiceAutoSend         Boolean  @default(true)
+  lowStockEmailAlerts     Boolean  @default(true)
+  paymentReminderFrequency String  @default("WEEKLY")
+  shiftSummaryEmail       Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 }
 
 // ============================================
@@ -119,6 +129,7 @@ model Store {
   customers        Customer[]
   tables           RestaurantTable[]
   shifts           Shift[]
+  paymentConfig   StorePaymentConfig?
 
   @@unique([tenantId, code])
 }
@@ -507,6 +518,7 @@ model Customer {
 
   salesInvoices    SalesInvoice[]
   loyaltyPointsLog LoyaltyPointsLog[]
+  followUps       FollowUp[]
 
   @@unique([tenantId, phone])
 }
@@ -578,7 +590,6 @@ model PurchaseOrder {
 enum PurchaseOrderStatus {
   DRAFT
   SENT
-  PARTIAL
   RECEIVED
   CANCELLED
 }
@@ -624,7 +635,6 @@ model PurchaseInvoice {
 
 enum PurchaseStatus {
   PENDING
-  PARTIAL
   PAID
   CANCELLED
 }
@@ -715,8 +725,8 @@ enum InvoiceType {
 
 enum PaymentStatus {
   PAID
-  PARTIAL
   DUE
+  PARTIAL
   OVERDUE
   CANCELLED
 }
@@ -765,25 +775,38 @@ model SalesInvoiceItem {
 }
 
 model Payment {
-  id            String        @id @default(cuid())
-  invoiceId     String
-  invoice       SalesInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  amount        Decimal       @db.Decimal(14, 2)
-  method        PaymentMethod
-  reference     String? // UPI ref, card last 4, etc.
-  collectedById String?
-  createdAt     DateTime      @default(now())
+  id                     String             @id @default(cuid())
+  invoiceId              String
+  invoice                SalesInvoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount                 Decimal            @db.Decimal(14, 2)
+  method                 PaymentMethod
+  reference              String?
+  collectedById          String?
+  phonePeTransactionId  String?             @unique
+  phonePeMerchantTxnId  String?
+  paymentStatus          PaymentGatewayStatus @default(PENDING)
+  paymentCompletedAt    DateTime?
+  createdAt              DateTime           @default(now())
 }
+
 
 enum PaymentMethod {
   CASH
   UPI
   CARD
   BANK_TRANSFER
-  WALLET
   CREDIT
-  PARTIAL
+  MIXED
 }
+
+enum PaymentGatewayStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
 
 model SalesReturn {
   id           String       @id @default(cuid())
@@ -963,6 +986,7 @@ model ActivityLog {
 
 model PrinterConfig {
   id                String            @id @default(cuid())
+  tenantId          String
   storeId           String
   name              String // e.g. "Receipt Printer 1"
   type              PrinterType
@@ -971,6 +995,9 @@ model PrinterConfig {
   port              Int?
   paperWidth        Int               @default(80) // 58 or 80 mm
   charactersPerLine Int               @default(48)
+  autoCut           Boolean           @default(true)
+  cashDrawer        Boolean           @default(false)
+  autoPrint         Boolean           @default(false)
   isDefault         Boolean           @default(false)
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
@@ -987,3 +1014,51 @@ enum PrinterConnection {
   USB
   BLUETOOTH
 }
+
+// Email Log for tracking sent emails
+model EmailLog {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  to        String
+  template  String
+  subject   String
+  status    String   @default("PENDING")
+  resendId  String?
+  error     String?
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([template])
+  @@index([status])
+}
+
+// Follow-up tracking for payment reminders
+model FollowUp {
+  id         String   @id @default(cuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  type       String   // EMAIL_SENT, CALL, VISIT, WHATSAPP_LINK, MANUAL
+  notes      String?
+  nextDate   DateTime?
+  createdAt  DateTime @default(now())
+
+  @@index([customerId])
+}
+
+// Per-store payment method configuration
+model StorePaymentConfig {
+  id              String   @id @default(cuid())
+  storeId         String   @unique
+  store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  merchantVPA     String   @default("")
+  merchantName    String   @default("OmniBIZ Store")
+  phonepeEnabled  Boolean  @default(true)
+  cashEnabled     Boolean  @default(true)
+  cardEnabled     Boolean  @default(false)
+  upiQrEnabled    Boolean  @default(true)
+  autoSendReceipt Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+

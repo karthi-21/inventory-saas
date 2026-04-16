@@ -44,6 +44,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
 interface Customer {
   id: string
@@ -274,10 +275,18 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
           <p className="text-sm text-muted-foreground">Manage customer relationships and loyalty</p>
         </div>
-        <Button onClick={() => { resetForm(); setShowAddDialog(true) }} className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Customer
-        </Button>
+        <div className="flex gap-2">
+          <Link href="/dashboard/customers/outstanding">
+            <Button variant="outline" className="gap-2">
+              <CreditCard className="h-4 w-4" />
+              Outstanding
+            </Button>
+          </Link>
+          <Button onClick={() => { resetForm(); setShowAddDialog(true) }} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Customer
+          </Button>
+        </div>
       </div>
 
       {/* Summary */}

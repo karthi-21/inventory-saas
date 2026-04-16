@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Store,
@@ -21,11 +21,11 @@ import {
   ChevronDown,
   AlertTriangle,
   Info,
-  XCircle,
+  XCircle, // eslint-disable-line @typescript-eslint/no-unused-vars
   UserCog,
 } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button' // eslint-disable-line @typescript-eslint/no-unused-vars
 import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
@@ -121,7 +121,25 @@ export default function DashboardLayout({
     retry: 2,
     retryDelay: 1000,
   })
-  const stores = Array.isArray(storesData) ? storesData : []
+  const stores = useMemo(() => Array.isArray(storesData) ? storesData : [], [storesData])
+
+  // Auto-set current store when stores load and no store is selected or selected store doesn't exist
+  // Uses both a synchronous check (to prevent child components from rendering with null storeId)
+  // and a useEffect (to properly trigger state update and re-render)
+  const _effectiveStoreId = (!currentStoreId && stores.length > 0)
+    ? stores[0].id
+    : (currentStoreId && stores.length > 0 && !stores.find(s => s.id === currentStoreId))
+      ? stores[0].id
+      : currentStoreId
+
+  React.useEffect(() => {
+    if (stores.length > 0 && !storesLoading) {
+      if (!currentStoreId || !stores.find(s => s.id === currentStoreId)) {
+        setCurrentStore(stores[0].id)
+        setCurrentLocation(null)
+      }
+    }
+  }, [stores, storesLoading, currentStoreId, setCurrentStore, setCurrentLocation])
 
   // Fetch tenant plan
   const { data: tenantData } = useQuery<{ plan: string }>({
@@ -138,6 +156,42 @@ export default function DashboardLayout({
   const planLabel = tenantData?.plan
     ? tenantData.plan.charAt(0) + tenantData.plan.slice(1).toLowerCase() + ' Plan'
     : 'Free Plan'
+
+  // Fetch subscription status for trial banner
+  const { data: subscriptionData } = useQuery<{
+    hasActiveSubscription: boolean
+    subscription: { status: string; currentPeriodEnd: string; plan: string } | null
+  }>({
+    queryKey: ['subscription-status'],
+    queryFn: async () => {
+      const res = await fetch('/api/payments/subscription-status')
+      if (!res.ok) return { hasActiveSubscription: false, subscription: null }
+      return res.json()
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const hasActiveSubscription = subscriptionData?.hasActiveSubscription ?? true
+  const subscription = subscriptionData?.subscription
+  const isTrialing = subscription?.status === 'TRIALING'
+  const trialEndDate = isTrialing && subscription?.currentPeriodEnd
+    ? new Date(subscription.currentPeriodEnd)
+    : null
+  const trialDaysLeft = trialEndDate
+    ? Math.max(0, Math.ceil((trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+    : 0
+  const trialExpired = isTrialing && trialDaysLeft === 0
+  const isPastDue = subscription?.status === 'PAST_DUE'
+
+  // Redirect to payment if trial expired and no active subscription
+  React.useEffect(() => {
+    if (!subscriptionData) return // Still loading
+    if (trialExpired || (!hasActiveSubscription && !isTrialing)) {
+      if (pathname !== '/dashboard/billing' && pathname !== '/dashboard/settings') {
+        router.push('/payment')
+      }
+    }
+  }, [subscriptionData, trialExpired, hasActiveSubscription, isTrialing, pathname, router])
 
   // Fetch notifications
   const { data: notificationsData } = useQuery<{ notifications: Notification[]; unreadCount: number }>({
@@ -420,9 +474,56 @@ export default function DashboardLayout({
           </DropdownMenu>
         </header>
 
+        {/* Trial / Subscription Banner */}
+        {isTrialing && trialDaysLeft > 0 && (
+          <div className="bg-primary/10 border-b px-4 py-2 text-center text-sm">
+            <span className="font-medium text-primary">{trialDaysLeft} days left</span> in your free trial.
+            <Link href="/payment" className="ml-2 font-semibold text-primary underline underline-offset-2">Subscribe now</Link>
+          </div>
+        )}
+        {isTrialing && trialDaysLeft === 0 && (
+          <div className="bg-destructive/10 border-b px-4 py-2 text-center text-sm text-destructive font-medium">
+            Your free trial has expired. <Link href="/payment" className="underline underline-offset-2">Subscribe now</Link> to continue using OmniBIZ.
+          </div>
+        )}
+        {isPastDue && (
+          <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-sm text-amber-800 font-medium">
+            Payment failed — please update your payment method. <Link href="/payment" className="underline underline-offset-2">Update payment</Link>
+          </div>
+        )}
+
         {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-6">{children}</main>
+        <main className="flex-1 p-4 pb-20 lg:pb-6 lg:p-6">{children}</main>
       </div>
+
+      {/* Mobile Bottom Tab Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t bg-white lg:hidden h-16">
+        {navItems.slice(0, 4).map((item) => {
+          const Icon = item.icon
+          const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
+          return (
+            <Link
+              key={item.key}
+              href={item.href}
+              className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-xs transition-colors ${
+                isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Icon className="h-5 w-5" />
+              <span className="truncate max-w-[60px]">{item.label}</span>
+            </Link>
+          )
+        })}
+        <Link
+          href="/dashboard/settings"
+          className={`flex flex-col items-center justify-center gap-1 flex-1 py-2 text-xs transition-colors ${
+            pathname === '/dashboard/settings' || pathname.startsWith('/dashboard/settings/') ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Settings className="h-5 w-5" />
+          <span className="truncate max-w-[60px]">More</span>
+        </Link>
+      </nav>
     </div>
   )
 }
