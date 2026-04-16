@@ -4,7 +4,6 @@ import {
   requirePermission,
   successResponse,
   notFoundResponse,
-  errorResponse,
   handlePrismaError,
   logActivity
 } from '@/lib/api'

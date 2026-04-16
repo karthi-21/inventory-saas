@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db'
 import {
   requirePermission,
   successResponse,
-  errorResponse,
   handlePrismaError,
   logActivity
 } from '@/lib/api'
@@ -11,7 +10,7 @@ import {
 /**
  * GET /api/settings - Get tenant settings
  */
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const { user, error } = await requirePermission('SETTINGS_VIEW', 'VIEW')
     if (error) return error

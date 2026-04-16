@@ -2,9 +2,19 @@ import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
+interface TableRow {
+  tablename: string
+  rowsecurity: boolean
+}
+
+interface PolicyRow {
+  policyname: string
+  tablename: string
+}
+
 async function main() {
   console.log('=== Step 1: Check current RLS status ===')
-  const rlsStatus = await prisma.$queryRaw`
+  const rlsStatus = await prisma.$queryRaw<TableRow[]>`
     SELECT tablename, rowsecurity
     FROM pg_tables
     WHERE schemaname = 'public'
@@ -12,34 +22,36 @@ async function main() {
     ORDER BY tablename
   `
   console.log('Current RLS status:')
-  for (const row of rlsStatus as any[]) {
+  for (const row of rlsStatus) {
     console.log(`  ${row.tablename}: rowsecurity=${row.rowsecurity}`)
   }
 
   console.log('\n=== Step 2: Enable RLS on all tables ===')
-  const tables = await prisma.$queryRaw`
+  const tables = await prisma.$queryRaw<TableRow[]>`
     SELECT tablename
     FROM pg_tables
     WHERE schemaname = 'public'
     AND tablename NOT IN ('_prisma_migrations')
   `
 
-  for (const { tablename } of tables as any[]) {
+  for (const { tablename } of tables) {
     try {
       await prisma.$executeRawUnsafe(`ALTER TABLE "${tablename}" ENABLE ROW LEVEL SECURITY;`)
       console.log(`  ✓ RLS enabled on ${tablename}`)
-    } catch (e: any) {
-      if (e.message?.includes('already enabled')) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      if (msg.includes('already enabled')) {
         console.log(`  - RLS already enabled on ${tablename}`)
       } else {
-        console.log(`  ✗ Error on ${tablename}: ${e.message}`)
+        console.log(`  ✗ Error on ${tablename}: ${msg}`)
       }
     }
     try {
       await prisma.$executeRawUnsafe(`ALTER TABLE "${tablename}" FORCE ROW LEVEL SECURITY;`)
       console.log(`  ✓ FORCE RLS on ${tablename}`)
-    } catch (e: any) {
-      console.log(`  ✗ Error forcing RLS on ${tablename}: ${e.message}`)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.log(`  ✗ Error forcing RLS on ${tablename}: ${msg}`)
     }
   }
 
@@ -92,16 +104,17 @@ async function main() {
   console.log('\n=== Step 6: Apply RLS policies ===')
 
   // Drop existing policies first (they might already exist from partial runs)
-  const existingPolicies = await prisma.$queryRaw`
+  const existingPolicies = await prisma.$queryRaw<PolicyRow[]>`
     SELECT policyname, tablename FROM pg_policies WHERE schemaname = 'public'
   `
-  console.log(`  Found ${(existingPolicies as any[]).length} existing policies`)
+  console.log(`  Found ${existingPolicies.length} existing policies`)
 
-  for (const { policyname, tablename } of existingPolicies as any[]) {
+  for (const { policyname, tablename } of existingPolicies) {
     try {
       await prisma.$executeRawUnsafe(`DROP POLICY IF EXISTS "${policyname}" ON "${tablename}";`)
-    } catch (e: any) {
-      console.log(`  ✗ Error dropping policy ${policyname}: ${e.message}`)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.log(`  ✗ Error dropping policy ${policyname}: ${msg}`)
     }
   }
   console.log('  ✓ Dropped existing policies')
@@ -168,13 +181,14 @@ async function main() {
     try {
       await prisma.$executeRawUnsafe(policy)
       console.log(`  ✓ Policy ${name} created`)
-    } catch (e: any) {
-      console.log(`  ✗ Error creating policy ${name}: ${e.message}`)
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e)
+      console.log(`  ✗ Error creating policy ${name}: ${msg}`)
     }
   }
 
   console.log('\n=== Step 7: Verify RLS is enabled ===')
-  const finalStatus = await prisma.$queryRaw`
+  const finalStatus = await prisma.$queryRaw<TableRow[]>`
     SELECT tablename, rowsecurity
     FROM pg_tables
     WHERE schemaname = 'public'
@@ -182,7 +196,7 @@ async function main() {
     ORDER BY tablename
   `
   let allEnabled = true
-  for (const row of finalStatus as any[]) {
+  for (const row of finalStatus) {
     if (!row.rowsecurity) {
       console.log(`  ✗ ${row.tablename}: RLS NOT enabled`)
       allEnabled = false
@@ -192,10 +206,10 @@ async function main() {
   }
 
   console.log('\n=== Step 8: Verify policies exist ===')
-  const policiesCheck = await prisma.$queryRaw`
+  const policiesCheck = await prisma.$queryRaw<PolicyRow[]>`
     SELECT tablename, policyname FROM pg_policies WHERE schemaname = 'public' ORDER BY tablename, policyname
   `
-  for (const row of policiesCheck as any[]) {
+  for (const row of policiesCheck) {
     console.log(`  ✓ ${row.tablename}: ${row.policyname}`)
   }
 

@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       gstin: normalized,
       message: 'GSTIN format is valid'
     })
-  } catch (error) {
+  } catch {
     return NextResponse.json({ valid: false, error: 'Validation failed' }, { status: 500 })
   }
 }

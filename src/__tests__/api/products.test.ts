@@ -2,14 +2,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
-// Mutable global state
+// Mutable global state (used by vi.mock hoisted calls)
 // ---------------------------------------------------------------------------
 
 const AUTH_KEY = '__EZVENTO_TEST_AUTH_USER__' as const
 const PRISMA_DATA_KEY = '__EZVENTO_TEST_PRISMA_DATA__' as const
-
-function setAuthUser(user: any) { (globalThis as any)[AUTH_KEY] = user }
-function setPrismaData(data: any) { (globalThis as any)[PRISMA_DATA_KEY] = data }
 
 // ---------------------------------------------------------------------------
 // Hoisted vi.mock calls
@@ -172,8 +169,8 @@ vi.mock('@/lib/db', () => {
 // ---------------------------------------------------------------------------
 
 import {
-  setAuthUser as _setAuthUser,
-  setPrismaData as _setPrismaData,
+  setAuthUser as importSetAuthUser,
+  setPrismaData as importSetPrismaData,
   makeDbUser,
   TENANT_A_DB,
   TENANT_A_EMPLOYEE_DB,
@@ -185,8 +182,8 @@ import {
 } from './helpers'
 
 // Re-export with local names for clarity
-const setAuth = _setAuthUser
-const setData = _setPrismaData
+const setAuth = importSetAuthUser
+const setData = importSetPrismaData
 
 import { GET, POST } from '@/app/api/products/route'
 import { GET as GetProduct, PUT, DELETE } from '@/app/api/products/[id]/route'

@@ -3,7 +3,6 @@ import { prisma } from '@/lib/db'
 import {
   requirePermission,
   successResponse,
-  errorResponse,
   handlePrismaError
 } from '@/lib/api'
 

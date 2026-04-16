@@ -89,7 +89,7 @@ vi.mock('@/lib/db', () => {
     })
 
   const makeFindFirst = (model: string) =>
-    vi.fn(({ where, include }: any) => {
+    vi.fn(({ where, _include }: any) => {
       const items = (_getData()[model] || []) as any[]
       return (
         items.find((item: any) => {
