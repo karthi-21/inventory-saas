@@ -114,64 +114,96 @@ const bentoFeatures = [
     title: 'GST Billing',
     description: 'Auto GST calculation with HSN codes. GSTR-1 & GSTR-3B exports in one click. E-invoice generation for B2B sales.',
     size: 'large',
-    gradient: 'from-blue-600/10 via-blue-500/5 to-transparent',
-    iconBg: 'bg-blue-100 text-blue-600',
+    bg: 'bg-blue-50',
+    border: 'border-blue-200',
+    iconBg: 'bg-blue-600 text-white',
+    accent: 'bg-blue-600',
+    tags: ['GSTR-1', 'GSTR-3B', 'E-Invoice', 'HSN'],
+    stat: { value: '5%', label: 'GST rates auto-mapped' },
   },
   {
     icon: Package,
     title: 'Smart Stock',
     description: 'Know exactly what you have. Low stock alerts, batch & expiry tracking, stock transfers between locations.',
     size: 'small',
-    gradient: 'from-emerald-600/10 via-emerald-500/5 to-transparent',
-    iconBg: 'bg-emerald-100 text-emerald-600',
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200',
+    iconBg: 'bg-emerald-600 text-white',
+    accent: 'bg-emerald-600',
+    tags: ['Alerts', 'Batch', 'Expiry'],
+    stat: null,
   },
   {
     icon: CreditCard,
     title: 'UPI + Card + Cash',
     description: 'Accept every payment mode. Split payments, credit/udhar tracking, and partial payments.',
     size: 'small',
-    gradient: 'from-orange-500/10 via-orange-400/5 to-transparent',
-    iconBg: 'bg-orange-100 text-orange-600',
+    bg: 'bg-orange-50',
+    border: 'border-orange-200',
+    iconBg: 'bg-orange-600 text-white',
+    accent: 'bg-orange-600',
+    tags: ['UPI QR', 'Udhar', 'Split'],
+    stat: null,
   },
   {
     icon: WifiOff,
     title: 'Works Offline',
     description: 'Bill even when internet is down. Auto-syncs when you\'re back online. Never lose a sale.',
     size: 'tall',
-    gradient: 'from-cyan-500/10 via-cyan-400/5 to-transparent',
-    iconBg: 'bg-cyan-100 text-cyan-600',
+    bg: 'bg-cyan-50',
+    border: 'border-cyan-200',
+    iconBg: 'bg-cyan-600 text-white',
+    accent: 'bg-cyan-600',
+    tags: ['Auto-sync', 'No data loss'],
+    stat: { value: '100%', label: 'bills saved offline' },
   },
   {
     icon: BarChart2,
     title: 'Sales Reports',
     description: 'Daily, weekly, monthly. By store, by counter, by product. Profit reports, staff performance, and tax summaries.',
     size: 'wide',
-    gradient: 'from-orange-500/10 via-emerald-500/5 to-transparent',
-    iconBg: 'bg-orange-100 text-orange-600',
+    bg: 'bg-amber-50',
+    border: 'border-amber-200',
+    iconBg: 'bg-amber-600 text-white',
+    accent: 'bg-amber-600',
+    tags: ['Profit', 'Staff', 'PDF Export'],
+    stat: null,
   },
   {
     icon: Users,
     title: 'Team & Roles',
     description: 'Owner, manager, cashier, inventory staff. Each person sees only what they need.',
     size: 'small',
-    gradient: 'from-rose-500/10 via-rose-400/5 to-transparent',
-    iconBg: 'bg-rose-100 text-rose-600',
+    bg: 'bg-rose-50',
+    border: 'border-rose-200',
+    iconBg: 'bg-rose-600 text-white',
+    accent: 'bg-rose-600',
+    tags: ['Owner', 'Cashier', 'Staff'],
+    stat: null,
   },
   {
     icon: Store,
     title: 'Multi-Store',
     description: 'One dashboard for all your stores. Real-time sync, stock transfers, and consolidated reports.',
     size: 'small',
-    gradient: 'from-blue-600/10 via-blue-400/5 to-transparent',
-    iconBg: 'bg-blue-100 text-blue-600',
+    bg: 'bg-indigo-50',
+    border: 'border-indigo-200',
+    iconBg: 'bg-indigo-600 text-white',
+    accent: 'bg-indigo-600',
+    tags: ['Sync', 'Transfer'],
+    stat: null,
   },
   {
     icon: Smartphone,
     title: 'Touch POS',
     description: 'Built for iPad, Android tablets, and touch screens. No expensive hardware needed.',
     size: 'small',
-    gradient: 'from-violet-500/10 via-violet-400/5 to-transparent',
-    iconBg: 'bg-violet-100 text-violet-600',
+    bg: 'bg-violet-50',
+    border: 'border-violet-200',
+    iconBg: 'bg-violet-600 text-white',
+    accent: 'bg-violet-600',
+    tags: ['iPad', 'Android', 'Tablet'],
+    stat: null,
   },
 ]
 
@@ -788,16 +820,17 @@ export default function LandingPage() {
                   transition={{ duration: 0.5, delay: index * 0.06, ease: [0.32, 0.72, 0, 1] as const }}
                   whileHover={{ y: -4 }}
                   className={`
-                    group relative overflow-hidden rounded-2xl bg-white border border-slate-200 p-5
-                    hover:shadow-xl hover:border-slate-300 transition-all duration-300 cursor-pointer flex flex-col
+                    group relative overflow-hidden rounded-2xl ${feature.bg} border ${feature.border} p-5
+                    hover:shadow-xl transition-all duration-300 cursor-pointer flex flex-col
                     ${sizeClasses}
                   `}
                 >
-                  {/* Gradient on hover */}
-                  <div className={`absolute inset-0 bg-gradient-to-br ${feature.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+                  {/* Accent bar at top */}
+                  <div className={`absolute top-0 left-0 right-0 h-1 ${feature.accent} rounded-t-2xl`} />
 
                   <div className="relative h-full flex flex-col">
-                    <div className={`inline-flex items-center justify-center rounded-xl ${feature.iconBg} mb-3 shrink-0 ${feature.size === 'large' ? 'h-14 w-14' : 'h-10 w-10'}`}>
+                    {/* Icon */}
+                    <div className={`inline-flex items-center justify-center rounded-xl ${feature.iconBg} mb-3 shrink-0 shadow-sm ${feature.size === 'large' ? 'h-14 w-14' : 'h-10 w-10'}`}>
                       <feature.icon className={`${feature.size === 'large' ? 'h-7 w-7' : 'h-5 w-5'}`} />
                     </div>
 
@@ -810,8 +843,26 @@ export default function LandingPage() {
                       </p>
                     </div>
 
+                    {/* Tags */}
+                    <div className="flex flex-wrap gap-1.5 mt-3">
+                      {feature.tags.map((tag) => (
+                        <span key={tag} className="inline-block px-2 py-0.5 rounded-md bg-white/80 text-[10px] font-medium text-slate-600 border border-slate-200/60">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+
+                    {/* Stat highlight for large/tall cards */}
+                    {feature.stat && (
+                      <div className="mt-auto pt-3 border-t border-slate-200/50">
+                        <p className="text-lg font-bold text-slate-900">{feature.stat.value}</p>
+                        <p className="text-xs text-slate-500">{feature.stat.label}</p>
+                      </div>
+                    )}
+
+                    {/* Learn more for large/wide/tall */}
                     {(feature.size === 'large' || feature.size === 'wide' || feature.size === 'tall') && (
-                      <div className="mt-auto pt-3 flex items-center text-sm font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="mt-auto pt-3 flex items-center text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
                         Learn more
                         <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </div>
