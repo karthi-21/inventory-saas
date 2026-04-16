@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
+import { seedIndustryCategories, INDUSTRY_PRESETS, type IndustryType } from '@/lib/industry-presets'
 
 /**
  * POST /api/onboarding/create-store
@@ -24,6 +25,7 @@ export async function POST(request: NextRequest) {
       phone,
       state,
       pincode,
+      storeType,
     } = body
 
     // Validate required fields
@@ -72,7 +74,7 @@ export async function POST(request: NextRequest) {
         phone: phone || null,
         state: state || null,
         pincode: pincode || null,
-        storeType: 'MULTI_CATEGORY',
+        storeType: storeType || 'MULTI_CATEGORY',
         isActive: true,
         locations: {
           create: {
@@ -83,6 +85,16 @@ export async function POST(request: NextRequest) {
         }
       }
     })
+
+    // Seed industry-specific categories if storeType is set
+    if (storeType && INDUSTRY_PRESETS[storeType as IndustryType]) {
+      try {
+        await seedIndustryCategories(dbUser.tenantId, storeType as IndustryType)
+      } catch (catError) {
+        console.error('Failed to seed industry categories:', catError)
+        // Non-critical — don't block store creation
+      }
+    }
 
     // Also create a UserStoreAccess record for the owner
     await prisma.userStoreAccess.create({

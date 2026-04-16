@@ -248,7 +248,7 @@ export default function OnboardingPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="gstin">GSTIN</Label>
+                  <Label htmlFor="gstin">GST Number (GSTIN)</Label>
                   <Input
                     id="gstin"
                     placeholder="27AABCU9603R1ZM"
@@ -258,7 +258,7 @@ export default function OnboardingPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pan">PAN</Label>
+                  <Label htmlFor="pan">PAN (Tax ID)</Label>
                   <Input
                     id="pan"
                     placeholder="AABCU9603R"
@@ -291,7 +291,7 @@ export default function OnboardingPage() {
               </div>
               {(selectedStoreType === 'GROCERY' || selectedStoreType === 'SUPERMARKET' || selectedStoreType === 'RESTAURANT') && (
                 <div className="space-y-2">
-                  <Label htmlFor="fssai">FSSAI License Number</Label>
+                  <Label htmlFor="fssai">FSSAI License Number (for food businesses)</Label>
                   <Input
                     id="fssaiNumber"
                     placeholder="12345678901234"

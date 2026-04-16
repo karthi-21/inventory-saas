@@ -93,7 +93,7 @@ const bentoFeatures = [
   },
   {
     icon: BarChart3,
-    title: 'Analytics',
+    title: 'Sales Reports',
     description: 'Sales reports & insights',
     size: 'wide',
     color: 'from-violet-500/20 to-purple-500/20',
@@ -275,9 +275,9 @@ export default function LandingPage() {
               variants={fadeInUp}
               className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 mb-8"
             >
-              Run your store{' '}
+              Run your shop{' '}
               <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">
-                like a pro
+                easily
               </span>
             </motion.h1>
 

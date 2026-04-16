@@ -31,6 +31,7 @@ import {
   Shield,
   Save,
   Loader2,
+  Award,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
@@ -112,6 +113,24 @@ export default function SettingsPage() {
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
 
+  const [loyaltyForm, setLoyaltyForm] = useState({
+    loyaltyEnabled: true,
+    pointsPerRupee: '1',
+    rupeePerPoint: '0.25',
+    minimumRedemption: '100',
+    pointsExpiryDays: '365',
+  })
+
+  // Fetch loyalty settings
+  const { data: loyaltyData } = useQuery({
+    queryKey: ['loyalty-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings/loyalty')
+      if (!res.ok) throw new Error('Failed to fetch loyalty settings')
+      return res.json()
+    },
+  })
+
   // Populate forms when data loads
   useEffect(() => {
     if (tenantData?.tenant) {
@@ -141,6 +160,18 @@ export default function SettingsPage() {
       })
     }
   }, [settingsData])
+
+  useEffect(() => {
+    if (loyaltyData) {
+      setLoyaltyForm({
+        loyaltyEnabled: loyaltyData.loyaltyEnabled ?? true,
+        pointsPerRupee: String(loyaltyData.pointsPerRupee ?? 1),
+        rupeePerPoint: String(loyaltyData.rupeePerPoint ?? 0.25),
+        minimumRedemption: String(loyaltyData.minimumRedemption ?? 100),
+        pointsExpiryDays: String(loyaltyData.pointsExpiryDays ?? 365),
+      })
+    }
+  }, [loyaltyData])
 
   // Update tenant mutation
   const updateTenant = useMutation({
@@ -187,6 +218,32 @@ export default function SettingsPage() {
 
   const handleSaveBusiness = () => updateTenant.mutate(businessForm)
   const handleSaveSettings = () => updateSettings.mutate(settingsForm)
+
+  // Update loyalty mutation
+  const updateLoyalty = useMutation({
+    mutationFn: async (data: typeof loyaltyForm) => {
+      const res = await fetch('/api/settings/loyalty', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loyaltyEnabled: data.loyaltyEnabled,
+          pointsPerRupee: parseFloat(data.pointsPerRupee),
+          rupeePerPoint: parseFloat(data.rupeePerPoint),
+          minimumRedemption: parseInt(data.minimumRedemption),
+          pointsExpiryDays: parseInt(data.pointsExpiryDays),
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to update loyalty settings')
+      return res.json()
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['loyalty-settings'] })
+      toast.success('Loyalty settings updated')
+    },
+    onError: () => toast.error('Failed to update loyalty settings'),
+  })
+
+  const handleSaveLoyalty = () => updateLoyalty.mutate(loyaltyForm)
 
   const handleChangePassword = async () => {
     if (!passwordForm.newPassword) {
@@ -255,7 +312,8 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label>GSTIN</Label>
+              <Label>GST Number (GSTIN)</Label>
+              <p className="text-xs text-muted-foreground">Your 15-digit tax identification number</p>
               <Input
                 value={businessForm.gstin}
                 onChange={(e) => setBusinessForm({ ...businessForm, gstin: e.target.value.toUpperCase() })}
@@ -266,7 +324,8 @@ export default function SettingsPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>PAN</Label>
+              <Label>PAN (Tax ID)</Label>
+              <p className="text-xs text-muted-foreground">10-character tax ID for income tax filing</p>
               <Input
                 value={businessForm.pan}
                 onChange={(e) => setBusinessForm({ ...businessForm, pan: e.target.value.toUpperCase() })}
@@ -336,14 +395,14 @@ export default function SettingsPage() {
         <CardHeader>
           <div className="flex items-center gap-2">
             <Receipt className="h-5 w-5 text-primary" />
-            <CardTitle>Invoice Settings</CardTitle>
+            <CardTitle>Bill Settings</CardTitle>
           </div>
-          <CardDescription>Configure invoice numbering and display</CardDescription>
+          <CardDescription>Configure bill numbering and display</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Invoice Prefix</Label>
+              <Label>Bill Prefix</Label>
               <Input
                 value={settingsForm.invoicePrefix}
                 onChange={(e) => setSettingsForm({ ...settingsForm, invoicePrefix: e.target.value })}
@@ -373,6 +432,7 @@ export default function SettingsPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Decimal Places</Label>
+              <p className="text-xs text-muted-foreground">Number of decimal places in prices (2 = ₹1.00)</p>
               <Select
                 value={settingsForm.decimalPlaces}
                 onValueChange={(v) => v && setSettingsForm({ ...settingsForm, decimalPlaces: v })}
@@ -403,7 +463,7 @@ export default function SettingsPage() {
           </div>
           <Button onClick={handleSaveSettings} disabled={updateSettings.isPending} className="gap-2">
             {updateSettings.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Invoice Settings
+            Save Bill Settings
           </Button>
         </CardContent>
       </Card>
@@ -421,6 +481,7 @@ export default function SettingsPage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Low Stock Alert (days before)</Label>
+              <p className="text-xs text-muted-foreground">Alert me this many days before stock runs out</p>
               <Select
                 value={settingsForm.lowStockAlertDays}
                 onValueChange={(v) => v && setSettingsForm({ ...settingsForm, lowStockAlertDays: v })}
@@ -438,6 +499,7 @@ export default function SettingsPage() {
             </div>
             <div className="space-y-2">
               <Label>Expiry Alert (days before)</Label>
+              <p className="text-xs text-muted-foreground">Alert me this many days before products expire</p>
               <Select
                 value={settingsForm.expiryAlertDays}
                 onValueChange={(v) => v && setSettingsForm({ ...settingsForm, expiryAlertDays: v })}
@@ -490,6 +552,85 @@ export default function SettingsPage() {
               Manage
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Loyalty Program */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Award className="h-5 w-5 text-primary" />
+            <CardTitle>Loyalty Program</CardTitle>
+          </div>
+          <CardDescription>Configure loyalty points earning and redemption</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <Label>Enable Loyalty Program</Label>
+              <p className="text-xs text-muted-foreground">Allow customers to earn and redeem points</p>
+            </div>
+            <input
+              type="checkbox"
+              checked={loyaltyForm.loyaltyEnabled}
+              onChange={(e) => setLoyaltyForm({ ...loyaltyForm, loyaltyEnabled: e.target.checked })}
+              className="h-4 w-4"
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Points per ₹100 spent</Label>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                value={loyaltyForm.pointsPerRupee}
+                onChange={(e) => setLoyaltyForm({ ...loyaltyForm, pointsPerRupee: e.target.value })}
+                disabled={!loyaltyForm.loyaltyEnabled}
+              />
+              <p className="text-xs text-muted-foreground">How many points a customer earns for every ₹100 spent</p>
+            </div>
+            <div className="space-y-2">
+              <Label>₹ Value per point</Label>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={loyaltyForm.rupeePerPoint}
+                onChange={(e) => setLoyaltyForm({ ...loyaltyForm, rupeePerPoint: e.target.value })}
+                disabled={!loyaltyForm.loyaltyEnabled}
+              />
+              <p className="text-xs text-muted-foreground">Cash value when customer redeems points</p>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Minimum redemption points</Label>
+              <Input
+                type="number"
+                min="0"
+                value={loyaltyForm.minimumRedemption}
+                onChange={(e) => setLoyaltyForm({ ...loyaltyForm, minimumRedemption: e.target.value })}
+                disabled={!loyaltyForm.loyaltyEnabled}
+              />
+              <p className="text-xs text-muted-foreground">Customer needs at least this many points before they can use them</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Points expiry (days)</Label>
+              <Input
+                type="number"
+                min="0"
+                value={loyaltyForm.pointsExpiryDays}
+                onChange={(e) => setLoyaltyForm({ ...loyaltyForm, pointsExpiryDays: e.target.value })}
+                disabled={!loyaltyForm.loyaltyEnabled}
+              />
+              <p className="text-xs text-muted-foreground">Points expire after this many days (0 = never expire)</p>
+            </div>
+          </div>
+          <Button onClick={handleSaveLoyalty} disabled={updateLoyalty.isPending || !loyaltyForm.loyaltyEnabled} className="gap-2">
+            {updateLoyalty.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+            Save Loyalty Settings
+          </Button>
         </CardContent>
       </Card>
 
@@ -551,7 +692,7 @@ export default function SettingsPage() {
           <Separator />
           <div className="flex items-center justify-between">
             <div>
-              <p className="font-medium">Two-Factor Authentication</p>
+              <p className="font-medium">Extra Login Security</p>
               <p className="text-sm text-muted-foreground">Add an extra layer of security</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => toast.info('Two-factor authentication is coming soon')}>

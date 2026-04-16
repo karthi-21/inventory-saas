@@ -79,7 +79,7 @@ const reportTypes = [
   { id: 'sales', label: 'Sales Report', icon: TrendingUp, description: 'Daily, weekly, monthly sales' },
   { id: 'gst', label: 'GST Summary', icon: FileText, description: 'HSN-wise GST breakdown' },
   { id: 'inventory', label: 'Inventory', icon: Package, description: 'Current stock levels' },
-  { id: 'outstanding', label: 'Outstanding', icon: Users, description: 'Customer credit balance' },
+  { id: 'outstanding', label: 'Amounts Due', icon: Users, description: 'Customer credit balance' },
 ]
 
 export default function ReportsPage() {
@@ -241,7 +241,7 @@ export default function ReportsPage() {
         }
         csvData = salesData.dailySales.map((row) => ({
           Date: row.date,
-          Invoices: row.invoices,
+          Bills: row.invoices,
           Revenue: row.revenue,
           GST: row.gst,
           Paid: row.paid,
@@ -275,7 +275,7 @@ export default function ReportsPage() {
         }
         csvData = inventoryData.stocks.map((stock) => ({
           Product: stock.productName,
-          SKU: stock.sku,
+          Code: stock.sku,
           Variant: stock.variant || '',
           Store: stock.store,
           Location: stock.location || '',
@@ -296,7 +296,7 @@ export default function ReportsPage() {
           LastName: c.lastName || '',
           Phone: c.phone,
           TotalPurchases: c.totalPurchases,
-          Outstanding: c.totalDue,
+          AmountDue: c.totalDue,
         }))
         filename = `outstanding-report-${timestamp}.csv`
         break
@@ -313,7 +313,7 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
-          <p className="text-sm text-muted-foreground">Business intelligence and exportable reports</p>
+          <p className="text-sm text-muted-foreground">View and download your business reports</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => handleExport('csv')} className="gap-1">
@@ -450,7 +450,7 @@ export default function ReportsPage() {
                       <Receipt className="h-5 w-5 text-green-600" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Invoices</p>
+                      <p className="text-sm text-muted-foreground">Total Bills</p>
                       <p className="text-xl font-bold">{salesData.dailySales?.reduce((sum, d) => sum + d.invoices, 0) || 0}</p>
                     </div>
                   </CardContent>
@@ -499,7 +499,7 @@ export default function ReportsPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead>Date</TableHead>
-                          <TableHead className="text-right">Invoices</TableHead>
+                          <TableHead className="text-right">Bills</TableHead>
                           <TableHead className="text-right">Revenue</TableHead>
                           <TableHead className="text-right">GST</TableHead>
                           <TableHead className="text-right">Paid</TableHead>
@@ -686,7 +686,7 @@ export default function ReportsPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Product</TableHead>
-                        <TableHead>SKU</TableHead>
+                        <TableHead>Code</TableHead>
                         <TableHead>Store</TableHead>
                         <TableHead className="text-right">Qty</TableHead>
                         <TableHead className="text-right">Reorder</TableHead>
@@ -737,7 +737,7 @@ export default function ReportsPage() {
                     <Users className="h-5 w-5 text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Outstanding Credit</p>
+                    <p className="text-sm text-muted-foreground">Total Amount Due</p>
                     <p className="text-2xl font-bold text-orange-600">₹{(outstandingData.totalOutstanding || 0).toLocaleString('en-IN')}</p>
                   </div>
                 </CardContent>
@@ -746,13 +746,13 @@ export default function ReportsPage() {
               {/* Customer Table */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Customers with Outstanding Balance</CardTitle>
+                  <CardTitle className="text-base">Customers with Amount Due</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                   {outstandingData.customers?.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-12 text-center">
                       <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
-                      <p className="text-muted-foreground">No customers with outstanding balance</p>
+                      <p className="text-muted-foreground">No customers with amounts due</p>
                     </div>
                   ) : (
                     <Table>
@@ -761,7 +761,7 @@ export default function ReportsPage() {
                           <TableHead>Customer</TableHead>
                           <TableHead>Phone</TableHead>
                           <TableHead className="text-right">Total Purchases</TableHead>
-                          <TableHead className="text-right">Outstanding</TableHead>
+                          <TableHead className="text-right">Amount Due</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>

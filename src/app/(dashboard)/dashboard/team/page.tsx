@@ -256,6 +256,10 @@ export default function TeamPage() {
   const [showCreateRoleDialog, setShowCreateRoleDialog] = useState(false)
   const [selectedUser, setSelectedUser] = useState<TeamUser | null>(null)
   const [selectedPersona, setSelectedPersona] = useState<PersonaWithPerms | null>(null)
+  const [showRemoveMemberDialog, setShowRemoveMemberDialog] = useState(false)
+  const [memberToRemove, setMemberToRemove] = useState<string | null>(null)
+  const [showDeleteRoleDialog, setShowDeleteRoleDialog] = useState(false)
+  const [roleToDelete, setRoleToDelete] = useState<string | null>(null)
 
   // Form state
   const [inviteForm, setInviteForm] = useState({ email: '', firstName: '', lastName: '', personaId: '', storeIds: [] as string[] })
@@ -362,6 +366,8 @@ export default function TeamPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success('User removed')
+      setShowRemoveMemberDialog(false)
+      setMemberToRemove(null)
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to remove user')
@@ -428,6 +434,8 @@ export default function TeamPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['personas'] })
       toast.success('Role deleted')
+      setShowDeleteRoleDialog(false)
+      setRoleToDelete(null)
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to delete role')
@@ -688,7 +696,8 @@ export default function TeamPage() {
                                 <Pencil className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="sm" onClick={() => {
-                                if (confirm('Remove this team member?')) deactivateUser.mutate(user.id)
+                                setMemberToRemove(user.id)
+                                setShowRemoveMemberDialog(true)
                               }} title="Remove member">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -760,7 +769,8 @@ export default function TeamPage() {
                             </Button>
                             {!persona.isSystem && (
                               <Button variant="ghost" size="sm" onClick={() => {
-                                if (confirm('Delete this role?')) deletePersona.mutate(persona.id)
+                                setRoleToDelete(persona.id)
+                                setShowDeleteRoleDialog(true)
                               }} title="Delete role">
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -1043,6 +1053,56 @@ export default function TeamPage() {
             <Button onClick={handleSavePerms} disabled={updatePersona.isPending} className="gap-2">
               {updatePersona.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Save Permissions
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Team Member Confirmation Dialog */}
+      <Dialog open={showRemoveMemberDialog} onOpenChange={setShowRemoveMemberDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Remove Team Member?</DialogTitle>
+            <DialogDescription>
+              They will lose access to the store. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRemoveMemberDialog(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (memberToRemove) deactivateUser.mutate(memberToRemove)
+              }}
+              disabled={deactivateUser.isPending}
+            >
+              {deactivateUser.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Remove Member
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Role Confirmation Dialog */}
+      <Dialog open={showDeleteRoleDialog} onOpenChange={setShowDeleteRoleDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Role?</DialogTitle>
+            <DialogDescription>
+              Users with this role will lose their permissions. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteRoleDialog(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (roleToDelete) deletePersona.mutate(roleToDelete)
+              }}
+              disabled={deletePersona.isPending}
+            >
+              {deletePersona.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete Role
             </Button>
           </DialogFooter>
         </DialogContent>

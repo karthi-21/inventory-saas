@@ -51,19 +51,19 @@ interface Notification {
   actionUrl?: string
 }
 
-const navItems = [
-  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-  { href: '/dashboard/stores', icon: Store, label: 'Stores' },
-  { href: '/dashboard/inventory', icon: Package, label: 'Inventory' },
-  { href: '/dashboard/billing', icon: Receipt, label: 'Billing' },
-  { href: '/dashboard/customers', icon: Users, label: 'Customers' },
-  { href: '/dashboard/vendors', icon: ShoppingCart, label: 'Vendors' },
-  { href: '/dashboard/team', icon: UserCog, label: 'Team' },
-  { href: '/dashboard/reports', icon: BarChart3, label: 'Reports' },
+const allNavItems = [
+  { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', key: 'dashboard' },
+  { href: '/dashboard/stores', icon: Store, label: 'Stores', key: 'stores' },
+  { href: '/dashboard/inventory', icon: Package, label: 'Inventory', key: 'inventory' },
+  { href: '/dashboard/billing', icon: Receipt, label: 'Billing', key: 'billing' },
+  { href: '/dashboard/customers', icon: Users, label: 'Customers', key: 'customers' },
+  { href: '/dashboard/vendors', icon: ShoppingCart, label: 'Vendors', key: 'vendors' },
+  { href: '/dashboard/team', icon: UserCog, label: 'Team', key: 'team' },
+  { href: '/dashboard/reports', icon: BarChart3, label: 'Reports', key: 'reports' },
 ]
 
-const bottomNavItems = [
-  { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
+const allBottomNavItems = [
+  { href: '/dashboard/settings', icon: Settings, label: 'Settings', key: 'settings' },
 ]
 
 export default function DashboardLayout({
@@ -78,6 +78,22 @@ export default function DashboardLayout({
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true)
   const [shouldRedirectToOnboarding, setShouldRedirectToOnboarding] = useState(false)
   const { currentStoreId, setCurrentStore, setCurrentLocation } = usePOSStore()
+
+  // Fetch user permissions for menu filtering
+  const { data: permissionsData } = useQuery<{ menuAccess: Record<string, boolean> }>({
+    queryKey: ['user-permissions'],
+    queryFn: async () => {
+      const res = await fetch('/api/auth/permissions')
+      if (!res.ok) return { menuAccess: {} }
+      const data = await res.json()
+      return data
+    },
+    staleTime: 5 * 60 * 1000, // Cache permissions for 5 minutes
+  })
+
+  const menuAccess = permissionsData?.menuAccess || {}
+  const navItems = allNavItems.filter(item => !menuAccess[item.key] && menuAccess[item.key] !== undefined ? false : true)
+  const bottomNavItems = allBottomNavItems.filter(item => !menuAccess[item.key] && menuAccess[item.key] !== undefined ? false : true)
 
   // Fetch user info from Supabase auth session
   const { data: userData } = useQuery({

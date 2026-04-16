@@ -394,7 +394,7 @@ export default function InventoryPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by name or SKU..."
+            placeholder="Search by name or code..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -465,7 +465,7 @@ export default function InventoryPage() {
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by name, SKU, or barcode..."
+                placeholder="Search by name, code, or barcode..."
                 className="pl-9"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -491,7 +491,7 @@ export default function InventoryPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Product</TableHead>
-                    <TableHead>SKU</TableHead>
+                    <TableHead>Code</TableHead>
                     <TableHead>Category</TableHead>
                     <TableHead className="text-right">Selling Price</TableHead>
                     <TableHead className="text-right">MRP</TableHead>
@@ -533,7 +533,7 @@ export default function InventoryPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>Product</TableHead>
-                <TableHead>SKU</TableHead>
+                <TableHead>Code</TableHead>
                 <TableHead>Store</TableHead>
                 <TableHead className="text-right">Stock</TableHead>
                 <TableHead className="text-right">Reorder</TableHead>
@@ -805,7 +805,7 @@ export default function InventoryPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="prod-sku">SKU</Label>
+                  <Label htmlFor="prod-sku">Product Code</Label>
                   <Input
                     id="prod-sku"
                     placeholder="Auto-generated if empty"
@@ -905,7 +905,7 @@ export default function InventoryPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="prod-reorder">Reorder Level</Label>
+                  <Label htmlFor="prod-reorder">Min Stock</Label>
                   <Input
                     id="prod-reorder"
                     type="number"
@@ -996,7 +996,7 @@ export default function InventoryPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
-                        <TableHead>SKU</TableHead>
+                        <TableHead>Code</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Selling Price</TableHead>
                         <TableHead>GST%</TableHead>
@@ -1091,7 +1091,7 @@ export default function InventoryPage() {
                 </Card>
                 <Card>
                   <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Reorder Level</p>
+                    <p className="text-sm text-muted-foreground">Min Stock</p>
                     <p className="text-2xl font-bold">
                       {selectedProduct.product?.reorderLevel || '-'}
                     </p>

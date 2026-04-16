@@ -85,6 +85,8 @@ export default function CustomersPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [customerToDelete, setCustomerToDelete] = useState<string | null>(null)
   const [filterType, setFilterType] = useState<string>('all')
   const [filterDue, setFilterDue] = useState(false)
   const queryClient = useQueryClient()
@@ -180,6 +182,8 @@ export default function CustomersPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['customers'] })
       toast.success('Customer deleted')
+      setShowDeleteDialog(false)
+      setCustomerToDelete(null)
     },
     onError: () => {
       toast.error('Failed to delete customer')
@@ -306,7 +310,7 @@ export default function CustomersPage() {
               <CreditCard className="h-5 w-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Outstanding Credit</p>
+              <p className="text-sm text-muted-foreground">Money Owed by Customers</p>
               <p className="text-2xl font-bold">₹{totalCredit.toLocaleString('en-IN')}</p>
             </div>
           </CardContent>
@@ -318,7 +322,7 @@ export default function CustomersPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by name, phone, or GSTIN..."
+            placeholder="Search by name, phone, or GST Number..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -408,7 +412,8 @@ export default function CustomersPage() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => {
-                          if (confirm('Delete this customer?')) deleteCustomer.mutate(customer.id)
+                          setCustomerToDelete(customer.id)
+                          setShowDeleteDialog(true)
                         }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -462,7 +467,7 @@ export default function CustomersPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>GSTIN</Label>
+                <Label>GST Number (GSTIN)</Label>
                 <Input placeholder="27AABCU9603R1ZM" className="uppercase" value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })} maxLength={15} />
               </div>
             </div>
@@ -541,7 +546,7 @@ export default function CustomersPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>GSTIN</Label>
+                <Label>GST Number (GSTIN)</Label>
                 <Input placeholder="27AABCU9603R1ZM" className="uppercase" value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })} maxLength={15} />
               </div>
             </div>
@@ -575,6 +580,31 @@ export default function CustomersPage() {
             <Button onClick={handleUpdate} disabled={updateCustomer.isPending}>
               {updateCustomer.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Update Customer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Customer Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Customer?</DialogTitle>
+            <DialogDescription>
+              This will permanently delete this customer and all their purchase history. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (customerToDelete) deleteCustomer.mutate(customerToDelete)
+              }}
+              disabled={deleteCustomer.isPending}
+            >
+              {deleteCustomer.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete Customer
             </Button>
           </DialogFooter>
         </DialogContent>

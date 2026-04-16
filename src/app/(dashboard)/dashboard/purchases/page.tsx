@@ -304,7 +304,7 @@ export default function PurchasesPage() {
               <FileText className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Invoices</p>
+              <p className="text-sm text-muted-foreground">Bills</p>
               <p className="text-2xl font-bold">{invoices.length}</p>
             </div>
           </CardContent>
@@ -356,7 +356,7 @@ export default function PurchasesPage() {
           ) : invoices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <ShoppingCart className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <p className="text-lg font-medium">No purchase invoices yet</p>
+              <p className="text-lg font-medium">No purchase bills yet</p>
               <p className="text-sm text-muted-foreground mb-4">Record your first purchase from a vendor</p>
               <Button onClick={() => { resetForm(); setShowNewDialog(true) }}>
                 <Plus className="h-4 w-4 mr-2" /> New Purchase
@@ -366,7 +366,7 @@ export default function PurchasesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Bill No.</TableHead>
                   <TableHead>Vendor</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Store</TableHead>
@@ -407,7 +407,7 @@ export default function PurchasesPage() {
       <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>New Purchase Invoice</DialogTitle>
+            <DialogTitle>New Purchase Bill</DialogTitle>
             <DialogDescription>Record a purchase from a vendor</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
@@ -441,11 +441,11 @@ export default function PurchasesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Invoice Number</Label>
+                <Label>Bill Number</Label>
                 <Input placeholder="Auto-generated if empty" value={form.invoiceNumber} onChange={(e) => setForm({ ...form, invoiceNumber: e.target.value })} />
               </div>
               <div className="space-y-2">
-                <Label>Invoice Date</Label>
+                <Label>Bill Date</Label>
                 <Input type="date" value={form.invoiceDate} onChange={(e) => setForm({ ...form, invoiceDate: e.target.value })} />
               </div>
             </div>

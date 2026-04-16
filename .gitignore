@@ -57,3 +57,4 @@ skills-lock.json
 
 # Continue.dev (no longer used)
 .continue/*
+.mcp-web-inspector/*

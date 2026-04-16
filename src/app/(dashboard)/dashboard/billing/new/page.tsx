@@ -97,6 +97,7 @@ export default function POSPage() {
   const [showHoldDialog, setShowHoldDialog] = useState(false)
   const [showRecallDialog, setShowRecallDialog] = useState(false)
   const [showReceiptDialog, setShowReceiptDialog] = useState(false)
+  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false)
   const [heldBillName, setHeldBillName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
   const [customerResults, setCustomerResults] = useState<CustomerSearchResult[]>([])
@@ -107,6 +108,10 @@ export default function POSPage() {
   const [paymentNote, setPaymentNote] = useState('')
   const [lastInvoice, setLastInvoice] = useState<Record<string, unknown> | null>(null)
   const [loyaltyPointsToRedeem, setLoyaltyPointsToRedeem] = useState(0)
+  // Split payment state
+  const [splitPayments, setSplitPayments] = useState<Array<{ method: string; amount: number; reference: string }>>([
+    { method: 'CASH', amount: 0, reference: '' }
+  ])
 
   // Locations for counter selector
   const [locations, setLocations] = useState<Array<{ id: string; name: string; type: string }>>([])
@@ -249,6 +254,10 @@ export default function POSPage() {
         e.preventDefault()
         clearCart()
       }
+      if (e.key === '?' && !isInput) {
+        e.preventDefault()
+        setShowShortcutsDialog(true)
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
@@ -330,6 +339,31 @@ export default function POSPage() {
     if (cart.length === 0) return
     setIsCharging(true)
     try {
+      // Build payments array
+      let paymentsToSend: Array<{ amount: number; method: string; reference: string }>
+      if (billingType === 'MIXED') {
+        // Use split payments
+        const validPayments = splitPayments.filter(p => p.amount > 0)
+        if (validPayments.length === 0) {
+          toast.error('Please enter at least one payment amount')
+          setIsCharging(false)
+          return
+        }
+        const totalPaid = validPayments.reduce((sum, p) => sum + p.amount, 0)
+        if (totalPaid < finalTotal) {
+          toast.error(`Payment amount (₹${totalPaid.toLocaleString('en-IN')}) is less than total (₹${finalTotal.toLocaleString('en-IN')})`)
+          setIsCharging(false)
+          return
+        }
+        paymentsToSend = validPayments.map(p => ({
+          amount: p.amount,
+          method: p.method,
+          reference: p.reference || paymentNote,
+        }))
+      } else {
+        paymentsToSend = [{ amount: finalTotal, method: billingType, reference: paymentNote }]
+      }
+
       const res = await fetch('/api/billing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -356,11 +390,11 @@ export default function POSPage() {
           totalGst: cartTotal.totalGst,
           roundOff: 0,
           totalAmount: finalTotal,
-          amountPaid: finalTotal,
+          amountPaid: billingType === 'MIXED' ? splitPayments.reduce((sum, p) => sum + p.amount, 0) : finalTotal,
           billingType,
           notes,
           loyaltyPointsUsed: loyaltyPointsToRedeem,
-          payments: [{ amount: finalTotal, method: billingType, reference: paymentNote }],
+          payments: paymentsToSend,
         }),
       })
 
@@ -377,6 +411,7 @@ export default function POSPage() {
       setPaymentNote('')
       setLoyaltyPointsToRedeem(0)
       setCurrentCustomer(null)
+      setSplitPayments([{ method: 'CASH', amount: 0, reference: '' }])
       toast.success('Sale completed!')
       setShowReceiptDialog(true)
     } catch (err) {
@@ -496,7 +531,7 @@ export default function POSPage() {
             <Scan className="absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               ref={searchRef}
-              placeholder="Search by name, SKU, or barcode..."
+              placeholder="Search by name, code, or barcode..."
               className="pl-9 pr-10"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -581,7 +616,16 @@ export default function POSPage() {
             onClick={() => setShowRecallDialog(true)}
           >
             <History className="h-4 w-4" />
-            Recall ({heldBills.length})
+            Saved Bills ({heldBills.length})
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-muted-foreground"
+            onClick={() => setShowShortcutsDialog(true)}
+          >
+            <kbd className="pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">?</kbd>
+            Shortcuts
           </Button>
         </div>
       </div>
@@ -727,7 +771,12 @@ export default function POSPage() {
                   variant={billingType === mode.value ? 'default' : 'outline'}
                   size="sm"
                   className="flex-col h-auto py-1.5 gap-0.5"
-                  onClick={() => setBillingType(mode.value as typeof billingType)}
+                  onClick={() => {
+                    setBillingType(mode.value as typeof billingType)
+                    if (mode.value === 'MIXED') {
+                      setSplitPayments([{ method: 'CASH', amount: 0, reference: '' }])
+                    }
+                  }}
                 >
                   <mode.icon className="h-4 w-4" />
                   <span className="text-xs">{mode.label}</span>
@@ -777,7 +826,7 @@ export default function POSPage() {
 
       {/* Payment Dialog */}
       <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent className={billingType === 'MIXED' ? 'max-w-lg' : 'max-w-md'}>
           <DialogHeader>
             <DialogTitle>Complete Payment</DialogTitle>
           </DialogHeader>
@@ -786,14 +835,93 @@ export default function POSPage() {
               <p className="text-sm text-muted-foreground">Amount to Collect</p>
               <p className="text-4xl font-bold">₹{finalTotal.toLocaleString('en-IN')}</p>
             </div>
-            <div className="space-y-2">
-              <Label>Payment Note (optional)</Label>
-              <Input
-                placeholder="e.g. Card ending 4242"
-                value={paymentNote}
-                onChange={(e) => setPaymentNote(e.target.value)}
-              />
-            </div>
+
+            {billingType === 'MIXED' ? (
+              /* Split Payment UI */
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Split Payment</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSplitPayments([...splitPayments, { method: 'CASH', amount: 0, reference: '' }])}
+                  >
+                    <Plus className="h-3.5 w-3.5 mr-1" />
+                    Add Payment
+                  </Button>
+                </div>
+                {splitPayments.map((payment, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Select
+                      value={payment.method}
+                      onValueChange={(v) => {
+                        const newPayments = [...splitPayments]
+                        newPayments[idx] = { ...newPayments[idx], method: v || 'CASH' }
+                        setSplitPayments(newPayments)
+                      }}
+                    >
+                      <SelectTrigger className="w-28">
+                        {payment.method === 'CASH' ? 'Cash' : payment.method === 'UPI' ? 'UPI' : payment.method === 'CARD' ? 'Card' : payment.method}
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="CASH">Cash</SelectItem>
+                        <SelectItem value="UPI">UPI</SelectItem>
+                        <SelectItem value="CARD">Card</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={payment.amount || ''}
+                      onChange={(e) => {
+                        const newPayments = [...splitPayments]
+                        newPayments[idx] = { ...newPayments[idx], amount: parseFloat(e.target.value) || 0 }
+                        setSplitPayments(newPayments)
+                      }}
+                      placeholder="₹0"
+                      className="flex-1"
+                    />
+                    <Input
+                      value={payment.reference}
+                      onChange={(e) => {
+                        const newPayments = [...splitPayments]
+                        newPayments[idx] = { ...newPayments[idx], reference: e.target.value }
+                        setSplitPayments(newPayments)
+                      }}
+                      placeholder="Ref (optional)"
+                      className="w-32"
+                    />
+                    {splitPayments.length > 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-red-500"
+                        onClick={() => setSplitPayments(splitPayments.filter((_, i) => i !== idx))}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                <div className="border-t pt-2 flex justify-between text-sm">
+                  <span>Total Paid:</span>
+                  <span className={splitPayments.reduce((sum, p) => sum + p.amount, 0) < finalTotal ? 'text-red-600 font-medium' : 'font-medium'}>
+                    ₹{splitPayments.reduce((sum, p) => sum + p.amount, 0).toLocaleString('en-IN')}
+                    {splitPayments.reduce((sum, p) => sum + p.amount, 0) < finalTotal && ` (₹${(finalTotal - splitPayments.reduce((sum, p) => sum + p.amount, 0)).toLocaleString('en-IN')} remaining)`}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              /* Single Payment UI */
+              <div className="space-y-2">
+                <Label>Payment Note (optional)</Label>
+                <Input
+                  placeholder="e.g. Card ending 4242"
+                  value={paymentNote}
+                  onChange={(e) => setPaymentNote(e.target.value)}
+                />
+              </div>
+            )}
             {currentCustomer && (currentCustomer as unknown as CustomerSearchResult).loyaltyPoints > 0 && (
               <div className="rounded-lg border p-3 space-y-2">
                 <div className="flex items-center justify-between">
@@ -948,7 +1076,7 @@ export default function POSPage() {
       <Dialog open={showReceiptDialog} onOpenChange={setShowReceiptDialog}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle>Invoice Created</DialogTitle>
+            <DialogTitle>Bill Created</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 text-center">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
@@ -967,6 +1095,50 @@ export default function POSPage() {
               Print Receipt
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Keyboard Shortcuts Dialog */}
+      <Dialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Keyboard Shortcuts</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Search products</span>
+              <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">F1</kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Select customer</span>
+              <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">F2</kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Open payment</span>
+              <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">F3</kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Print receipt</span>
+              <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">F4</kbd>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Hold bill</span>
+              <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">Ctrl+H</kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">New bill</span>
+              <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">Ctrl+N</kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Show shortcuts</span>
+              <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">?</kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Close dialog</span>
+              <kbd className="pointer-events-none inline-flex h-6 select-none items-center gap-1 rounded border bg-muted px-2 font-mono text-xs font-medium text-muted-foreground">Esc</kbd>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

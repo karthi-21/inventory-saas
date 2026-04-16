@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +20,14 @@ import {
   SelectTrigger,
 } from '@/components/ui/select'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Receipt,
   Search,
   Download,
@@ -29,6 +37,8 @@ import {
   Loader2,
   AlertCircle,
   Store,
+  XCircle,
+  RotateCcw,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useState } from 'react'
@@ -47,18 +57,37 @@ interface Invoice {
   amountPaid: number
   amountDue: number
   paymentStatus: string
+  invoiceStatus: string
   billingType: string
+  cancelReason?: string
   items: Array<{ id: string }>
   createdAt: string
 }
+
+const CANCEL_REASONS = [
+  'Mistake in billing',
+  'Customer request',
+  'Duplicate bill',
+  'Wrong customer',
+  'Wrong items',
+  'Other',
+]
 
 export default function BillingPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [storeFilter, setStoreFilter] = useState<string>('__all__')
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const [returnDialogOpen, setReturnDialogOpen] = useState(false)
+  const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null)
+  const [cancelReason, setCancelReason] = useState('')
+  const [customReason, setCustomReason] = useState('')
+  const [returnItems, setReturnItems] = useState<Array<{ productId?: string; variantId?: string; name: string; quantity: number; maxQty: number; unitPrice: number; amount: number }>>([])
+  const [returnReason, setReturnReason] = useState('')
   const currentStoreId = usePOSStore((state) => state.currentStoreId)
+  const queryClient = useQueryClient()
 
-  // Effective store ID for filtering (use dropdown if selected, otherwise global store)
+  // Effective store ID for filtering
   const effectiveStoreId = storeFilter === '__all__' ? currentStoreId : storeFilter === '__none__' ? undefined : storeFilter
 
   // Fetch stores for filter dropdown
@@ -86,16 +115,81 @@ export default function BillingPage() {
     },
   })
 
+  // Cancel mutation
+  const cancelMutation = useMutation({
+    mutationFn: async (invoiceId: string) => {
+      const reason = cancelReason === 'Other' ? customReason : cancelReason
+      const res = await fetch(`/api/billing/${invoiceId}/cancel`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to cancel invoice')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success('Bill cancelled successfully')
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      setCancelDialogOpen(false)
+      setSelectedInvoice(null)
+      setCancelReason('')
+      setCustomReason('')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+
+  // Return mutation
+  const returnMutation = useMutation({
+    mutationFn: async ({ invoiceId, items, reason }: { invoiceId: string; items: typeof returnItems; reason: string }) => {
+      const res = await fetch(`/api/billing/${invoiceId}/return`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          items: items.filter(i => i.quantity > 0).map(i => ({
+            productId: i.productId,
+            variantId: i.variantId,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            amount: i.quantity * i.unitPrice,
+          })),
+          reason,
+        }),
+      })
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Failed to process return')
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      toast.success('Return processed successfully')
+      queryClient.invalidateQueries({ queryKey: ['invoices'] })
+      setReturnDialogOpen(false)
+      setSelectedInvoice(null)
+      setReturnItems([])
+      setReturnReason('')
+    },
+    onError: (err: Error) => {
+      toast.error(err.message)
+    },
+  })
+
   const invoices = invoicesData?.data || []
-  const totalSales = invoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0)
-  const paidCount = invoices.filter((inv) => inv.paymentStatus === 'PAID').length
-  const pendingAmount = invoices.filter((inv) => inv.paymentStatus !== 'PAID').reduce((sum, inv) => sum + Number(inv.amountDue), 0)
+  const activeInvoices = invoices.filter(inv => inv.invoiceStatus !== 'CANCELLED')
+  const totalSales = activeInvoices.reduce((sum, inv) => sum + Number(inv.totalAmount), 0)
+  const paidCount = activeInvoices.filter((inv) => inv.paymentStatus === 'PAID').length
+  const pendingAmount = activeInvoices.filter((inv) => inv.paymentStatus !== 'PAID').reduce((sum, inv) => sum + Number(inv.amountDue), 0)
 
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-64 gap-4">
         <AlertCircle className="h-12 w-12 text-red-500" />
-        <p className="text-red-500">Failed to load invoices</p>
+        <p className="text-red-500">Failed to load bills</p>
         <Button onClick={() => window.location.reload()}>Retry</Button>
       </div>
     )
@@ -106,16 +200,16 @@ export default function BillingPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Billing</h1>
-          <p className="text-sm text-muted-foreground">Manage invoices and sales</p>
+          <p className="text-sm text-muted-foreground">Manage bills and sales</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={() => {
             if (invoices.length === 0) {
-              toast.error('No invoices to export')
+              toast.error('No bills to export')
               return
             }
             const csvData = invoices.map((inv) => ({
-              InvoiceNumber: inv.invoiceNumber,
+              BillNumber: inv.invoiceNumber,
               Customer: inv.customer
                 ? `${inv.customer.firstName}${inv.customer.lastName ? ' ' + inv.customer.lastName : ''}`
                 : 'Walk-in Customer',
@@ -124,10 +218,10 @@ export default function BillingPage() {
               TotalAmount: Number(inv.totalAmount),
               AmountPaid: Number(inv.amountPaid),
               AmountDue: Number(inv.amountDue),
-              Status: inv.paymentStatus,
+              Status: inv.invoiceStatus === 'CANCELLED' ? 'CANCELLED' : inv.paymentStatus,
               BillingType: inv.billingType,
             }))
-            exportToCSV(csvData, `invoices-${new Date().toISOString().split('T')[0]}.csv`)
+            exportToCSV(csvData, `bills-${new Date().toISOString().split('T')[0]}.csv`)
             toast.success('Exported successfully')
           }}>
             <Download className="h-4 w-4" />
@@ -165,7 +259,7 @@ export default function BillingPage() {
               <TrendingUp className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Paid Invoices</p>
+              <p className="text-sm text-muted-foreground">Paid Bills</p>
               {isLoading ? (
                 <Skeleton className="h-8 w-12" />
               ) : (
@@ -196,7 +290,7 @@ export default function BillingPage() {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Search by invoice or customer..."
+            placeholder="Search by bill no. or customer..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -224,13 +318,16 @@ export default function BillingPage() {
             {statusFilter === 'all' ? 'All Status'
               : statusFilter === 'PAID' ? 'Paid'
               : statusFilter === 'PARTIAL' ? 'Partial'
-              : statusFilter === 'DUE' ? 'Due' : 'All Status'}
+              : statusFilter === 'DUE' ? 'Due'
+              : statusFilter === 'CANCELLED' ? 'Cancelled'
+              : 'All Status'}
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="PAID">Paid</SelectItem>
             <SelectItem value="PARTIAL">Partial</SelectItem>
             <SelectItem value="DUE">Due</SelectItem>
+            <SelectItem value="CANCELLED">Cancelled</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -258,8 +355,8 @@ export default function BillingPage() {
           ) : invoices.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Receipt className="h-12 w-12 text-muted-foreground/50 mb-4" />
-              <p className="text-lg font-medium">No invoices yet</p>
-              <p className="text-sm text-muted-foreground mb-4">Create your first sale to see invoices here</p>
+              <p className="text-lg font-medium">No bills yet</p>
+              <p className="text-sm text-muted-foreground mb-4">Create your first sale to see bills here</p>
               <Link href="/dashboard/billing/new">
                 <Button>
                   <Receipt className="h-4 w-4 mr-2" />
@@ -271,18 +368,24 @@ export default function BillingPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice #</TableHead>
+                  <TableHead>Bill No.</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Store</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="w-12"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invoices.map((invoice) => (
-                  <TableRow key={invoice.id}>
-                    <TableCell className="font-mono text-sm">{invoice.invoiceNumber}</TableCell>
+                  <TableRow key={invoice.id} className={invoice.invoiceStatus === 'CANCELLED' ? 'opacity-50' : ''}>
+                    <TableCell className="font-mono text-sm">
+                      {invoice.invoiceNumber}
+                      {invoice.invoiceStatus === 'CANCELLED' && (
+                        <span className="ml-2 text-xs text-red-500 line-through">CANCELLED</span>
+                      )}
+                    </TableCell>
                     <TableCell className="font-medium">
                       {invoice.customer
                         ? `${invoice.customer.firstName}${invoice.customer.lastName ? ' ' + invoice.customer.lastName : ''}`
@@ -296,9 +399,74 @@ export default function BillingPage() {
                       ₹{Number(invoice.totalAmount).toLocaleString('en-IN')}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={invoice.paymentStatus === 'PAID' ? 'default' : invoice.paymentStatus === 'DUE' ? 'destructive' : 'outline'}>
-                        {invoice.paymentStatus}
+                      <Badge
+                        variant={
+                          invoice.invoiceStatus === 'CANCELLED' ? 'destructive' :
+                          invoice.paymentStatus === 'PAID' ? 'default' :
+                          invoice.paymentStatus === 'DUE' ? 'destructive' :
+                          'outline'
+                        }
+                      >
+                        {invoice.invoiceStatus === 'CANCELLED' ? 'CANCELLED' : invoice.paymentStatus}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-1">
+                        {invoice.invoiceStatus !== 'CANCELLED' && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                              onClick={async () => {
+                                // Fetch invoice details to get items
+                                const res = await fetch(`/api/billing?search=${invoice.invoiceNumber}`)
+                                if (res.ok) {
+                                  const data = await res.json()
+                                  const detailed = data.data?.find((inv: Invoice) => inv.id === invoice.id)
+                                  if (detailed) {
+                                    setSelectedInvoice(detailed)
+                                  } else {
+                                    setSelectedInvoice(invoice)
+                                  }
+                                } else {
+                                  setSelectedInvoice(invoice)
+                                }
+                                // Fetch items for return
+                                const itemsRes = await fetch(`/api/billing/${invoice.id}/items`)
+                                if (itemsRes.ok) {
+                                  const itemsData = await itemsRes.json()
+                                  setReturnItems((itemsData.data || itemsData || []).map((item: { productId?: string; variantId?: string; product?: { name: string }; variant?: { name: string }; description?: string; quantity: number; unitPrice: number }) => ({
+                                    productId: item.productId || undefined,
+                                    variantId: item.variantId || undefined,
+                                    name: item.product?.name || item.description || item.variant?.name || 'Unknown',
+                                    quantity: 0,
+                                    maxQty: item.quantity,
+                                    unitPrice: Number(item.unitPrice),
+                                    amount: 0,
+                                  })))
+                                }
+                                setReturnDialogOpen(true)
+                              }}
+                              title="Return Items"
+                            >
+                              <RotateCcw className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => {
+                                setSelectedInvoice(invoice)
+                                setCancelDialogOpen(true)
+                              }}
+                              title="Cancel Bill"
+                            >
+                              <XCircle className="h-4 w-4" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -307,6 +475,204 @@ export default function BillingPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Cancel Bill Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Bill</DialogTitle>
+            <DialogDescription>
+              Cancel this bill? <strong>{selectedInvoice?.invoiceNumber}</strong> — stock will be put back.
+              {selectedInvoice && Number(selectedInvoice.amountPaid) > 0 && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  This bill has payments. Please give refund first.
+                </span>
+              )}
+              You cannot undo this.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedInvoice && (
+            <div className="space-y-4">
+              <div className="bg-muted p-3 rounded-md text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-medium">₹{Number(selectedInvoice.totalAmount).toLocaleString('en-IN')}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Customer:</span>
+                  <span className="font-medium">
+                    {selectedInvoice.customer
+                      ? `${selectedInvoice.customer.firstName}${selectedInvoice.customer.lastName ? ' ' + selectedInvoice.customer.lastName : ''}`
+                      : 'Walk-in Customer'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Items:</span>
+                  <span className="font-medium">{selectedInvoice.items?.length || 0}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Reason for cancellation</label>
+                <Select value={cancelReason} onValueChange={(v) => v && setCancelReason(v)}>
+                  <SelectTrigger>
+                    {cancelReason || 'Select a reason...'}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CANCEL_REASONS.map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {cancelReason === 'Other' && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Please specify the reason</label>
+                  <Input
+                    value={customReason}
+                    onChange={(e) => setCustomReason(e.target.value)}
+                    placeholder="Enter reason for cancellation"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setCancelDialogOpen(false)
+              setCancelReason('')
+              setCustomReason('')
+            }}>
+              Don't Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={!cancelReason || (cancelReason === 'Other' && !customReason.trim()) || cancelMutation.isPending}
+              onClick={() => {
+                if (selectedInvoice) {
+                  cancelMutation.mutate(selectedInvoice.id)
+                }
+              }}
+            >
+              {cancelMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Cancelling...
+                </>
+              ) : (
+                'Cancel Bill'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Return Items Dialog */}
+      <Dialog open={returnDialogOpen} onOpenChange={setReturnDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Return Items</DialogTitle>
+            <DialogDescription>
+              Select items to return from bill <strong>{selectedInvoice?.invoiceNumber}</strong>.
+              Items go back to stock. Money adjusted in customer's account.
+            </DialogDescription>
+          </DialogHeader>
+
+          {selectedInvoice && (
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {returnItems.length > 0 ? (
+                <div className="space-y-3">
+                  {returnItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between gap-3 p-2 border rounded-md">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          ₹{item.unitPrice.toLocaleString('en-IN')} × max {item.maxQty}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            const newItems = [...returnItems]
+                            newItems[idx] = { ...newItems[idx], quantity: Math.max(0, newItems[idx].quantity - 1), amount: Math.max(0, newItems[idx].quantity - 1) * newItems[idx].unitPrice }
+                            setReturnItems(newItems)
+                          }}
+                          disabled={item.quantity <= 0}
+                        >
+                          -
+                        </Button>
+                        <span className="w-6 text-center text-sm">{item.quantity}</span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => {
+                            const newItems = [...returnItems]
+                            const newQty = Math.min(item.maxQty, item.quantity + 1)
+                            newItems[idx] = { ...newItems[idx], quantity: newQty, amount: newQty * newItems[idx].unitPrice }
+                            setReturnItems(newItems)
+                          }}
+                          disabled={item.quantity >= item.maxQty}
+                        >
+                          +
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="border-t pt-2 flex justify-between font-medium">
+                    <span>Total Return Amount:</span>
+                    <span>₹{returnItems.reduce((sum, i) => sum + i.amount, 0).toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Loading items...</p>
+              )}
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Reason for return (optional)</label>
+                <Input
+                  value={returnReason}
+                  onChange={(e) => setReturnReason(e.target.value)}
+                  placeholder="e.g., Defective product, Customer not satisfied"
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setReturnDialogOpen(false)
+              setReturnItems([])
+              setReturnReason('')
+            }}>
+              Cancel
+            </Button>
+            <Button
+              disabled={returnItems.every(i => i.quantity === 0) || returnMutation.isPending}
+              onClick={() => {
+                if (selectedInvoice) {
+                  returnMutation.mutate({ invoiceId: selectedInvoice.id, items: returnItems, reason: returnReason })
+                }
+              }}
+            >
+              {returnMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                'Process Return'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

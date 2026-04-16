@@ -56,7 +56,7 @@ async function getSalesSummary(
   locationId: string | null,
   dateFilter: { gte?: Date; lte?: Date }
 ) {
-  const where: Record<string, unknown> = { tenantId }
+  const where: Record<string, unknown> = { tenantId, invoiceStatus: 'ACTIVE' }
   if (storeId) where.storeId = storeId
   if (locationId) where.locationId = locationId
   if (Object.keys(dateFilter).length > 0) {
@@ -69,7 +69,7 @@ async function getSalesSummary(
   const todayEnd = new Date(today)
   todayEnd.setHours(23, 59, 59, 999)
 
-  const todayWhere: Record<string, unknown> = { tenantId, invoiceDate: { gte: today, lte: todayEnd } }
+  const todayWhere: Record<string, unknown> = { tenantId, invoiceStatus: 'ACTIVE', invoiceDate: { gte: today, lte: todayEnd } }
   if (storeId) todayWhere.storeId = storeId
   if (locationId) todayWhere.locationId = locationId
 
@@ -108,7 +108,7 @@ async function getSalesSummary(
       _count: { id: true }
     }),
     prisma.salesInvoice.aggregate({
-      where: { tenantId, invoiceDate: { gte: monthStart } },
+      where: { tenantId, invoiceStatus: 'ACTIVE', invoiceDate: { gte: monthStart } },
       _sum: { totalAmount: true }
     }),
     // Low stock count - products below reorder level
@@ -120,7 +120,7 @@ async function getSalesSummary(
     `.then(result => Number(result[0]?.count || 0)),
     // Pending payments
     prisma.salesInvoice.count({
-      where: { tenantId, paymentStatus: { in: ['DUE', 'PARTIAL'] } }
+      where: { tenantId, invoiceStatus: 'ACTIVE', paymentStatus: { in: ['DUE', 'PARTIAL'] } }
     }),
     // New customers this month
     prisma.customer.count({
@@ -168,7 +168,7 @@ async function getSalesByProduct(
   dateFilter: { gte?: Date; lte?: Date }
 ) {
   const where: Record<string, unknown> = {
-    invoice: { tenantId }
+    invoice: { tenantId, invoiceStatus: 'ACTIVE' }
   }
   if (storeId) where.invoice = { ...where.invoice as Record<string, unknown>, storeId }
   if (locationId) where.invoice = { ...(where.invoice as Record<string, unknown>), locationId }
@@ -232,6 +232,7 @@ async function getSalesByCategory(
     where: {
       invoice: {
         tenantId,
+        invoiceStatus: 'ACTIVE',
         ...(storeId && { storeId }),
         ...(locationId && { locationId }),
         ...(Object.keys(dateFilter).length > 0 && { invoiceDate: dateFilter })
@@ -370,6 +371,7 @@ async function getGstSummary(
     where: {
       invoice: {
         tenantId,
+        invoiceStatus: 'ACTIVE',
         ...(storeId && { storeId }),
         ...(locationId && { locationId }),
         ...(Object.keys(dateFilter).length > 0 && { invoiceDate: dateFilter })
@@ -445,7 +447,7 @@ async function getCustomerOutstanding(tenantId: string) {
   // Single groupBy query instead of N+1 per-customer aggregates
   const invoiceStats = await prisma.salesInvoice.groupBy({
     by: ['customerId'],
-    where: { customerId: { in: customers.map(c => c.id) } },
+    where: { customerId: { in: customers.map(c => c.id) }, invoiceStatus: 'ACTIVE' },
     _sum: { amountDue: true, totalAmount: true }
   })
   const statsByCustomer = new Map(
@@ -480,7 +482,7 @@ async function getDailySales(
   storeId: string | null,
   dateFilter: { gte?: Date; lte?: Date }
 ) {
-  const where: Record<string, unknown> = { tenantId }
+  const where: Record<string, unknown> = { tenantId, invoiceStatus: 'ACTIVE' }
   if (storeId) where.storeId = storeId
   if (Object.keys(dateFilter).length > 0) {
     where.invoiceDate = dateFilter

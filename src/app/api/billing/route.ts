@@ -35,7 +35,15 @@ export async function GET(request: NextRequest) {
     // Build where clause
     const where: Record<string, unknown> = { tenantId: user.tenantId }
     if (storeId) where.storeId = storeId
-    if (status) where.paymentStatus = status
+    if (status && status !== 'CANCELLED') {
+      where.paymentStatus = status
+      where.invoiceStatus = 'ACTIVE'
+    } else if (status === 'CANCELLED') {
+      where.invoiceStatus = 'CANCELLED'
+    } else {
+      // Default: show all active invoices
+      where.invoiceStatus = 'ACTIVE'
+    }
     if (billingType) where.billingType = billingType
     if (customerId) where.customerId = customerId
     if (fromDate || toDate) {
@@ -138,6 +146,27 @@ export async function POST(request: NextRequest) {
         where: { id: locationId, storeId }
       })
       if (!location) return errorResponse('Location not found in this store', 404)
+    }
+
+    // Credit limit check for credit/partial sales
+    if (customerId && (billingType === 'CREDIT' || billingType === 'MIXED')) {
+      const customer = await prisma.customer.findFirst({
+        where: { id: customerId, tenantId: user.tenantId },
+        select: { creditLimit: true, creditBalance: true }
+      })
+      if (customer) {
+        const creditLimit = Number(customer.creditLimit)
+        const currentBalance = Number(customer.creditBalance)
+        const newDueAmount = Number(totalAmount) - Number(amountPaid || 0)
+
+        if (creditLimit > 0 && (currentBalance + newDueAmount) > creditLimit) {
+          const overAmount = currentBalance + newDueAmount - creditLimit
+          return errorResponse(
+            `Credit limit exceeded. Customer limit: ₹${creditLimit.toLocaleString('en-IN')}, Current outstanding: ₹${currentBalance.toLocaleString('en-IN')}, This sale would bring total to ₹${(currentBalance + newDueAmount).toLocaleString('en-IN')} (exceeds limit by ₹${overAmount.toLocaleString('en-IN')}).`,
+            400
+          )
+        }
+      }
     }
 
     // Generate invoice number

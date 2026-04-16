@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from '@/components/ui/dialog'
 import {
   Select,
@@ -76,6 +77,12 @@ export default function StoresPage() {
   const [locationType, setLocationType] = useState('COUNTER')
   const [locations, setLocations] = useState<Array<{ id: string; name: string; type: string }>>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(false)
+  const [showDeleteLocationDialog, setShowDeleteLocationDialog] = useState(false)
+  const [locationToDelete, setLocationToDelete] = useState<string | null>(null)
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false)
+  const [storeToArchive, setStoreToArchive] = useState<string | null>(null)
+  const [showRestoreDialog, setShowRestoreDialog] = useState(false)
+  const [storeToRestore, setStoreToRestore] = useState<string | null>(null)
 
   const locationTypeLabels: Record<string, string> = {
     COUNTER: 'Counter',
@@ -168,6 +175,8 @@ export default function StoresPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
       toast.success('Store archived successfully')
+      setShowArchiveDialog(false)
+      setStoreToArchive(null)
     },
     onError: (error) => {
       toast.error(error.message)
@@ -188,6 +197,8 @@ export default function StoresPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['stores'] })
       toast.success('Store restored successfully')
+      setShowRestoreDialog(false)
+      setStoreToRestore(null)
     },
     onError: (error) => {
       toast.error(error.message)
@@ -249,6 +260,8 @@ export default function StoresPage() {
       if (selectedStore) fetchLocations(selectedStore.id)
       queryClient.invalidateQueries({ queryKey: ['stores'] })
       toast.success('Location removed')
+      setShowDeleteLocationDialog(false)
+      setLocationToDelete(null)
     },
     onError: (error) => {
       toast.error(error.message)
@@ -470,7 +483,10 @@ export default function StoresPage() {
                     variant="outline"
                     size="sm"
                     className="gap-1 text-red-600 hover:text-red-600"
-                    onClick={() => archiveStore.mutate(store.id)}
+                    onClick={() => {
+                      setStoreToArchive(store.id)
+                      setShowArchiveDialog(true)
+                    }}
                     disabled={archiveStore.isPending}
                   >
                     <Archive className="h-3.5 w-3.5" />
@@ -481,7 +497,10 @@ export default function StoresPage() {
                     variant="outline"
                     size="sm"
                     className="gap-1 text-green-600 hover:text-green-600"
-                    onClick={() => restoreStore.mutate(store.id)}
+                    onClick={() => {
+                      setStoreToRestore(store.id)
+                      setShowRestoreDialog(true)
+                    }}
                     disabled={restoreStore.isPending}
                   >
                     <RotateCcw className="h-3.5 w-3.5" />
@@ -597,7 +616,7 @@ export default function StoresPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="gstin">GSTIN</Label>
+                <Label htmlFor="gstin">GST Number (GSTIN)</Label>
                 <Input
                   id="gstin"
                   placeholder="33AAACH0000P1Z5"
@@ -712,7 +731,7 @@ export default function StoresPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-gstin">GSTIN</Label>
+                <Label htmlFor="edit-gstin">GST Number (GSTIN)</Label>
                 <Input
                   id="edit-gstin"
                   placeholder="33AAACH0000P1Z5"
@@ -751,7 +770,10 @@ export default function StoresPage() {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                          onClick={() => deleteLocation.mutate(loc.id)}
+                          onClick={() => {
+                            setLocationToDelete(loc.id)
+                            setShowDeleteLocationDialog(true)
+                          }}
                           disabled={deleteLocation.isPending}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -818,6 +840,80 @@ export default function StoresPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Location Confirmation Dialog */}
+      <Dialog open={showDeleteLocationDialog} onOpenChange={setShowDeleteLocationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Location?</DialogTitle>
+            <DialogDescription>
+              Stock at this location will need to be moved first. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteLocationDialog(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (locationToDelete) deleteLocation.mutate(locationToDelete)
+              }}
+              disabled={deleteLocation.isPending}
+            >
+              {deleteLocation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Delete Location
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive Store Confirmation Dialog */}
+      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archive Store?</DialogTitle>
+            <DialogDescription>
+              All data will be preserved but the store will be hidden from views. You can restore it later.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowArchiveDialog(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (storeToArchive) archiveStore.mutate(storeToArchive)
+              }}
+              disabled={archiveStore.isPending}
+            >
+              {archiveStore.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Archive Store
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Restore Store Confirmation Dialog */}
+      <Dialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore Store?</DialogTitle>
+            <DialogDescription>
+              The store will be visible again in all views.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRestoreDialog(false)}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (storeToRestore) restoreStore.mutate(storeToRestore)
+              }}
+              disabled={restoreStore.isPending}
+            >
+              {restoreStore.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Restore Store
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

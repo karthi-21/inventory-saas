@@ -91,6 +91,8 @@ export default function VendorsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showEditDialog, setShowEditDialog] = useState(false)
   const [selectedVendor, setSelectedVendor] = useState<Vendor | null>(null)
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [vendorToDelete, setVendorToDelete] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const [form, setForm] = useState({
@@ -184,6 +186,8 @@ export default function VendorsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vendors'] })
       toast.success('Vendor deleted')
+      setShowDeleteDialog(false)
+      setVendorToDelete(null)
     },
     onError: () => {
       toast.error('Failed to delete vendor')
@@ -316,7 +320,7 @@ export default function VendorsPage() {
               <IndianRupee className="h-5 w-5 text-orange-600" />
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Outstanding</p>
+              <p className="text-sm text-muted-foreground">Amount Due</p>
               <p className="text-2xl font-bold">₹{(totalOutstanding / 100000).toFixed(1)}L</p>
             </div>
           </CardContent>
@@ -327,7 +331,7 @@ export default function VendorsPage() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search by name, phone, or GSTIN..."
+          placeholder="Search by name, phone, or GST Number..."
           className="pl-9"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -355,12 +359,12 @@ export default function VendorsPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Vendor</TableHead>
-                  <TableHead>GSTIN</TableHead>
+                  <TableHead>GST Number</TableHead>
                   <TableHead>Contact</TableHead>
                   <TableHead>Location</TableHead>
-                  <TableHead className="text-right">Credit Period</TableHead>
+                  <TableHead className="text-right">Payment Due (days)</TableHead>
                   <TableHead className="text-right">Total Purchased</TableHead>
-                  <TableHead className="text-right">Outstanding</TableHead>
+                  <TableHead className="text-right">Amount Due</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -411,7 +415,8 @@ export default function VendorsPage() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => {
-                          if (confirm('Delete this vendor?')) deleteVendor.mutate(vendor.id)
+                          setVendorToDelete(vendor.id)
+                          setShowDeleteDialog(true)
                         }}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -439,11 +444,11 @@ export default function VendorsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>GSTIN</Label>
+                <Label>GST Number (GSTIN)</Label>
                 <Input placeholder="27AABCU9603R1ZM" className="uppercase" maxLength={15} value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })} />
               </div>
               <div className="space-y-2">
-                <Label>PAN</Label>
+                <Label>PAN (Tax ID)</Label>
                 <Input placeholder="AABCU9603R" className="uppercase" maxLength={10} value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value.toUpperCase() })} />
               </div>
             </div>
@@ -484,7 +489,7 @@ export default function VendorsPage() {
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Credit Period (days)</Label>
+                <Label>Payment Due in X Days</Label>
                 <Input type="number" placeholder="30" value={form.creditPeriodDays} onChange={(e) => setForm({ ...form, creditPeriodDays: e.target.value })} />
               </div>
             </div>
@@ -530,11 +535,11 @@ export default function VendorsPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>GSTIN</Label>
+                <Label>GST Number (GSTIN)</Label>
                 <Input placeholder="27AABCU9603R1ZM" className="uppercase" maxLength={15} value={form.gstin} onChange={(e) => setForm({ ...form, gstin: e.target.value.toUpperCase() })} />
               </div>
               <div className="space-y-2">
-                <Label>PAN</Label>
+                <Label>PAN (Tax ID)</Label>
                 <Input placeholder="AABCU9603R" className="uppercase" maxLength={10} value={form.pan} onChange={(e) => setForm({ ...form, pan: e.target.value.toUpperCase() })} />
               </div>
             </div>
@@ -575,7 +580,7 @@ export default function VendorsPage() {
             </div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Credit Period (days)</Label>
+                <Label>Payment Due in X Days</Label>
                 <Input type="number" placeholder="30" value={form.creditPeriodDays} onChange={(e) => setForm({ ...form, creditPeriodDays: e.target.value })} />
               </div>
             </div>
@@ -602,6 +607,31 @@ export default function VendorsPage() {
             <Button onClick={handleUpdate} disabled={updateVendor.isPending}>
               {updateVendor.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Update Vendor
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Vendor Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Vendor?</DialogTitle>
+            <DialogDescription>
+              Purchase records will be kept but vendor details will be removed. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (vendorToDelete) deleteVendor.mutate(vendorToDelete)
+              }}
+              disabled={deleteVendor.isPending}
+            >
+              {deleteVendor.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Delete Vendor
             </Button>
           </DialogFooter>
         </DialogContent>

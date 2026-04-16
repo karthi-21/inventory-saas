@@ -82,6 +82,12 @@ model TenantSettings {
   invoicePrefix     String   @default("INV")
   decimalPlaces     Int      @default(2)
   roundOffEnabled   Boolean  @default(true)
+  creditLimitMode   String   @default("SOFT") // SOFT (warn) or HARD (block)
+  loyaltyEnabled    Boolean  @default(true)
+  pointsPerRupee    Decimal  @default(1) @db.Decimal(8, 2) // points earned per ₹100 spent
+  rupeePerPoint     Decimal  @default(0.25) @db.Decimal(8, 2) // ₹value per point for redemption
+  minimumRedemption Int      @default(100) // minimum points needed to redeem
+  pointsExpiryDays  Int      @default(365) // days until points expire, 0 = never
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
@@ -176,6 +182,7 @@ model User {
   storeAccess   UserStoreAccess[]
   userPersonas  UserPersona[]
   salesInvoices SalesInvoice[]    @relation("CreatedBy")
+  cancelledInvoices SalesInvoice[] @relation("CancelledBy")
   activityLogs  ActivityLog[]
   shiftCashiers Shift[]           @relation("Cashier")
 
@@ -668,8 +675,21 @@ model SalesInvoice {
   amountPaid    Decimal       @default(0) @db.Decimal(14, 2)
   amountDue     Decimal       @default(0) @db.Decimal(14, 2)
   paymentStatus PaymentStatus @default(PAID)
+  invoiceStatus InvoiceStatus @default(ACTIVE)
   billingType   BillingType   @default(CASH)
   gstin         String? // customer GSTIN for B2B
+  cancelReason  String?
+  cancelledAt   DateTime?
+  cancelledById String?
+  cancelledBy   User?          @relation("CancelledBy", fields: [cancelledById], references: [id])
+  irn           String?        @unique
+  irnStatus     IRNStatus?     @default(PENDING)
+  irnAckNo      String?
+  irnAckDate    String?
+  irnSignedInvoice String?
+  irnSignedQRCode String?
+  irnError      String?
+  irnRetriedAt  DateTime?
   notes         String?
   parkingSlipNo String?
   createdAt     DateTime      @default(now())
@@ -698,6 +718,19 @@ enum PaymentStatus {
   PARTIAL
   DUE
   OVERDUE
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum IRNStatus {
+  PENDING
+  GENERATED
+  CANCELLED
+  FAILED
 }
 
 enum BillingType {

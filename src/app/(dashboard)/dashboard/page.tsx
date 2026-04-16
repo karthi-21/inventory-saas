@@ -17,6 +17,7 @@ import {
   AlertTriangle,
   Loader2,
   AlertCircle,
+  Award,
 } from 'lucide-react'
 import Link from 'next/link'
 import { Skeleton, SkeletonCard } from '@/components/ui/skeleton'
@@ -142,6 +143,22 @@ export default function DashboardPage() {
     },
   })
 
+  // Fetch loyalty dashboard data
+  const { data: loyaltyData } = useQuery<{
+    loyaltyEnabled: boolean
+    totalActivePoints: number
+    pointsEarnedThisMonth: number
+    pointsRedeemedThisMonth: number
+    topCustomers: Array<{ id: string; name: string; phone: string; points: number; value: number }>
+  } | null>({
+    queryKey: ['loyalty-dashboard'],
+    queryFn: async () => {
+      const res = await fetch('/api/loyalty/dashboard')
+      if (!res.ok) return null
+      return res.json()
+    },
+  })
+
   const stats = [
     {
       title: "Today's Sales",
@@ -152,7 +169,7 @@ export default function DashboardPage() {
       loading: statsLoading,
     },
     {
-      title: 'Invoices',
+      title: 'Bills',
       value: statsData?.todayInvoices?.toString() || '0',
       change: '+8',
       changeType: 'up' as const,
@@ -226,7 +243,7 @@ export default function DashboardPage() {
             <Card className="border-l-4 border-l-yellow-500 bg-yellow-50 dark:bg-yellow-950/20 cursor-pointer hover:shadow-md transition-shadow">
               <CardContent className="flex items-center gap-3 p-3">
                 <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                <span className="text-sm">{lowStockItems.length} items below reorder level</span>
+                <span className="text-sm">{lowStockItems.length} items running low on stock</span>
               </CardContent>
             </Card>
           </Link>
@@ -235,7 +252,7 @@ export default function DashboardPage() {
               <Card className="border-l-4 border-l-blue-500 bg-blue-50 dark:bg-blue-950/20 cursor-pointer hover:shadow-md transition-shadow">
                 <CardContent className="flex items-center gap-3 p-3">
                   <IndianRupee className="h-4 w-4 text-blue-600" />
-                  <span className="text-sm">{statsData.pendingPayments} invoices awaiting payment</span>
+                  <span className="text-sm">{statsData.pendingPayments} bills awaiting payment</span>
                 </CardContent>
               </Card>
             </Link>
@@ -361,7 +378,7 @@ export default function DashboardPage() {
             {recentSales && recentSales.length > 0 && (
               <div className="mt-4">
                 <Link href="/dashboard/billing" className="text-sm text-primary hover:underline">
-                  View all invoices →
+                  View all bills →
                 </Link>
               </div>
             )}
@@ -415,6 +432,56 @@ export default function DashboardPage() {
         </Card>
       </div>
 
+      {/* Loyalty Widget */}
+      {loyaltyData?.loyaltyEnabled && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-primary" />
+                Loyalty Program
+              </CardTitle>
+              <Link href="/dashboard/customers">
+                <Button variant="outline" size="sm">View Customers</Button>
+              </Link>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="text-center p-3 rounded-lg bg-muted/50">
+                <p className="text-2xl font-bold">{loyaltyData.totalActivePoints?.toLocaleString() ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Active Points</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-green-50 dark:bg-green-950/20">
+                <p className="text-2xl font-bold text-green-600">{loyaltyData.pointsEarnedThisMonth?.toLocaleString() ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Earned This Month</p>
+              </div>
+              <div className="text-center p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20">
+                <p className="text-2xl font-bold text-blue-600">{loyaltyData.pointsRedeemedThisMonth?.toLocaleString() ?? 0}</p>
+                <p className="text-xs text-muted-foreground">Redeemed This Month</p>
+              </div>
+            </div>
+            {loyaltyData.topCustomers && loyaltyData.topCustomers.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">Top Loyal Customers</p>
+                {loyaltyData.topCustomers.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between rounded-lg border p-2">
+                    <div>
+                      <p className="text-sm font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground">{c.phone}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold">{c.points} pts</p>
+                      <p className="text-xs text-green-600">₹{c.value}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Low Stock Alert */}
       {lowStockLoading ? (
         <Card>
@@ -467,7 +534,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-red-600">{item.quantity} left</p>
-                    <p className="text-xs text-muted-foreground">Reorder: {item.reorderLevel}</p>
+                    <p className="text-xs text-muted-foreground">Min: {item.reorderLevel}</p>
                   </div>
                 </div>
               ))}
@@ -523,7 +590,7 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="font-medium">Reports</p>
-            <p className="text-sm text-muted-foreground">View analytics</p>
+            <p className="text-sm text-muted-foreground">Sales Reports</p>
           </div>
         </Link>
       </div>

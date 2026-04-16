@@ -2,7 +2,7 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import type { POSCartItem, POSBill, PaymentMethod, Customer } from '@/types'
+import type { POSCartItem, POSBill, BillingType, Customer } from '@/types'
 
 interface POSState {
   // Cart
@@ -16,7 +16,7 @@ interface POSState {
   currentCustomer: Customer | null
 
   // Bill metadata
-  billingType: PaymentMethod
+  billingType: BillingType
   notes: string
   parkingSlipNo: string
 
@@ -30,7 +30,7 @@ interface POSState {
   setCurrentUser: (userId: string) => void
   setCurrentShift: (shiftId: string) => void
   setCurrentCustomer: (customer: Customer | null) => void
-  setBillingType: (type: PaymentMethod) => void
+  setBillingType: (type: BillingType) => void
   setNotes: (notes: string) => void
   setParkingSlipNo: (slipNo: string) => void
 
@@ -51,7 +51,7 @@ interface HeldBill {
   items: POSCartItem[]
   customerId?: string
   customerName?: string
-  billingType: PaymentMethod
+  billingType: BillingType
   notes: string
   createdAt: string
 }

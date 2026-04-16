@@ -75,7 +75,7 @@ export {
   TenantPlan, SubscriptionStatus, StoreType, LocationType,
   ProductType, StockMovementType, AdjustmentReason,
   CustomerType, PurchaseOrderStatus, PurchaseStatus,
-  InvoiceType, PaymentStatus, BillingType, PaymentMethod,
+  InvoiceType, PaymentStatus, BillingType, PaymentMethod, InvoiceStatus, IRNStatus,
   TableStatus, KOTStatus, KOTItemStatus, ShiftStatus,
   PrinterType, PrinterConnection, PermissionModule, PermissionAction
 } from '@prisma/client'
@@ -137,6 +137,7 @@ export interface POSBill {
   roundOff: number
   totalAmount: number
   paymentMethod: 'CASH' | 'UPI' | 'CARD' | 'BANK_TRANSFER' | 'WALLET' | 'CREDIT' | 'PARTIAL' | 'MIXED'
+  billingType: 'CASH' | 'CREDIT' | 'CARD' | 'UPI' | 'MIXED'
   amountPaid: number
   amountDue: number
 }
