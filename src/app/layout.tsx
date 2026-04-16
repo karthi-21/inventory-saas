@@ -9,7 +9,11 @@ export const metadata: Metadata = {
   title: 'Ezvento - Smart POS & Billing',
   description: 'Simple, powerful POS & Billing for Indian retailers',
   icons: {
-    icon: '/favicon.svg',
+    icon: [
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: '/logo.png',
   },
   manifest: '/manifest.json',
   appleWebApp: {

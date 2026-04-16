@@ -267,14 +267,9 @@ export default function DashboardLayout({
   const NavContent = () => (
     <>
       {/* Logo */}
-      <div className="mb-6 flex items-center gap-2 px-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-          <Store className="h-5 w-5 text-white" />
-        </div>
-        <div>
-          <span className="font-bold text-lg">Ezvento</span>
-          <p className="text-xs text-muted-foreground">{planLabel}</p>
-        </div>
+      <div className="mb-6 px-3">
+        <img src="/logo.svg" alt="Ezvento" className="h-8" />
+        <p className="text-xs text-muted-foreground mt-0.5">{planLabel}</p>
       </div>
 
       {/* Store Selector */}

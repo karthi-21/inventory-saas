@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Store, Loader2, Mail, ArrowLeft } from 'lucide-react'
+import { Loader2, Mail, ArrowLeft } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 
 export default function ForgotPasswordPage() {
@@ -47,8 +47,8 @@ export default function ForgotPasswordPage() {
   return (
     <Card>
       <CardHeader className="text-center">
-        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-          <Store className="h-6 w-6 text-white" />
+        <div className="mx-auto mb-4">
+          <img src="/logo.svg" alt="Ezvento" className="h-12" />
         </div>
         <CardTitle className="text-2xl">Forgot password?</CardTitle>
         <CardDescription>

@@ -155,8 +155,8 @@ export default function OnboardingPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-500 shadow-lg shadow-blue-500/25 mb-4">
-            <Store className="h-8 w-8 text-white" />
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.svg" alt="Ezvento" className="h-16" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome to Ezvento</h1>
           <p className="text-slate-600">Let&apos;s set up your first store to get started</p>

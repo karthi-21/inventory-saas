@@ -308,8 +308,8 @@ function SignupContent() {
 
       <Card>
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-primary">
-            <Store className="h-6 w-6 text-white" />
+          <div className="mx-auto mb-4">
+            <img src="/logo.svg" alt="Ezvento" className="h-12" />
           </div>
           <CardTitle className="text-2xl">
             {step === 'plan' ? 'Choose your plan' : otpSent ? 'Enter OTP' : 'Create your account'}
