@@ -267,7 +267,8 @@ function SignupContent() {
       setEmailResendTimer(60)
       toast.success('Confirmation email resent!')
     } catch (err: unknown) {
-      if (err?.message?.includes('rate_limit')) {
+      const message = err instanceof Error ? err.message : String(err)
+      if (message.includes('rate_limit')) {
         setAuthError('Email rate limit reached. Please wait a few minutes before resending.')
       } else {
         setAuthError('Failed to resend email. Please try again.')
