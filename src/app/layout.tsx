@@ -6,8 +6,8 @@ import { QueryProvider } from '@/components/providers/query-provider'
 import { ServiceWorkerRegistration } from '@/components/providers/sw-registration'
 
 export const metadata: Metadata = {
-  title: 'OmniBIZ - Smart POS & Billing',
-  description: 'Multi-tenant POS & Billing SaaS for Indian retailers',
+  title: 'Ezvento - Smart POS & Billing',
+  description: 'Simple, powerful POS & Billing for Indian retailers',
   icons: {
     icon: '/favicon.svg',
   },
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'OmniBIZ',
+    title: 'Ezvento',
   },
   formatDetection: {
     telephone: false,

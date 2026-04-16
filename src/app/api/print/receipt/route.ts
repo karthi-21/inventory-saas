@@ -159,7 +159,7 @@ function generateReceiptHTML(data: ReceiptData): string {
   </div>
 
   <div class="border-bottom" style="padding:8px 0;">
-    <p><span class="bold">Invoice:</span> ${escapeHtml(data.invoiceNumber)}</p>
+    <p><span class="bold">Bill:</span> ${escapeHtml(data.invoiceNumber)}</p>
     <p><span class="bold">Date:</span> ${date}</p>
     <p><span class="bold">Customer:</span> ${escapeHtml(data.customerName)}</p>
     ${data.customerPhone ? `<p><span class="bold">Phone:</span> ${escapeHtml(data.customerPhone)}</p>` : ''}
@@ -224,7 +224,7 @@ function generateReceiptHTML(data: ReceiptData): string {
 
   <div class="footer">
     <p>Thank you for your business!</p>
-    <p>Powered by OmniBIZ</p>
+    <p>Powered by Ezvento</p>
   </div>
 </body>
 </html>`

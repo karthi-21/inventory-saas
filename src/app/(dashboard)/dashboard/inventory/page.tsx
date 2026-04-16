@@ -334,7 +334,7 @@ export default function InventoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Stock</h1>
           <p className="text-sm text-muted-foreground">Track and manage your stock across all stores</p>
         </div>
         <div className="flex gap-2">
@@ -1077,7 +1077,7 @@ export default function InventoryPage() {
           <DialogHeader>
             <DialogTitle>{selectedProduct?.product?.name}</DialogTitle>
             <DialogDescription>
-              SKU: {selectedProduct?.product?.sku} • Store: {selectedProduct?.store?.name}
+              Product Code: {selectedProduct?.product?.sku} • Store: {selectedProduct?.store?.name}
             </DialogDescription>
           </DialogHeader>
           {selectedProduct && (

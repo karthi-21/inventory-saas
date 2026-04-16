@@ -333,7 +333,7 @@ export default function SettingsPage() {
     try {
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
-        issuer: 'OmniBIZ',
+        issuer: 'Ezvento',
       })
       if (error) {
         toast.error(error.message || 'Failed to start 2FA setup')
@@ -626,12 +626,12 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {/* Inventory Alerts */}
+      {/* Stock Alerts */}
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
             <Bell className="h-5 w-5 text-primary" />
-            <CardTitle>Inventory Alerts</CardTitle>
+            <CardTitle>Stock Alerts</CardTitle>
           </div>
           <CardDescription>Configure notification thresholds</CardDescription>
         </CardHeader>

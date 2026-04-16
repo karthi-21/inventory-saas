@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // ---------------------------------------------------------------------------
 // Mutable global state
 // ---------------------------------------------------------------------------
 
-const AUTH_KEY = '__OMNIBIZ_TEST_AUTH_USER__' as const
-const PRISMA_DATA_KEY = '__OMNIBIZ_TEST_PRISMA_DATA__' as const
+const AUTH_KEY = '__EZVENTO_TEST_AUTH_USER__' as const
+const PRISMA_DATA_KEY = '__EZVENTO_TEST_PRISMA_DATA__' as const
 
 function setAuthUser(user: any) { (globalThis as any)[AUTH_KEY] = user }
 function setPrismaData(data: any) { (globalThis as any)[PRISMA_DATA_KEY] = data }
@@ -19,7 +20,7 @@ vi.mock('@/lib/supabase/server', () => ({
     Promise.resolve({
       auth: {
         getUser: vi.fn(() => {
-          const user = (globalThis as any)['__OMNIBIZ_TEST_AUTH_USER__'] ?? null
+          const user = (globalThis as any)['__EZVENTO_TEST_AUTH_USER__'] ?? null
           if (user) {
             return Promise.resolve({
               data: { user: { email: user.email, id: user.id } },
@@ -34,7 +35,7 @@ vi.mock('@/lib/supabase/server', () => ({
 }))
 
 vi.mock('@/lib/db', () => {
-  const _getData = () => (globalThis as any)['__OMNIBIZ_TEST_PRISMA_DATA__'] ?? {}
+  const _getData = () => (globalThis as any)['__EZVENTO_TEST_PRISMA_DATA__'] ?? {}
 
   const makeFindMany = (model: string) =>
     vi.fn(({ where, skip, take }: any) => {

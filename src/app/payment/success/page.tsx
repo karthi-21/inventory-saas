@@ -52,7 +52,7 @@ function PaymentSuccessContent() {
           <Check className="w-10 h-10 text-green-600" />
         </div>
         <h1 className="text-2xl font-bold text-green-600">Payment Successful!</h1>
-        <p className="text-muted-foreground mt-2">Your OmniBIZ subscription is now active.</p>
+        <p className="text-muted-foreground mt-2">Your Ezvento subscription is now active.</p>
       </div>
 
       <Card className="mb-6">
@@ -61,7 +61,7 @@ function PaymentSuccessContent() {
             <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
               <Store className="h-5 w-5 text-green-600" />
               <div className="text-left">
-                <p className="font-medium">Welcome to OmniBIZ!</p>
+                <p className="font-medium">Welcome to Ezvento!</p>
                 <p className="text-sm text-muted-foreground">Your store is ready to set up</p>
               </div>
             </div>

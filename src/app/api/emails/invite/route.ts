@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
 
     const result = await sendEmail({
       to: email,
-      subject: `You're invited to join ${storeName} on OmniBIZ`,
+      subject: `You're invited to join ${storeName} on Ezvento`,
       html: userInvitationEmail({
         inviteeName: email.split('@')[0],
         inviterName,

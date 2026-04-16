@@ -79,7 +79,7 @@ interface StockReport {
 const reportTypes = [
   { id: 'sales', label: 'Sales Report', icon: TrendingUp, description: 'Daily, weekly, monthly sales' },
   { id: 'gst', label: 'GST Summary', icon: FileText, description: 'HSN-wise GST breakdown' },
-  { id: 'inventory', label: 'Inventory', icon: Package, description: 'Current stock levels' },
+  { id: 'inventory', label: 'Stock', icon: Package, description: 'Current stock levels' },
   { id: 'outstanding', label: 'Amounts Due', icon: Users, description: 'Customer credit balance' },
 ]
 

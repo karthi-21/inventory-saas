@@ -4,7 +4,7 @@ Here's the full breakdown for both integrations:
 
   ## Dodo Payments — SaaS Subscriptions
 
-  This is what your customers pay you (OmniBIZ) for their monthly/yearly Launch/Grow/Scale subscription.
+  This is what your customers pay you (Ezvento) for their monthly/yearly Launch/Grow/Scale subscription.
 
   ### Env Variables
 
@@ -56,14 +56,14 @@ Here's the full breakdown for both integrations:
   1. In the Dodo dashboard, go to Products (or Catalog)
   2. Click Create Product or Add Product
   3. Create the Launch plan:
-      - Name: OmniBIZ Launch
+      - Name: Ezvento Launch
       - Type: Recurring / Subscription
       - Price: ₹999/month
       - Billing cycle: Monthly
       - Currency: INR
   4. After saving, Dodo assigns a Product ID (looks like prod_abc123xyz or a slug)
   5. Copy that ID → this goes in DODO_LAUNCH_PLAN_ID
-  6. Repeat for Grow plan: Name OmniBIZ Grow, Price ₹2,499/month → copy its Product ID → DODO_GROW_PLAN_ID
+  6. Repeat for Grow plan: Name Ezvento Grow, Price ₹2,499/month → copy its Product ID → DODO_GROW_PLAN_ID
   7. For Scale plan: Dodo doesn't need a product ID since it's custom/pricing-contact-sales
 
   Step 5: Set DODO_BASE_URL
@@ -76,7 +76,7 @@ Here's the full breakdown for both integrations:
 
   - Some payment gateways expose a public key for client-side checkout
   - Dodo may provide this under Settings → API Keys as a "Publishable Key" or "Public Key"
-  - Currently OmniBIZ does all Dodo interactions server-side (redirect-based checkout), so this is optional for now
+  - Currently Ezvento does all Dodo interactions server-side (redirect-based checkout), so this is optional for now
   - If Dodo offers a client-side JS SDK later, this key would be used in browser code
 
   ### Dodo Dashboard Quick Reference
@@ -180,7 +180,7 @@ Here's the full breakdown for both integrations:
   ### Dodo Payments — Test a Subscription
 
   1. Use sandbox DODO_BASE_URL and dodo_test_ API key
-  2. Go through your OmniBIZ signup → payment page
+  2. Go through your Ezvento signup → payment page
   3. Click "Pay Now" → redirected to Dodo's sandbox checkout
   4. Dodo sandbox lets you simulate success/failure without real payment
   5. Check DODO_WEBHOOK_SECRET works by checking your server logs after checkout

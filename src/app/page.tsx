@@ -77,7 +77,7 @@ const bentoFeatures = [
   },
   {
     icon: Package,
-    title: 'Inventory',
+    title: 'Stock',
     description: 'Track stock & expiry dates with low stock alerts',
     size: 'small',
     color: 'from-amber-500/20 to-orange-500/20',
@@ -124,7 +124,7 @@ const plans = [
     price: '₹2,499',
     period: '/month',
     description: 'For growing businesses',
-    features: ['3 Stores', '10 Users', 'Advanced Inventory', 'Priority Support', 'API Access'],
+    features: ['3 Stores', '10 Users', 'Advanced Stock', 'Priority Support', 'API Access'],
     cta: 'Start Free Trial',
     popular: true,
   },
@@ -153,7 +153,7 @@ const faqs = [
   },
   {
     q: "Is GST compliance automatic?",
-    a: "Yes! OmniBIZ automatically calculates GST based on your products. You can export GSTR-1 and GSTR-3B reports in one click.",
+    a: "Yes! Ezvento automatically calculates GST based on your products. You can export GSTR-1 and GSTR-3B reports in one click.",
   },
   {
     q: "Can I use it on my tablet?",
@@ -180,7 +180,7 @@ export default function LandingPage() {
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-500 shadow-lg shadow-blue-500/20">
               <Store className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">OmniBIZ</span>
+            <span className="text-xl font-bold tracking-tight text-slate-900">Ezvento</span>
           </div>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -275,9 +275,9 @@ export default function LandingPage() {
               variants={fadeInUp}
               className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 mb-8"
             >
-              Run your shop{' '}
+              Simplifying how you{' '}
               <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-emerald-500 bg-clip-text text-transparent">
-                easily
+                run your store
               </span>
             </motion.h1>
 
@@ -616,7 +616,7 @@ export default function LandingPage() {
             <div className="relative">
               <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to streamline your store?</h2>
               <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
-                Join hundreds of retailers who&apos;ve switched to OmniBIZ. Setup takes 10 minutes, and it&apos;s free to try.
+                Join hundreds of retailers who&apos;ve switched to Ezvento. Setup takes 10 minutes, and it&apos;s free to try.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/signup">
@@ -642,7 +642,7 @@ export default function LandingPage() {
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-500">
                 <Store className="h-4 w-4 text-white" />
               </div>
-              <span className="text-lg font-bold text-slate-900">OmniBIZ</span>
+              <span className="text-lg font-bold text-slate-900">Ezvento</span>
             </div>
 
             <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-slate-600">
@@ -653,7 +653,7 @@ export default function LandingPage() {
             </div>
 
             <p className="text-sm text-slate-500">
-              © 2026 OmniBIZ. Made for Indian retailers.
+              © 2026 Ezvento. Made for Indian retailers.
             </p>
           </div>
         </div>

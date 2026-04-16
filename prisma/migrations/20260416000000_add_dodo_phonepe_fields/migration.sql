@@ -58,7 +58,7 @@ CREATE TABLE "StorePaymentConfig" (
     "id" TEXT NOT NULL,
     "storeId" TEXT NOT NULL,
     "merchantVPA" TEXT NOT NULL DEFAULT '',
-    "merchantName" TEXT NOT NULL DEFAULT 'OmniBIZ Store',
+    "merchantName" TEXT NOT NULL DEFAULT 'Ezvento Store',
     "phonepeEnabled" BOOLEAN NOT NULL DEFAULT true,
     "cashEnabled" BOOLEAN NOT NULL DEFAULT true,
     "cardEnabled" BOOLEAN NOT NULL DEFAULT false,

@@ -1,7 +1,7 @@
 /**
  * E-Invoice JSON Generator
  *
- * Maps OmniBIZ invoice data to NIC e-invoice specification v1.1 format.
+ * Maps Ezvento invoice data to NIC e-invoice specification v1.1 format.
  * Generates the JSON payload required by GSTN for IRN generation.
  *
  * Reference: https://einv-apisandbox.nic.in/

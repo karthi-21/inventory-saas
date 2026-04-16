@@ -1,5 +1,5 @@
 /**
- * Dodo Payments Client for OmniBIZ SaaS Subscriptions
+ * Dodo Payments Client for Ezvento SaaS Subscriptions
  * 
  * Handles subscription billing for Launch/Grow/Scale plans.
  * Replaces Razorpay for SaaS subscription management.
@@ -72,7 +72,7 @@ export async function createCheckout(params: DodoCheckoutParams): Promise<{ id: 
       email: params.customerEmail,
       name: params.customerName,
       phone: params.customerPhone,
-      metadata: { source: 'omnibiz' },
+      metadata: { source: 'ezvento' },
     }),
   })
 
@@ -83,7 +83,7 @@ export async function createCheckout(params: DodoCheckoutParams): Promise<{ id: 
       products: [plan.dodoPlanId],
       success_url: params.successUrl,
       cancel_url: params.cancelUrl,
-      metadata: { plan: params.planId, source: 'omnibiz' },
+      metadata: { plan: params.planId, source: 'ezvento' },
     }),
   })
 

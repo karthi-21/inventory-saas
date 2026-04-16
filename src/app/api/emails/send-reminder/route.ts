@@ -53,10 +53,10 @@ export async function POST(request: NextRequest) {
 
     const result = await sendEmail({
       to: customer.email,
-      subject: `Payment Reminder - Outstanding ₹${totalOutstanding.toLocaleString('en-IN')} at ${store?.name || 'OmniBIZ'}`,
+      subject: `Payment Reminder - Outstanding ₹${totalOutstanding.toLocaleString('en-IN')} at ${store?.name || 'Ezvento'}`,
       html: paymentReminderEmail({
         customerName: customer.firstName,
-        storeName: store?.name || 'OmniBIZ Store',
+        storeName: store?.name || 'Ezvento Store',
         totalOutstanding,
         invoiceCount: outstandingInvoices.length,
         invoiceBreakdown: outstandingInvoices.map(inv => ({

@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       },
       // Test receipt data for client-side printing
       testData: {
-        storeName: 'OmniBIZ Test',
+        storeName: 'Ezvento Test',
         message: 'Test Print Successful',
         printerName: printer.name,
         date: new Date().toLocaleString('en-IN'),

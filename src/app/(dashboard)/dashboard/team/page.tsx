@@ -146,11 +146,11 @@ const PERMISSION_GROUPS: { label: string; modules: { value: string; label: strin
     ],
   },
   {
-    label: 'Inventory',
+    label: 'Stock',
     modules: [
-      { value: 'INVENTORY_VIEW', label: 'Inventory', actions: ['VIEW'] },
-      { value: 'INVENTORY_EDIT', label: 'Inventory', actions: ['EDIT'] },
-      { value: 'INVENTORY_ADJUST', label: 'Inventory', actions: ['ADJUST'] },
+      { value: 'INVENTORY_VIEW', label: 'Stock', actions: ['VIEW'] },
+      { value: 'INVENTORY_EDIT', label: 'Stock', actions: ['EDIT'] },
+      { value: 'INVENTORY_ADJUST', label: 'Stock', actions: ['ADJUST'] },
     ],
   },
   {
@@ -222,7 +222,7 @@ const PERM_MODULES = [
   { group: 'Store', items: ['STORE_VIEW', 'STORE_EDIT'] },
   { group: 'Users', items: ['USER_VIEW', 'USER_CREATE', 'USER_EDIT', 'USER_DELETE'] },
   { group: 'Products', items: ['PRODUCT_VIEW', 'PRODUCT_CREATE', 'PRODUCT_EDIT', 'PRODUCT_DELETE'] },
-  { group: 'Inventory', items: ['INVENTORY_VIEW', 'INVENTORY_EDIT', 'INVENTORY_ADJUST'] },
+  { group: 'Stock', items: ['INVENTORY_VIEW', 'INVENTORY_EDIT', 'INVENTORY_ADJUST'] },
   { group: 'Billing', items: ['BILLING_VIEW', 'BILLING_CREATE', 'BILLING_EDIT', 'BILLING_DELETE', 'BILLING_RETURN', 'PRICE_OVERRIDE', 'DISCOUNT_GLOBAL'] },
   { group: 'Purchases', items: ['PURCHASE_VIEW', 'PURCHASE_CREATE', 'PURCHASE_EDIT'] },
   { group: 'Customers', items: ['CUSTOMER_VIEW', 'CUSTOMER_CREATE', 'CUSTOMER_EDIT', 'CUSTOMER_DELETE'] },

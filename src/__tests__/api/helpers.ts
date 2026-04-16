@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest } from 'next/server'
 
 // ---------------------------------------------------------------------------
 // Global state keys (shared with vi.mock factories via globalThis)
 // ---------------------------------------------------------------------------
 
-export const AUTH_KEY = '__OMNIBIZ_TEST_AUTH_USER__' as const
-export const PRISMA_DATA_KEY = '__OMNIBIZ_TEST_PRISMA_DATA__' as const
+export const AUTH_KEY = '__EZVENTO_TEST_AUTH_USER__' as const
+export const PRISMA_DATA_KEY = '__EZVENTO_TEST_PRISMA_DATA__' as const
 
 export function setAuthUser(user: any) { (globalThis as any)[AUTH_KEY] = user }
 export function setPrismaData(data: any) { (globalThis as any)[PRISMA_DATA_KEY] = data }

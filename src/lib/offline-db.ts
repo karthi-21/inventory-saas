@@ -44,7 +44,7 @@ export interface OfflineStoreConfig {
   phonepeEnabled: boolean; cashEnabled: boolean; upiQrEnabled: boolean; updatedAt: number
 }
 
-class OmniBIZOfflineDB extends Dexie {
+class EzventoOfflineDB extends Dexie {
   products!: Table<OfflineProduct>
   customers!: Table<OfflineCustomer>
   categories!: Table<OfflineCategory>
@@ -52,7 +52,7 @@ class OmniBIZOfflineDB extends Dexie {
   storeConfigs!: Table<OfflineStoreConfig>
 
   constructor() {
-    super('omnibiz_offline')
+    super('ezvento_offline')
     this.version(1).stores({
       products: 'id, tenantId, storeId, sku, barcode, name, updatedAt',
       customers: 'id, tenantId, storeId, phone, updatedAt',
@@ -63,7 +63,7 @@ class OmniBIZOfflineDB extends Dexie {
   }
 }
 
-export const offlineDB = new OmniBIZOfflineDB()
+export const offlineDB = new EzventoOfflineDB()
 
 export async function clearOfflineData(): Promise<void> {
   await offlineDB.products.clear()

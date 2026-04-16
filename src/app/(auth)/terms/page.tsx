@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Store, ArrowLeft, FileText } from 'lucide-react'
+import { ArrowLeft, FileText } from 'lucide-react'
 
 export default function TermsOfServicePage() {
   return (
@@ -16,7 +16,7 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-base font-semibold text-foreground mb-2">1. Acceptance of Terms</h2>
           <p>
-            By accessing or using OmniBIZ (&quot;the Service&quot;), you agree to be bound by these
+            By accessing or using Ezvento (&quot;the Service&quot;), you agree to be bound by these
             Terms of Service (&quot;Terms&quot;). If you do not agree to these Terms, you may not
             access or use the Service. These Terms apply to all visitors, users, and others who
             access or use the Service.
@@ -26,7 +26,7 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-base font-semibold text-foreground mb-2">2. Description of Service</h2>
           <p>
-            OmniBIZ is a cloud-based point-of-sale and billing platform designed for Indian
+            Ezvento is a cloud-based point-of-sale and billing platform designed for Indian
             retailers. The Service includes billing, inventory management, customer management,
             reporting, and related features. We reserve the right to modify, suspend, or
             discontinue any part of the Service at any time.
@@ -75,7 +75,7 @@ export default function TermsOfServicePage() {
             <li>Interfere with or disrupt the Service or servers</li>
             <li>Upload content that is unlawful, harmful, or infringes on others&apos; rights</li>
             <li>Reverse engineer, decompile, or disassemble any part of the Service</li>
-            <li>Use the Service to compete directly with OmniBIZ</li>
+            <li>Use the Service to compete directly with Ezvento</li>
           </ul>
         </section>
 
@@ -83,7 +83,7 @@ export default function TermsOfServicePage() {
           <h2 className="text-base font-semibold text-foreground mb-2">7. Data and Content</h2>
           <p>
             You retain ownership of all data and content you upload to the Service. By using
-            OmniBIZ, you grant us a limited license to process your data solely for the purpose
+            Ezvento, you grant us a limited license to process your data solely for the purpose
             of providing the Service. We will not access your data except as necessary to provide
             support, maintain the Service, or as required by law.
           </p>
@@ -92,9 +92,9 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-base font-semibold text-foreground mb-2">8. GST Compliance</h2>
           <p>
-            OmniBIZ generates GST-compliant invoices as per Indian tax regulations. However,
+            Ezvento generates GST-compliant invoices as per Indian tax regulations. However,
             you are solely responsible for ensuring the accuracy of your GST configuration,
-            tax rates, and compliance with all applicable tax laws. OmniBIZ is not liable for
+            tax rates, and compliance with all applicable tax laws. Ezvento is not liable for
             any tax compliance issues arising from incorrect configuration.
           </p>
         </section>
@@ -112,7 +112,7 @@ export default function TermsOfServicePage() {
         <section>
           <h2 className="text-base font-semibold text-foreground mb-2">10. Limitation of Liability</h2>
           <p>
-            To the maximum extent permitted by law, OmniBIZ shall not be liable for any indirect,
+            To the maximum extent permitted by law, Ezvento shall not be liable for any indirect,
             incidental, special, consequential, or punitive damages arising from your use of the
             Service. Our total liability shall not exceed the amount you paid us in the 12 months
             preceding the claim.
@@ -131,8 +131,8 @@ export default function TermsOfServicePage() {
           <h2 className="text-base font-semibold text-foreground mb-2">12. Contact Us</h2>
           <p>
             If you have questions about these Terms, please contact us at{' '}
-            <a href="mailto:legal@omnibiz.in" className="text-primary hover:underline">
-              legal@omnibiz.in
+            <a href="mailto:legal@ezvento.karth-21.com" className="text-primary hover:underline">
+              legal@ezvento.karth-21.com
             </a>{' '}
             or visit our{' '}
             <Link href="/support" className="text-primary hover:underline">

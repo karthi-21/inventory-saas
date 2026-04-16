@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test'
 
 // Test credentials — these should match the demo seed user
-const TEST_EMAIL = 'demo@omnibiz.app'
+const TEST_EMAIL = 'demo@ezvento.karth-21.com'
 const TEST_PASSWORD = 'Demo@123456'
 
 test.describe('Authentication Flow', () => {

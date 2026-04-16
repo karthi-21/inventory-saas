@@ -496,7 +496,7 @@ function buildReportHTML(params: Parameters<typeof generateReportPDF>[0]): strin
   </table>
 
   <div class="footer">
-    <p>${storeName || 'OmniBIZ'} Report | Page 1 of 1</p>
+    <p>${storeName || 'Ezvento'} Report | Page 1 of 1</p>
   </div>
 </div>
 
@@ -564,7 +564,7 @@ export function generateReceiptHTML(params: Parameters<typeof generateInvoicePDF
   ${invoice.irn ? `<div class="separator"></div><div class="center" style="font-size:8px">IRN: ${invoice.irn}</div>` : ''}
   <div class="separator"></div>
   <div class="center" style="font-size:9px">Thank you for shopping with us!</div>
-  <div class="center" style="font-size:8px;margin-top:4px">Powered by OmniBIZ</div>
+  <div class="center" style="font-size:8px;margin-top:4px">Powered by Ezvento</div>
 </body>
 </html>`
 }

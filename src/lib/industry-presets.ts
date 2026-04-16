@@ -1,5 +1,5 @@
 /**
- * Industry Presets for OmniBIZ
+ * Industry Presets for Ezvento
  *
  * Maps store types to default categories, GST rates, units, and workflow flags.
  */

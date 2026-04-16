@@ -1052,7 +1052,7 @@ model StorePaymentConfig {
   storeId         String   @unique
   store           Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   merchantVPA     String   @default("")
-  merchantName    String   @default("OmniBIZ Store")
+  merchantName    String   @default("Ezvento Store")
   phonepeEnabled  Boolean  @default(true)
   cashEnabled     Boolean  @default(true)
   cardEnabled     Boolean  @default(false)

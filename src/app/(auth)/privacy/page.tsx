@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Store, ArrowLeft, Shield } from 'lucide-react'
+import { ArrowLeft, Shield } from 'lucide-react'
 
 export default function PrivacyPolicyPage() {
   return (
@@ -16,7 +16,7 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2 className="text-base font-semibold text-foreground mb-2">1. Information We Collect</h2>
           <p className="mb-2">
-            We collect information you provide directly when using OmniBIZ, including:
+            We collect information you provide directly when using Ezvento, including:
           </p>
           <ul className="list-disc list-inside space-y-1 ml-2">
             <li>Account information (name, email address, phone number)</li>
@@ -31,7 +31,7 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold text-foreground mb-2">2. How We Use Your Information</h2>
           <p className="mb-2">We use the information we collect to:</p>
           <ul className="list-disc list-inside space-y-1 ml-2">
-            <li>Provide, maintain, and improve OmniBIZ services</li>
+            <li>Provide, maintain, and improve Ezvento services</li>
             <li>Process transactions and send related notifications</li>
             <li>Send you technical notices and support messages</li>
             <li>Respond to your comments, questions, and support requests</li>
@@ -59,7 +59,7 @@ export default function PrivacyPolicyPage() {
             <li>With payment processors to complete transactions</li>
             <li>With service providers who assist in operating our platform</li>
             <li>When required by law or to comply with legal obligations</li>
-            <li>To protect the rights, property, or safety of OmniBIZ or our users</li>
+            <li>To protect the rights, property, or safety of Ezvento or our users</li>
           </ul>
         </section>
 
@@ -98,8 +98,8 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold text-foreground mb-2">8. Contact Us</h2>
           <p>
             If you have any questions about this Privacy Policy, please contact us at{' '}
-            <a href="mailto:privacy@omnibiz.in" className="text-primary hover:underline">
-              privacy@omnibiz.in
+            <a href="mailto:privacy@ezvento.karth-21.com" className="text-primary hover:underline">
+              privacy@ezvento.karth-21.com
             </a>{' '}
             or visit our{' '}
             <Link href="/support" className="text-primary hover:underline">

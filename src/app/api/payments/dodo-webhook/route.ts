@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
             const nextBilling = subscription.currentPeriodEnd?.toLocaleDateString('en-IN') || 'N/A'
             await sendEmail({
               to: tenant.users[0].email,
-              subject: `Your OmniBIZ ${planName} plan is now active!`,
+              subject: `Your Ezvento ${planName} plan is now active!`,
               html: subscriptionConfirmationEmail({
                 userName: tenant.users[0].firstName || 'User',
                 planName,

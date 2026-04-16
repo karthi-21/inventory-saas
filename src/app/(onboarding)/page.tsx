@@ -31,13 +31,13 @@ const storeTypes: { value: StoreType; label: string; description: string }[] = [
 ]
 
 const personaTemplates: Record<StoreType, string[]> = {
-  ELECTRONICS: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Inventory Manager', 'Vendor Manager', 'Warehouse Staff'],
-  CLOTHING: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Inventory Manager', 'Customer Relations'],
-  GROCERY: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Inventory Manager', 'Vendor Manager'],
-  SUPERMARKET: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Inventory Manager', 'Vendor Manager', 'Warehouse Staff'],
+  ELECTRONICS: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Stock Manager', 'Vendor Manager', 'Warehouse Staff'],
+  CLOTHING: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Stock Manager', 'Customer Relations'],
+  GROCERY: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Stock Manager', 'Vendor Manager'],
+  SUPERMARKET: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Stock Manager', 'Vendor Manager', 'Warehouse Staff'],
   WHOLESALE: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Vendor Manager', 'Customer Relations'],
   RESTAURANT: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Kitchen Staff', 'Table Host', 'Delivery Partner'],
-  MULTI_CATEGORY: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Inventory Manager'],
+  MULTI_CATEGORY: ['Owner/Admin', 'Store Manager', 'Billing Operator', 'Stock Manager'],
 }
 
 const indianStates = [
@@ -118,7 +118,7 @@ export default function OnboardingPage() {
 
   // Restore state from localStorage on mount
   useEffect(() => {
-    const saved = localStorage.getItem('omnibiz_onboarding_state')
+    const saved = localStorage.getItem('ezvento_onboarding_state')
     if (saved) {
       try {
         const parsed = JSON.parse(saved)
@@ -147,7 +147,7 @@ export default function OnboardingPage() {
       selectedState,
       lastSaved: new Date().toISOString()
     }
-    localStorage.setItem('omnibiz_onboarding_state', JSON.stringify(state))
+    localStorage.setItem('ezvento_onboarding_state', JSON.stringify(state))
   }, [currentStep, formData, selectedStoreType, selectedPersonas, selectedState])
 
   const handleStoreTypeSelect = (type: StoreType) => {
@@ -187,7 +187,7 @@ export default function OnboardingPage() {
       }
 
       // Clear localStorage
-      localStorage.removeItem('omnibiz_onboarding_state')
+      localStorage.removeItem('ezvento_onboarding_state')
 
       // Show success screen
       setIsComplete(true)
@@ -436,7 +436,7 @@ export default function OnboardingPage() {
             <Separator />
 
             <div className="space-y-4">
-              <h3 className="font-medium">Inventory Tracking</h3>
+              <h3 className="font-medium">Stock Tracking</h3>
               <div className="space-y-3">
                 {selectedStoreType !== 'RESTAURANT' && (
                   <label className="flex items-center gap-3 cursor-pointer">
@@ -527,7 +527,7 @@ export default function OnboardingPage() {
                         {persona === 'Owner/Admin' && 'Full access to all features'}
                         {persona === 'Store Manager' && 'Day-to-day operations'}
                         {persona === 'Billing Operator' && 'POS and billing only'}
-                        {persona === 'Inventory Manager' && 'Stock and purchase management'}
+                        {persona === 'Stock Manager' && 'Stock and purchase management'}
                         {persona === 'Vendor Manager' && 'Supplier and purchase orders'}
                         {persona === 'Warehouse Staff' && 'Stock movements and adjustments'}
                         {persona === 'Kitchen Staff' && 'Kitchen order management'}

@@ -1,5 +1,5 @@
 /**
- * Plan Limits for OmniBIZ Subscriptions
+ * Plan Limits for Ezvento Subscriptions
  */
 
 import { TenantPlan } from '@prisma/client'
@@ -17,8 +17,8 @@ export const PLAN_LIMITS: Record<TenantPlan, PlanLimit> = {
 }
 
 export const PLAN_DETAILS: Record<string, { name: string; price: number; priceDisplay: string; period: string; description: string; features: string[]; highlight: boolean }> = {
-  launch: { name: 'Launch', price: 999, priceDisplay: '₹999', period: '/month', description: 'Perfect for a single store', features: ['1 Store', '3 Users', 'GST Billing', 'Inventory Tracking', 'Email Support'], highlight: false },
-  grow: { name: 'Grow', price: 2499, priceDisplay: '₹2,499', period: '/month', description: 'Growing retail businesses', features: ['3 Stores', '10 Users', 'Full Inventory', 'Multi-Payment', 'Customer Management', 'Reports & Export', 'Priority Support'], highlight: true },
+  launch: { name: 'Launch', price: 999, priceDisplay: '₹999', period: '/month', description: 'Perfect for a single store', features: ['1 Store', '3 Users', 'GST Billing', 'Stock Tracking', 'Email Support'], highlight: false },
+  grow: { name: 'Grow', price: 2499, priceDisplay: '₹2,499', period: '/month', description: 'Growing retail businesses', features: ['3 Stores', '10 Users', 'Full Stock', 'Multi-Payment', 'Customer Management', 'Reports & Export', 'Priority Support'], highlight: true },
   scale: { name: 'Scale', price: 0, priceDisplay: 'Custom', period: '', description: 'Franchises & large operations', features: ['Unlimited Stores', 'Unlimited Users', 'Custom Roles', 'API Access', 'White-label', 'Dedicated Support'], highlight: false },
 }
 

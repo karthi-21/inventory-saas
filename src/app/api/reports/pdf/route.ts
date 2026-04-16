@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
           title: 'Sales Report',
           subtitle: from || to ? `From ${from || 'beginning'} to ${to || 'now'}` : undefined,
           storeName,
-          headers: ['Invoice #', 'Date', 'Customer', 'Type', 'Total', 'GST', 'Due'],
+          headers: ['Bill #', 'Date', 'Customer', 'Type', 'Total', 'GST', 'Due'],
           rows: invoices.map(inv => [
             inv.invoiceNumber,
             formatDate(inv.invoiceDate),
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
             { label: 'Total Revenue', value: formatINR(Number(summary._sum.totalAmount || 0)) },
             { label: 'Total GST', value: formatINR(Number(summary._sum.totalGst || 0)) },
             { label: 'Total Outstanding', value: formatINR(Number(summary._sum.amountDue || 0)) },
-            { label: 'Invoices', value: String(summary._count) },
+            { label: 'Bills', value: String(summary._count) },
           ],
         })
         filename = `sales-report-${from || 'all'}-${to || 'all'}.html`
@@ -164,9 +164,9 @@ export async function GET(request: NextRequest) {
         })
 
         pdfBuffer = generateReportPDF({
-          title: 'Inventory Report',
+          title: 'Stock Report',
           storeName,
-          headers: ['Product', 'SKU', 'Variant', 'Qty', 'Reorder Level', 'Status'],
+          headers: ['Product', 'Product Code', 'Variant', 'Qty', 'Reorder Level', 'Status'],
           rows: stocks.map(s => {
             const product = s.product || { name: 'Unknown', sku: '-', reorderLevel: 10 }
             const reorderLevel = product.reorderLevel ?? 10
@@ -180,7 +180,7 @@ export async function GET(request: NextRequest) {
             ]
           }),
           summary: [
-            { label: 'Total SKUs', value: String(stocks.length) },
+            { label: 'Total Products', value: String(stocks.length) },
             { label: 'Out of Stock', value: String(stocks.filter(s => s.quantity <= 0).length) },
             { label: 'Low Stock', value: String(stocks.filter(s => s.quantity > 0 && s.quantity <= 10).length) },
           ],
@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
         pdfBuffer = generateReportPDF({
           title: 'Outstanding Payments Report',
           storeName,
-          headers: ['Invoice #', 'Date', 'Customer', 'Phone', 'Total', 'Paid', 'Due', 'Status'],
+          headers: ['Bill #', 'Date', 'Customer', 'Phone', 'Total', 'Paid', 'Due', 'Status'],
           rows: invoices.map(inv => [
             inv.invoiceNumber,
             formatDate(inv.invoiceDate),
@@ -221,7 +221,7 @@ export async function GET(request: NextRequest) {
           ]),
           summary: [
             { label: 'Total Outstanding', value: formatINR(totalOutstanding) },
-            { label: 'Invoices', value: String(invoices.length) },
+            { label: 'Bills', value: String(invoices.length) },
             { label: 'Overdue', value: String(invoices.filter(i => i.paymentStatus === 'OVERDUE').length) },
           ],
         })

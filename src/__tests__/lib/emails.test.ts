@@ -16,13 +16,13 @@ describe('Email Templates', () => {
       const html = welcomeEmail({
         userName: 'Rajesh',
         storeName: 'Sharma Electronics',
-        dashboardUrl: 'https://app.omnibiz.in/dashboard',
+        dashboardUrl: 'https://app.ezvento.karth-21.com/dashboard',
       })
 
       expect(html).toContain('Rajesh')
       expect(html).toContain('Sharma Electronics')
-      expect(html).toContain('https://app.omnibiz.in/dashboard')
-      expect(html).toContain('Welcome to OmniBIZ')
+      expect(html).toContain('https://app.ezvento.karth-21.com/dashboard')
+      expect(html).toContain('Welcome to Ezvento')
     })
   })
 
@@ -76,7 +76,7 @@ describe('Email Templates', () => {
         items: [
           { name: 'USB Cable', sku: 'USB-001', currentStock: 2, reorderLevel: 10 },
         ],
-        inventoryUrl: 'https://app.omnibiz.in/dashboard/inventory',
+        inventoryUrl: 'https://app.ezvento.karth-21.com/dashboard/inventory',
       })
 
       expect(html).toContain('My Store')

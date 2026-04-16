@@ -67,7 +67,7 @@ export default function LoginPage() {
           <Store className="h-6 w-6 text-white" />
         </div>
         <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>Sign in to your OmniBIZ account</CardDescription>
+        <CardDescription>Sign in to your Ezvento account</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

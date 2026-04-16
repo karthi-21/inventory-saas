@@ -1,5 +1,5 @@
 /**
- * OmniBIZ Test Scenario Seeder
+ * Ezvento Test Scenario Seeder
  *
  * Creates a complete test user with Supabase Auth + Prisma data for E2E testing.
  * Bypasses signup flow entirely — creates auth user via Admin API + database records via Prisma.

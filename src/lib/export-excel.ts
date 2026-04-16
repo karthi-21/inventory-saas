@@ -67,7 +67,7 @@ export function exportInventoryReport(
   exportToExcel(
     [
       {
-        name: 'Inventory',
+        name: 'Stock',
         headers: ['Product', 'Product Code', 'Category', 'Current Stock', 'Min Stock', 'Selling Price (₹)'],
         rows: items.map((i) => [i.name, i.sku, i.category, i.stock, i.reorderLevel, i.sellingPrice]),
       },

@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Loader2, Check, Store, Star, Mail, Lock, Phone } from 'lucide-react'
+import { Loader2, Store, Star, Mail, Lock, Phone } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
@@ -26,7 +26,7 @@ const plans = {
     priceDisplay: '₹999',
     period: '/month',
     description: 'Perfect for a single store',
-    features: ['1 Store', '3 Users', 'GST Billing', 'Inventory Tracking', 'Email Support'],
+    features: ['1 Store', '3 Users', 'GST Billing', 'Stock Tracking', 'Email Support'],
     highlight: false,
   },
   grow: {
@@ -36,7 +36,7 @@ const plans = {
     priceDisplay: '₹2,499',
     period: '/month',
     description: 'Growing retail businesses',
-    features: ['3 Stores', '10 Users', 'Full Inventory', 'Multi-Payment', 'Customer Management', 'Reports & Export', 'Priority Support'],
+    features: ['3 Stores', '10 Users', 'Full Stock', 'Multi-Payment', 'Customer Management', 'Reports & Export', 'Priority Support'],
     highlight: true,
   },
   scale: {
@@ -266,7 +266,7 @@ function SignupContent() {
 
       setEmailResendTimer(60)
       toast.success('Confirmation email resent!')
-    } catch (err: any) {
+    } catch (err: unknown) {
       if (err?.message?.includes('rate_limit')) {
         setAuthError('Email rate limit reached. Please wait a few minutes before resending.')
       } else {
@@ -514,7 +514,7 @@ function SignupContent() {
                   )}
 
                   <p className="text-xs text-center text-muted-foreground">
-                    By continuing, you agree to OmniBIZ{' '}
+                    By continuing, you agree to Ezvento{' '}
                     <a href="/terms" className="text-primary hover:underline">Terms of Service</a>
                     {' '}and{' '}
                     <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>

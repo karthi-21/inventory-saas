@@ -54,7 +54,7 @@ interface Notification {
 const allNavItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', key: 'dashboard' },
   { href: '/dashboard/stores', icon: Store, label: 'Stores', key: 'stores' },
-  { href: '/dashboard/inventory', icon: Package, label: 'Inventory', key: 'inventory' },
+  { href: '/dashboard/inventory', icon: Package, label: 'Stock', key: 'inventory' },
   { href: '/dashboard/billing', icon: Receipt, label: 'Billing', key: 'billing' },
   { href: '/dashboard/customers', icon: Users, label: 'Customers', key: 'customers' },
   { href: '/dashboard/vendors', icon: ShoppingCart, label: 'Vendors', key: 'vendors' },
@@ -272,7 +272,7 @@ export default function DashboardLayout({
           <Store className="h-5 w-5 text-white" />
         </div>
         <div>
-          <span className="font-bold text-lg">OmniBIZ</span>
+          <span className="font-bold text-lg">Ezvento</span>
           <p className="text-xs text-muted-foreground">{planLabel}</p>
         </div>
       </div>
@@ -483,7 +483,7 @@ export default function DashboardLayout({
         )}
         {isTrialing && trialDaysLeft === 0 && (
           <div className="bg-destructive/10 border-b px-4 py-2 text-center text-sm text-destructive font-medium">
-            Your free trial has expired. <Link href="/payment" className="underline underline-offset-2">Subscribe now</Link> to continue using OmniBIZ.
+            Your free trial has expired. <Link href="/payment" className="underline underline-offset-2">Subscribe now</Link> to continue using Ezvento.
           </div>
         )}
         {isPastDue && (

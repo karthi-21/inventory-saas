@@ -17,7 +17,7 @@ async function main() {
       pan: 'ABCDE1234F',
       gstin: '27ABCDE1234F1Z5',
       phone: '+919876543210',
-      email: 'demo@omnibiz.in',
+      email: 'demo@ezvento.karth-21.com',
       address: '123 MG Road, Chennai',
       state: 'Tamil Nadu',
       pincode: '600001',
@@ -30,11 +30,11 @@ async function main() {
   // Create a demo user
   const password = await hash('demo123', 10)
   const user = await prisma.user.upsert({
-    where: { tenantId_email: { tenantId: tenant.id, email: 'demo@omnibiz.in' } },
+    where: { tenantId_email: { tenantId: tenant.id, email: 'demo@ezvento.karth-21.com' } },
     update: {},
     create: {
       tenantId: tenant.id,
-      email: 'demo@omnibiz.in',
+      email: 'demo@ezvento.karth-21.com',
       firstName: 'Demo',
       lastName: 'User',
       phone: '+919876543210',

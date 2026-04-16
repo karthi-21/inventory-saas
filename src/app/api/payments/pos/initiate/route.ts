@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
         where: { storeId: invoice.storeId },
       })
 
-      const merchantVPA = storePaymentConfig?.merchantVPA || 'omnibiz@ybl'
+      const merchantVPA = storePaymentConfig?.merchantVPA || 'ezvento@ybl'
       const merchantName = storePaymentConfig?.merchantName || invoice.store.name
 
       const qrData = generateUPIQrString({

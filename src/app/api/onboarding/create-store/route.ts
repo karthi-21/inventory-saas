@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     if (dbUser.email) {
       sendEmail({
         to: dbUser.email,
-        subject: `Welcome to OmniBIZ! Your store "${storeName}" is ready`,
+        subject: `Welcome to Ezvento! Your store "${storeName}" is ready`,
         html: welcomeEmail({
           userName: dbUser.firstName || dbUser.email?.split('@')[0] || 'Store Owner',
           storeName,

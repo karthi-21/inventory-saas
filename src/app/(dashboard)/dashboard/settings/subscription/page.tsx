@@ -51,7 +51,7 @@ export default function SubscriptionPage() {
       return res.json()
     },
     onSuccess: () => {
-      toast.success('Subscription cancelled. You can continue using OmniBIZ until the end of your billing period.')
+      toast.success('Subscription cancelled. You can continue using Ezvento until the end of your billing period.')
       queryClient.invalidateQueries({ queryKey: ['subscription-status'] })
       setCancelling(false)
     },
@@ -85,7 +85,7 @@ export default function SubscriptionPage() {
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Subscription</h1>
-        <p className="text-muted-foreground">Manage your OmniBIZ plan and billing</p>
+        <p className="text-muted-foreground">Manage your Ezvento plan and billing</p>
       </div>
 
       {/* Current Plan */}
@@ -139,7 +139,7 @@ export default function SubscriptionPage() {
 
           {isTrialing && (
             <div className="p-3 bg-primary/10 rounded-lg text-sm">
-              You are currently on a free trial. Subscribe to continue using OmniBIZ after the trial ends.
+              You are currently on a free trial. Subscribe to continue using Ezvento after the trial ends.
             </div>
           )}
 
@@ -223,7 +223,7 @@ export default function SubscriptionPage() {
             <Button
               variant="destructive"
               onClick={() => {
-                if (confirm('Are you sure you want to cancel your subscription? You can continue using OmniBIZ until the end of your billing period.')) {
+                if (confirm('Are you sure you want to cancel your subscription? You can continue using Ezvento until the end of your billing period.')) {
                   setCancelling(true)
                   cancelMutation.mutate()
                 }

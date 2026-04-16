@@ -350,7 +350,7 @@ export default function POSPage() {
             const match = products.find((p: { barcode?: string }) => p.barcode === barcode) || products[0]
             handleAddProduct(match)
           } else {
-            toast.error('Product not found — add it in Inventory first')
+            toast.error('Product not found — add it in Stock first')
           }
         }
       } catch {
@@ -576,7 +576,7 @@ export default function POSPage() {
           gstRate: item.gstRate,
         }))
         const receipt = generateReceipt({
-          storeName: store.name || 'OmniBIZ Store',
+          storeName: store.name || 'Ezvento Store',
           storeAddress: store.address,
           storePhone: store.phone,
           storeGstin: store.gstin,

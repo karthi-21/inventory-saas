@@ -1,5 +1,5 @@
 /**
- * PhonePe Payment Gateway Client for OmniBIZ POS
+ * PhonePe Payment Gateway Client for Ezvento POS
  * 
  * Uses PhonePe PG v2 API with OAuth (Client ID + Client Secret).
  * The v1 API (Salt Key) is deprecated — your dashboard shows
@@ -160,7 +160,7 @@ export async function initiatePayment(params: PhonePePaymentParams): Promise<Pho
     redirectMode: 'REDIRECT',
     callbackUrl: PHONEPE_CALLBACK_URL,
     paymentInstrument: { type: params.method },
-    metadata: { invoiceId: params.invoiceId, source: 'omnibiz_pos' },
+    metadata: { invoiceId: params.invoiceId, source: 'ezvento_pos' },
   })
 
   if (isV2Auth()) {
@@ -176,7 +176,7 @@ export async function initiatePayment(params: PhonePePaymentParams): Promise<Pho
     if (params.method === 'UPI_QR' && params.merchantVPA) {
       qrData = generateUPIQrString({
         vpa: params.merchantVPA,
-        name: params.merchantName || 'OmniBIZ Store',
+        name: params.merchantName || 'Ezvento Store',
         amount: params.amount,
         transactionNote: `Payment for invoice ${params.invoiceId}`,
       })
@@ -214,7 +214,7 @@ export async function initiatePayment(params: PhonePePaymentParams): Promise<Pho
     if (params.method === 'UPI_QR' && params.merchantVPA) {
       qrData = generateUPIQrString({
         vpa: params.merchantVPA,
-        name: params.merchantName || 'OmniBIZ Store',
+        name: params.merchantName || 'Ezvento Store',
         amount: params.amount,
         transactionNote: `Payment for invoice ${params.invoiceId}`,
       })

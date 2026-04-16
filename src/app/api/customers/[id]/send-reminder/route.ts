@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       subject: `Payment Reminder - Outstanding ₹${totalOutstanding.toLocaleString('en-IN')} at ${customer.store?.name || 'our store'}`,
       html: paymentReminderEmail({
         customerName: customer.firstName,
-        storeName: customer.store?.name || 'OmniBIZ Store',
+        storeName: customer.store?.name || 'Ezvento Store',
         totalOutstanding,
         invoiceCount: customer.salesInvoices.length,
         invoiceBreakdown: customer.salesInvoices.map((i) => ({

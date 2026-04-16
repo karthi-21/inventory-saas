@@ -172,7 +172,7 @@ export function UPIPaymentDialog({ open, onClose, invoiceId, amount, onSuccess, 
               <p className="text-sm text-muted-foreground mb-2">
                 QR code not available. Ask customer to pay via UPI:
               </p>
-              <p className="font-mono text-lg font-bold">omnibiz@ybl</p>
+              <p className="font-mono text-lg font-bold">ezvento@ybl</p>
               <p className="text-xs text-muted-foreground mt-1">or any VPA configured in Payment Settings</p>
             </div>
           )}

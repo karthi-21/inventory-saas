@@ -24,7 +24,7 @@ const PLAN_DETAILS: Record<string, {
     price: 999,
     priceDisplay: '₹999',
     description: 'Perfect for a single store',
-    features: ['1 Store', '3 Users', 'GST Billing', 'Inventory Tracking', 'Email Support'],
+    features: ['1 Store', '3 Users', 'GST Billing', 'Stock Tracking', 'Email Support'],
     highlight: false,
   },
   grow: {
@@ -32,7 +32,7 @@ const PLAN_DETAILS: Record<string, {
     price: 2499,
     priceDisplay: '₹2,499',
     description: 'Growing retail businesses',
-    features: ['3 Stores', '10 Users', 'Full Inventory', 'Multi-Payment', 'Customer Management', 'Reports & Export', 'Priority Support'],
+    features: ['3 Stores', '10 Users', 'Full Stock', 'Multi-Payment', 'Customer Management', 'Reports & Export', 'Priority Support'],
     highlight: true,
   },
   scale: {
@@ -87,7 +87,7 @@ function PaymentContent() {
 
   const handlePayment = async () => {
     if (planId === 'scale') {
-      window.location.href = 'mailto:sales@omnibiz.in?subject=OmniBIZ%20Scale%20Plan'
+      window.location.href = 'mailto:sales@ezvento.karth-21.com?subject=Ezvento%20Scale%20Plan'
       return
     }
 
@@ -209,7 +209,7 @@ function PaymentContent() {
 
             {/* Pay Button */}
             {planId === 'scale' ? (
-              <Link href="mailto:sales@omnibiz.in?subject=OmniBIZ%20Scale%20Plan%20Inquiry">
+              <Link href="mailto:sales@ezvento.karth-21.com?subject=Ezvento%20Scale%20Plan%20Inquiry">
                 <Button className="w-full" size="lg">
                   Contact Sales
                 </Button>
