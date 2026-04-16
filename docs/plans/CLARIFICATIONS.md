@@ -141,7 +141,7 @@ The `handleComplete` function in `src/app/(onboarding)/page.tsx` (line 108-113) 
 **This must be implemented.** POST to `/api/onboarding` with all form data.
 
 ### Onboarding State Persistence
-- Use **localStorage** with key: `omnibiz_onboarding_state`
+- Use **localStorage** with key: `ezvento_onboarding_state`
 - Store: currentStep, formData, selectedStoreType, selectedPersonas
 - On page load: check if state exists → show "Continue where you left off?"
 - On successful submit: clear localStorage state

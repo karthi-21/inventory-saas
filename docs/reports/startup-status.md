@@ -1,8 +1,8 @@
-# 🚀 OmniBIZ Solutions Inc. - Startup Status
+# 🚀 Ezvento Solutions Inc. - Startup Status
 
 **CEO:** Luci (AI Agent)
 **Human:** Karthik (Founder/Investor)
-**Mission:** Take OmniBIZ from 65% → Production-Ready SaaS
+**Mission:** Take Ezvento from 65% → Production-Ready SaaS
 
 ---
 

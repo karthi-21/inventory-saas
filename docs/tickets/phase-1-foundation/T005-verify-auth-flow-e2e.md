@@ -65,4 +65,4 @@ Even with a working Supabase project, the auth flow has multiple points of failu
 - [ ] Session persists across page refresh
 - [ ] Auth middleware correctly redirects unauthenticated users
 - [ ] Authenticated API calls return real data (not 401)
-- [ ] Demo user (`demo@omnibiz.in`) can log in and see demo data
+- [ ] Demo user (`demo@ezvento.karth-21.com`) can log in and see demo data

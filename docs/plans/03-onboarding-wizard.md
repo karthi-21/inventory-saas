@@ -116,7 +116,7 @@ A retailer with zero technical knowledge completes onboarding in 5 minutes and l
 ### 3.3 Onboarding API Completion
 - [x] `/api/onboarding/route.ts` — fully implemented (creates tenant, store, locations, categories, personas, settings, subscription)
 - [x] Onboarding page `handleComplete` — calls API, shows success screen, redirects to dashboard
-- [x] localStorage key `omnibiz_onboarding_state` — persists step, formData, selectedStoreType, selectedPersonas
+- [x] localStorage key `ezvento_onboarding_state` — persists step, formData, selectedStoreType, selectedPersonas
 
 ### 3.4 GSTIN Validation (API)
 - [x] `/api/gstin/validate` route — validates 15-char GSTIN format (state code 01-37, PAN, entity, Z, checksum)
@@ -128,7 +128,7 @@ A retailer with zero technical knowledge completes onboarding in 5 minutes and l
 - [x] "Add Your First Product" quick action button
 
 ### 3.7 Partial Onboarding Recovery
-- [x] State persisted to `omnibiz_onboarding_state` on every change
+- [x] State persisted to `ezvento_onboarding_state` on every change
 - [x] On page load, state restored from localStorage (step, form data, store type, personas)
 - [x] "Save & Exit" button to leave mid-onboarding and resume later
 
@@ -140,7 +140,7 @@ A retailer with zero technical knowledge completes onboarding in 5 minutes and l
 
 ## localStorage Key for State Persistence
 ```
-Key: 'omnibiz_onboarding_state'
+Key: 'ezvento_onboarding_state'
 Shape: {
   currentStep: number,
   formData: {...},

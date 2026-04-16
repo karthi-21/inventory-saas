@@ -1,10 +1,10 @@
-# OmniBIZ End-to-End Test Flows
+# Ezvento End-to-End Test Flows
 
 Last updated: 2026-04-15
 
 ## Purpose
 
-This document defines **real-world user scenarios** for testing OmniBIZ end-to-end. Each scenario follows a complete stranger visiting the app, signing up, configuring their business, and using it day-to-day. These are not unit tests — they test the **full user journey** from landing page to daily operations.
+This document defines **real-world user scenarios** for testing Ezvento end-to-end. Each scenario follows a complete stranger visiting the app, signing up, configuring their business, and using it day-to-day. These are not unit tests — they test the **full user journey** from landing page to daily operations.
 
 ## Test Bypass Strategy
 
@@ -44,7 +44,7 @@ This means tests start **already logged in**, at the dashboard, with all data pr
 
 ## Scenario 1: Multi-Store Electronics Retailer (PRIMARY)
 
-**Persona**: Rajesh Kumar, 45, owns 3 electronics showrooms in Chennai. He's evaluating OmniBIZ to replace his current Tally + manual billing setup.
+**Persona**: Rajesh Kumar, 45, owns 3 electronics showrooms in Chennai. He's evaluating Ezvento to replace his current Tally + manual billing setup.
 
 **Business Profile**:
 - 3 stores: "Chennai Main" (T Nagar), "Anna Nagar Showroom", "Velachery Outlet"
@@ -58,7 +58,7 @@ This means tests start **already logged in**, at the dashboard, with all data pr
 ```
 1. LANDING PAGE
    ─────────────
-   Rajesh visits omnibiz.app
+   Rajesh visits ezvento.karth-21.com
    → Sees hero: "Run your store like a pro"
    → Clicks "Start Free Trial"
    → Redirected to /signup

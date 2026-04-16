@@ -7,7 +7,7 @@
 
 ## Problem
 
-OmniBIZ currently has no email-sending functionality. The `RESEND_API_KEY` is configured in `.env.local` but no code uses it. For a SaaS product, transactional emails are critical for:
+Ezvento currently has no email-sending functionality. The `RESEND_API_KEY` is configured in `.env.local` but no code uses it. For a SaaS product, transactional emails are critical for:
 1. Invoice/bill receipts sent to customers after payment
 2. Payment reminders for outstanding credit (khata)
 3. Welcome email after signup
@@ -36,7 +36,7 @@ sendEmail(params: {
   to: string | string[]
   subject: string
   html: string
-  from?: string  // defaults to 'OmniBIZ <billing@omnibiz.in>'
+  from?: string  // defaults to 'Ezvento <billing@ezvento.karth-21.com>'
   replyTo?: string
   tags?: Record<string, string>  // for analytics
 }): Promise<{ id: string }>
@@ -53,7 +53,7 @@ Create `src/lib/email-templates/` directory with HTML email templates:
 
 #### `welcome.tsx` — Welcome Email
 - Sent after signup
-- Content: "Welcome to OmniBIZ! Your store is ready."
+- Content: "Welcome to Ezvento! Your store is ready."
 - Includes: store name, link to dashboard, getting started tips
 - CTA: "Go to Dashboard" button
 
@@ -221,7 +221,7 @@ Sends invitation email. Called from team management page.
 1. New user signs up via email
 2. Supabase confirms email
 3. Welcome email is sent
-4. Email contains: "Welcome to OmniBIZ, [Name]!" and "Get Started" button
+4. Email contains: "Welcome to Ezvento, [Name]!" and "Get Started" button
 5. Email logged in EmailLog
 
 **Verify**: Email sent after auth confirmation, personalized with user name
@@ -248,7 +248,7 @@ Sends invitation email. Called from team management page.
 ### Scenario 8: Subscription Confirmation Email
 1. User completes Dodo Payments checkout for Grow plan
 2. Webhook confirms subscription is active
-3. Email sent: "Your OmniBIZ Grow plan is now active"
+3. Email sent: "Your Ezvento Grow plan is now active"
 4. Email includes: plan name, ₹2,499/mo, next billing date, "Manage Subscription" link
 
 **Verify**: Email triggered by Dodo webhook, correct plan details
@@ -293,12 +293,12 @@ Sends invitation email. Called from team management page.
 - [ ] Email templates are well-formatted and mobile-responsive
 - [ ] Resend API errors (rate limits, invalid emails) are handled gracefully
 - [ ] All email templates include unsubscribe link (for non-transactional emails)
-- [ ] From address uses custom domain (billing@omnibiz.in or similar)
+- [ ] From address uses custom domain (billing@ezvento.karth-21.com or similar)
 
 ## Environment Variables
 
 ```env
 RESEND_API_KEY=re_xxxxx
-RESEND_FROM_EMAIL=OmniBIZ <billing@omnibiz.in>
-RESEND_REPLY_TO=support@omnibiz.in
+RESEND_FROM_EMAIL=Ezvento <billing@ezvento.karth-21.com>
+RESEND_REPLY_TO=support@ezvento.karth-21.com
 ```

@@ -14,7 +14,7 @@ The database will be empty after migrations. The seed file at `prisma/seed.ts` c
 
 Current seed data includes:
 - 1 Tenant ("Demo Electronics Store", PRO plan)
-- 1 User (`demo@omnibiz.in` / `demo123`, owner)
+- 1 User (`demo@ezvento.karth-21.com` / `demo123`, owner)
 - 1 Store ("Chennai Main Store", ELECTRONICS)
 - 4 Categories (Mobiles, TVs, Accessories, Audio)
 - 4 Products (iPhone 15 Pro, Samsung 43" TV, Sony headphones, Anker charger)
@@ -60,4 +60,4 @@ Current seed data includes:
 - [ ] `npx prisma db seed` completes without error
 - [ ] All entity counts are > 0 (tenant, user, store, product, customer, vendor)
 - [ ] Demo user exists in both Prisma (`User` table) AND Supabase Auth
-- [ ] Demo user can log in at `/login` with `demo@omnibiz.in` / `demo123`
+- [ ] Demo user can log in at `/login` with `demo@ezvento.karth-21.com` / `demo123`

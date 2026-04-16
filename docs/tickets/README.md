@@ -1,4 +1,4 @@
-# OmniBIZ Task Board
+# Ezvento Task Board
 
 Last updated: 2026-04-16
 
@@ -21,7 +21,7 @@ Last updated: 2026-04-16
 
 ## Current Focus
 
-**NEW**: Phase 11 — Production Readiness. 9 tickets covering all remaining work to get OmniBIZ from demo-ready to customer-ready.
+**NEW**: Phase 11 — Production Readiness. 9 tickets covering all remaining work to get Ezvento from demo-ready to customer-ready.
 
 ### Phase 11 Priority Order (Work in This Sequence):
 

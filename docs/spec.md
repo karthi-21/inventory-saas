@@ -1,4 +1,4 @@
-# OmniBIZ - Multi-Tenant POS & Billing SaaS
+# Ezvento - Multi-Tenant POS & Billing SaaS
 
 ## 1. Product Vision
 

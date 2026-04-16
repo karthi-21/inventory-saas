@@ -1,7 +1,7 @@
 # Day 13: Restaurant Mode & Quick Wins
 
 ## Goal
-Restaurant owners can use OmniBIZ for table management, KOT (kitchen order tickets), and combo meals — completing the "under 10 minutes" promise for food businesses.
+Restaurant owners can use Ezvento for table management, KOT (kitchen order tickets), and combo meals — completing the "under 10 minutes" promise for food businesses.
 
 ---
 

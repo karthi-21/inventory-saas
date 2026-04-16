@@ -22,7 +22,7 @@ Prisma connection test: `FATAL: tenant/user postgres.acspgntsgvjamywujzhb not fo
 3. If paused: click "Restore project" and wait for it to come back online
 4. If the project is deleted/permanently gone: create a new project
    - Region: `ap-south-1` (Mumbai, closest for Indian retailers)
-   - Name: `omnibiz-dev` (for development)
+   - Name: `ezvento-dev` (for development)
 5. Copy the new project credentials into `.env.local`:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`

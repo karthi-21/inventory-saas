@@ -187,7 +187,7 @@ A retailer can complete a sale in under 60 seconds: scan barcode → total appea
 - [x] Items table: name, qty, rate, amount
 - [x] Subtotal, discount, GST, round-off, total
 - [x] Payment method + reference
-- [x] Footer: "Thank you" + OmniBIZ branding
+- [x] Footer: "Thank you" + Ezvento branding
 - [x] 80mm print CSS media query
 
 ### 4.10 Keyboard Shortcuts ✅

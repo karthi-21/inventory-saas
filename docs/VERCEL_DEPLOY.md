@@ -1,6 +1,6 @@
-# Vercel Deployment Guide — OmniBIZ
+# Vercel Deployment Guide — Ezvento
 
-This guide covers deploying OmniBIZ (Next.js 16 + Prisma + Supabase + Razorpay) to Vercel.
+This guide covers deploying Ezvento (Next.js 16 + Prisma + Supabase + Razorpay) to Vercel.
 
 ---
 
@@ -8,7 +8,7 @@ This guide covers deploying OmniBIZ (Next.js 16 + Prisma + Supabase + Razorpay) 
 
 1. Go to [vercel.com/new](https://vercel.com/new) and sign in with your GitHub account.
 2. Click **"Add New Project"** and select **"Import Git Repository"**.
-3. Find the OmniBIZ repository in the list and click **Import**.
+3. Find the Ezvento repository in the list and click **Import**.
 4. Vercel auto-detects the Next.js framework. The `vercel.json` in the repo root overrides defaults with the correct build and install commands.
 
 ---
@@ -28,7 +28,7 @@ Set the following in **Settings > Environment Variables** in the Vercel dashboar
 | `RAZORPAY_KEY_SECRET` | Razorpay API key secret | Yes |
 | `RAZORPAY_WEBHOOK_SECRET` | Razorpay webhook verification secret | Yes |
 | `RESEND_API_KEY` | Resend email API key | Yes |
-| `NEXT_PUBLIC_APP_URL` | Public app URL (e.g. `https://omnibiz.vercel.app`) | Yes |
+| `NEXT_PUBLIC_APP_URL` | Public app URL (e.g. `https://ezvento.vercel.app`) | Yes |
 
 **Notes:**
 - `NEXT_PUBLIC_*` variables are exposed to the browser. Never put secrets in them.
@@ -42,7 +42,7 @@ Set the following in **Settings > Environment Variables** in the Vercel dashboar
 The Vercel GitHub integration enables automatic deployments on every push.
 
 1. After importing the repo (step 1), Vercel installs the **Vercel for GitHub** app on the repository automatically.
-2. If it does not, go to [github.com/apps/vercel](https://github.com/apps/vercel) and install it, granting access to the OmniBIZ repository.
+2. If it does not, go to [github.com/apps/vercel](https://github.com/apps/vercel) and install it, granting access to the Ezvento repository.
 3. Once installed, every push to the production branch triggers a production deployment.
 4. Pull requests receive preview deployments automatically (see section 4).
 
@@ -57,7 +57,7 @@ By default, Vercel creates a **preview deployment** for every push to a non-prod
 In **Settings > Git** in the Vercel dashboard:
 
 - **Production Branch**: Set to `main` (or your preferred branch). Only pushes to this branch deploy to production.
-- **Preview Deployments**: Enabled by default. Every PR gets a unique preview URL (e.g. `omnibiz-git-feature-xyz-yourteam.vercel.app`).
+- **Preview Deployments**: Enabled by default. Every PR gets a unique preview URL (e.g. `ezvento-git-feature-xyz-yourteam.vercel.app`).
 - **Ignored Build Step** (optional): Skip preview deploys for documentation-only changes by setting a custom ignore command:
   ```
   git diff --quiet HEAD^ HEAD -- . ':!docs' ':!*.md'

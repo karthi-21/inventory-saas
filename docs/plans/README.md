@@ -1,7 +1,7 @@
-# OmniBIZ Production Launch Plans
+# Ezvento Production Launch Plans
 
 ## Overview
-14-day detailed execution plan to take OmniBIZ from current state to production launch. Each day is designed to be achievable by 1 developer in 1 day.
+14-day detailed execution plan to take Ezvento from current state to production launch. Each day is designed to be achievable by 1 developer in 1 day.
 
 ## The Promise
 > A customer lands on our page → signs up → pays → configures their store → starts billing in **under 10 minutes**. No technical knowledge required.

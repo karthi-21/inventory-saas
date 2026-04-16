@@ -46,7 +46,7 @@ The Reports page has CSV export but no PDF export. The Excel export button shows
 - All return `application/pdf` content type
 
 ### PDF Design
-- Professional, clean layout matching the OmniBIZ design system
+- Professional, clean layout matching the Ezvento design system
 - Company branding: name, address, GSTIN, contact
 - Consistent header and footer
 - Tables with alternating row colors

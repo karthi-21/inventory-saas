@@ -1,4 +1,4 @@
-# OmniBIZ Gap Analysis Report
+# Ezvento Gap Analysis Report
 
 **Generated**: 2026-04-15  
 **Based on**: `docs/reports/deep-research-report.md` vs current codebase state

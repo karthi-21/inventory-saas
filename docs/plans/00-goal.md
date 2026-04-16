@@ -1,4 +1,4 @@
-# OmniBIZ - Production Launch Plan
+# Ezvento - Production Launch Plan
 
 ## Ultimate Goal
 **A customer should be able to**: land on our page → signup → pay → configure their store → start billing in **under 10 minutes** — no technical knowledge required.

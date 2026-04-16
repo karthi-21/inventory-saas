@@ -159,8 +159,8 @@ When two cashiers work offline on same products:
 **Verify**: Customer search works offline with cached data
 
 ### Scenario 7: PWA Install
-1. Open OmniBIZ on Chrome (desktop or mobile)
-2. Browser shows "Install OmniBIZ" prompt
+1. Open Ezvento on Chrome (desktop or mobile)
+2. Browser shows "Install Ezvento" prompt
 3. Click "Install" — app installs as standalone
 4. App opens without browser chrome (no address bar)
 5. Works like a native app

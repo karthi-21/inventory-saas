@@ -27,7 +27,7 @@ Also, the "Watch Demo" button is a no-op (no onClick handler).
    - **Option C**: Use real testimonials from beta users (requires actual users)
 
 2. For v1, recommend Option A or B — remove the section or replace with:
-   - "500+ businesses trust OmniBIZ" (stat-based, no fake quotes)
+   - "500+ businesses trust Ezvento" (stat-based, no fake quotes)
    - Feature comparison table
    - Use case cards
 

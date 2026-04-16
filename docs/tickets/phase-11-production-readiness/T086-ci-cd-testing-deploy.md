@@ -181,7 +181,7 @@ jobs:
 
 Update `prisma/seed.ts`:
 - Create demo tenant with stores
-- Create demo user (demo@omnibiz.app / Demo@123456)
+- Create demo user (demo@ezvento.karth-21.com / Demo@123456)
 - Create sample products with categories
 - Create sample customers
 - Create sample invoices (paid, unpaid, cancelled)
@@ -229,7 +229,7 @@ Install `husky` + `lint-staged`:
 
 ### Scenario 4: Seed Data Works
 1. Run `npm run db:seed`
-2. Demo user created: demo@omnibiz.app
+2. Demo user created: demo@ezvento.karth-21.com
 3. Login with demo user
 4. Dashboard shows sample data
 5. Products, customers, invoices visible

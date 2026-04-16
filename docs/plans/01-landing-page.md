@@ -1,7 +1,7 @@
 # Day 1: Landing Page Polish & Plan Selection
 
 ## Goal
-A visitor lands on the page, understands OmniBIZ's value, and says "I want this" — then clicks **Get Started** to go to signup.
+A visitor lands on the page, understands Ezvento's value, and says "I want this" — then clicks **Get Started** to go to signup.
 
 ---
 

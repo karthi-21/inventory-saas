@@ -1,4 +1,4 @@
-# OmniBIZ
+# Ezvento
 
 Multi-tenant POS & Billing SaaS for Indian retailers.
 

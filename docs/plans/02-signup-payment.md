@@ -66,7 +66,7 @@ This is the **first 60 seconds of the customer relationship**. If signup or paym
 - [ ] Auto-redirect to store wizard after 2 seconds (with skip option)
 - [ ] Store payment confirmation in database immediately
 - [ ] Send confirmation email/SMS (use Resend or AWS SES)
-  - Subject: "Welcome to OmniBIZ! Your [Plan] plan is active"
+  - Subject: "Welcome to Ezvento! Your [Plan] plan is active"
   - Body: Receipt + "Next: Set up your store in 5 minutes"
 
 ### 2.6 Error Handling
