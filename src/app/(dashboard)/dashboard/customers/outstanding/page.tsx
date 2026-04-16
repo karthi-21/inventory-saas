@@ -301,7 +301,7 @@ export default function OutstandingCustomersPage() {
                 {outstanding.map((c) => (
                   <TableRow key={c.id}>
                     <TableCell>
-                      <button onClick={() => setSelectedCustomer(c)} className="font-medium text-indigo-600 hover:underline">
+                      <button onClick={() => setSelectedCustomer(c)} className="font-medium text-blue-600 hover:underline">
                         {c.firstName} {c.lastName}
                       </button>
                     </TableCell>

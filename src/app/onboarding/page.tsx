@@ -139,7 +139,7 @@ export default function OnboardingPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
           <p className="text-slate-600">Loading...</p>
         </div>
       </div>
@@ -155,7 +155,7 @@ export default function OnboardingPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/25 mb-4">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-500 shadow-lg shadow-blue-500/25 mb-4">
             <Store className="h-8 w-8 text-white" />
           </div>
           <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome to OmniBIZ</h1>
@@ -170,17 +170,17 @@ export default function OnboardingPage() {
           className="flex items-center justify-center gap-4 mb-8"
         >
           <div className="flex items-center gap-2">
-            <div className={`h-8 w-8 rounded-full ${step >= 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-sm font-medium`}>
+            <div className={`h-8 w-8 rounded-full ${step >= 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-sm font-medium`}>
               {step > 1 ? <CheckCircle2 className="h-5 w-5" /> : '1'}
             </div>
-            <span className={`text-sm font-medium ${step >= 1 ? 'text-indigo-600' : 'text-slate-500'}`}>Store Details</span>
+            <span className={`text-sm font-medium ${step >= 1 ? 'text-blue-600' : 'text-slate-500'}`}>Store Details</span>
           </div>
-          <div className={`w-12 h-0.5 ${step > 1 ? 'bg-indigo-300' : 'bg-slate-200'}`} />
+          <div className={`w-12 h-0.5 ${step > 1 ? 'bg-blue-300' : 'bg-slate-200'}`} />
           <div className="flex items-center gap-2">
-            <div className={`h-8 w-8 rounded-full ${step > 1 ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-sm font-medium`}>
+            <div className={`h-8 w-8 rounded-full ${step > 1 ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-500'} flex items-center justify-center text-sm font-medium`}>
               2
             </div>
-            <span className={`text-sm ${step > 1 ? 'font-medium text-indigo-600' : 'text-slate-500'}`}>{step > 1 ? 'More Stores' : 'Complete'}</span>
+            <span className={`text-sm ${step > 1 ? 'font-medium text-blue-600' : 'text-slate-500'}`}>{step > 1 ? 'More Stores' : 'Complete'}</span>
           </div>
         </motion.div>
 
@@ -195,7 +195,7 @@ export default function OnboardingPage() {
           <Card className="shadow-xl shadow-slate-200/50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5 text-indigo-600" />
+                <Building2 className="h-5 w-5 text-blue-600" />
                 Store Information
               </CardTitle>
               <CardDescription>
@@ -296,7 +296,7 @@ export default function OnboardingPage() {
                 {/* Submit Button */}
                 <Button
                   type="submit"
-                  className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
+                  className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? (
@@ -433,7 +433,7 @@ export default function OnboardingPage() {
 
               <Button
                 onClick={handleSkipToDashboard}
-                className="w-full h-12 bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/25"
+                className="w-full h-12 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25"
               >
                 Go to Dashboard
               </Button>

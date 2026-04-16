@@ -111,7 +111,7 @@
   --chart-5: oklch(0.269 0 0);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
+  --sidebar-primary: oklch(0.45 0.2 255);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
   --sidebar-accent-foreground: oklch(0.985 0 0);
@@ -132,18 +132,20 @@
   }
 }
 
-/* Custom Brand Colors */
+/* Custom Brand Colors — Ezvento */
 :root {
-  --indigo-500: #6366F1;
-  --indigo-600: #4F46E5;
-  --indigo-100: #E0E7FF;
-  --indigo-50: #EEF2FF;
+  --blue-600: #2563EB;
+  --blue-700: #1D4ED8;
+  --blue-500: #3B82F6;
+  --blue-100: #DBEAFE;
+  --blue-50: #EFF6FF;
   --emerald-500: #10B981;
   --emerald-600: #059669;
   --emerald-100: #D1FAE5;
   --emerald-50: #ECFDF5;
-  --violet-500: #8B5CF6;
-  --violet-100: #EDE9FE;
+  --orange-500: #F97316;
+  --orange-600: #EA580C;
+  --orange-100: #FED7AA;
   --amber-500: #F59E0B;
   --amber-100: #FEF3C7;
   --rose-500: #F43F5E;
@@ -169,18 +171,18 @@
 
 /* Gradient Backgrounds */
 .gradient-hero {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 50%, #60A5FA 100%);
 }
 
 .gradient-mesh {
-  background-color: #F5F3FF;
+  background-color: #EFF6FF;
   background-image:
-    radial-gradient(at 40% 20%, hsla(253,100%,74%,0.1) 0px, transparent 50%),
+    radial-gradient(at 40% 20%, hsla(217,91%,70%,0.1) 0px, transparent 50%),
     radial-gradient(at 80% 0%, hsla(189,100%,76%,0.1) 0px, transparent 50%),
-    radial-gradient(at 0% 50%, hsla(340,100%,76%,0.1) 0px, transparent 50%),
-    radial-gradient(at 80% 50%, hsla(266,100%,76%,0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, hsla(160,84%,39%,0.1) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, hsla(217,91%,70%,0.1) 0px, transparent 50%),
     radial-gradient(at 0% 100%, hsla(189,100%,76%,0.1) 0px, transparent 50%),
-    radial-gradient(at 80% 100%, hsla(253,100%,74%,0.1) 0px, transparent 50%);
+    radial-gradient(at 80% 100%, hsla(217,91%,70%,0.08) 0px, transparent 50%);
 }
 
 /* Bento Grid - Proper Asymmetric Layout */
@@ -271,8 +273,8 @@
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
-  50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.6); }
+  0%, 100% { box-shadow: 0 0 20px rgba(37, 99, 235, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(37, 99, 235, 0.6); }
 }
 
 @keyframes shimmer {
@@ -290,7 +292,7 @@
 
 /* Text Gradient */
 .text-gradient {
-  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 50%, #EC4899 100%);
+  background: linear-gradient(135deg, #2563EB 0%, #3B82F6 50%, #10B981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

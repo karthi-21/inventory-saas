@@ -45,12 +45,12 @@ export async function sendEmail(params: SendEmailParams): Promise<{ id: string; 
 
 export function welcomeEmail(p: { userName: string; storeName: string; dashboardUrl: string }): string {
   return `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-    <div style="text-align:center;padding:40px 0"><h1 style="color:#4F46E5;margin:0">Welcome to OmniBIZ! 🎉</h1></div>
+    <div style="text-align:center;padding:40px 0"><h1 style="color:#2563EB;margin:0">Welcome to OmniBIZ! 🎉</h1></div>
     <p>Hi ${p.userName},</p>
     <p>Your store <strong>${p.storeName}</strong> is all set up and ready to go!</p>
     <p>Here's what you can do next:</p>
     <ul><li>📋 Add your products and set up inventory</li><li>👥 Create customer profiles</li><li>🧾 Start billing from your POS screen</li><li>📊 View reports and track performance</li></ul>
-    <div style="text-align:center;margin:30px 0"><a href="${p.dashboardUrl}" style="background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Go to Dashboard</a></div>
+    <div style="text-align:center;margin:30px 0"><a href="${p.dashboardUrl}" style="background:#2563EB;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Go to Dashboard</a></div>
     <p style="color:#6B7280;font-size:14px">— The OmniBIZ Team</p></div>`
 }
 
@@ -61,12 +61,12 @@ export function invoiceReceiptEmail(p: {
 }): string {
   const rows = p.items.map(i => `<tr><td style="padding:8px;border-bottom:1px solid #E5E7EB">${i.description}</td><td style="padding:8px;border-bottom:1px solid #E5E7EB;text-align:right">${i.quantity}</td><td style="padding:8px;border-bottom:1px solid #E5E7EB;text-align:right">₹${i.unitPrice.toFixed(2)}</td><td style="padding:8px;border-bottom:1px solid #E5E7EB;text-align:right">₹${i.totalAmount.toFixed(2)}</td></tr>`).join('')
   return `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-    <div style="text-align:center;padding:20px 0;border-bottom:2px solid #4F46E5"><h2 style="color:#4F46E5;margin:0">🧾 Payment Receipt</h2><p style="color:#6B7280;margin:4px 0">${p.storeName}</p></div>
+    <div style="text-align:center;padding:20px 0;border-bottom:2px solid #2563EB"><h2 style="color:#2563EB;margin:0">🧾 Payment Receipt</h2><p style="color:#6B7280;margin:4px 0">${p.storeName}</p></div>
     <p>Hi ${p.customerName},</p><p>Thank you for your purchase!</p>
     <table style="width:100%;font-size:14px"><tr style="background:#F3F4F6"><td style="padding:8px"><strong>Invoice #</strong></td><td style="padding:8px;text-align:right">${p.invoiceNumber}</td></tr><tr><td style="padding:8px"><strong>Date</strong></td><td style="padding:8px;text-align:right">${p.invoiceDate}</td></tr><tr style="background:#F3F4F6"><td style="padding:8px"><strong>Payment</strong></td><td style="padding:8px;text-align:right">${p.paymentMethod}</td></tr></table>
-    <table style="width:100%;margin:16px 0;font-size:14px;border-collapse:collapse"><thead><tr style="background:#4F46E5;color:white"><th style="padding:8px;text-align:left">Item</th><th style="padding:8px;text-align:right">Qty</th><th style="padding:8px;text-align:right">Rate</th><th style="padding:8px;text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody></table>
-    <table style="width:100%;font-size:14px"><tr><td style="padding:4px 8px">Subtotal</td><td style="padding:4px 8px;text-align:right">₹${p.subtotal.toFixed(2)}</td></tr><tr><td style="padding:4px 8px">GST</td><td style="padding:4px 8px;text-align:right">₹${p.totalGst.toFixed(2)}</td></tr><tr style="font-weight:bold;font-size:16px;border-top:2px solid #4F46E5"><td style="padding:8px">Total</td><td style="padding:8px;text-align:right">₹${p.totalAmount.toFixed(2)}</td></tr></table>
-    ${p.invoiceUrl ? `<div style="text-align:center;margin:24px 0"><a href="${p.invoiceUrl}" style="background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">View Full Invoice</a></div>` : ''}
+    <table style="width:100%;margin:16px 0;font-size:14px;border-collapse:collapse"><thead><tr style="background:#2563EB;color:white"><th style="padding:8px;text-align:left">Item</th><th style="padding:8px;text-align:right">Qty</th><th style="padding:8px;text-align:right">Rate</th><th style="padding:8px;text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody></table>
+    <table style="width:100%;font-size:14px"><tr><td style="padding:4px 8px">Subtotal</td><td style="padding:4px 8px;text-align:right">₹${p.subtotal.toFixed(2)}</td></tr><tr><td style="padding:4px 8px">GST</td><td style="padding:4px 8px;text-align:right">₹${p.totalGst.toFixed(2)}</td></tr><tr style="font-weight:bold;font-size:16px;border-top:2px solid #2563EB"><td style="padding:8px">Total</td><td style="padding:8px;text-align:right">₹${p.totalAmount.toFixed(2)}</td></tr></table>
+    ${p.invoiceUrl ? `<div style="text-align:center;margin:24px 0"><a href="${p.invoiceUrl}" style="background:#2563EB;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">View Full Invoice</a></div>` : ''}
     <p style="color:#6B7280;font-size:14px">Thank you for shopping with us!<br>— ${p.storeName}</p></div>`
 }
 
@@ -82,7 +82,7 @@ export function paymentReminderEmail(p: {
     <p>Outstanding invoices (${p.invoiceCount}):</p>
     <table style="width:100%;margin:16px 0;font-size:14px;border-collapse:collapse"><thead><tr style="background:#FEF3C7"><th style="padding:8px;text-align:left">Invoice #</th><th style="padding:8px;text-align:left">Date</th><th style="padding:8px;text-align:right">Amount</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr style="font-weight:bold;border-top:2px solid #F59E0B"><td style="padding:8px" colspan="2">Total Outstanding</td><td style="padding:8px;text-align:right">₹${p.totalOutstanding.toFixed(2)}</td></tr></tfoot></table>
-    ${p.payLink ? `<div style="text-align:center;margin:24px 0"><a href="${p.payLink}" style="background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Pay Now</a></div>` : ''}
+    ${p.payLink ? `<div style="text-align:center;margin:24px 0"><a href="${p.payLink}" style="background:#2563EB;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Pay Now</a></div>` : ''}
     <p style="color:#6B7280;font-size:14px">— ${p.storeName}</p></div>`
 }
 
@@ -92,23 +92,23 @@ export function lowStockAlertEmail(p: { storeName: string; items: Array<{ name: 
     <div style="text-align:center;padding:20px 0;border-bottom:2px solid #F59E0B"><h2 style="color:#F59E0B;margin:0">⚠️ Low Stock Alert</h2></div>
     <p>Low stock items at <strong>${p.storeName}</strong>:</p>
     <table style="width:100%;margin:16px 0;font-size:14px;border-collapse:collapse"><thead><tr style="background:#FEF3C7"><th style="padding:8px;text-align:left">Product</th><th style="padding:8px;text-align:left">SKU</th><th style="padding:8px;text-align:right">Stock</th><th style="padding:8px;text-align:right">Reorder</th></tr></thead><tbody>${rows}</tbody></table>
-    <div style="text-align:center;margin:24px 0"><a href="${p.inventoryUrl}" style="background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">View Inventory</a></div>
+    <div style="text-align:center;margin:24px 0"><a href="${p.inventoryUrl}" style="background:#2563EB;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">View Inventory</a></div>
     <p style="color:#6B7280;font-size:14px">— OmniBIZ Inventory Alerts</p></div>`
 }
 
 export function subscriptionConfirmationEmail(p: { userName: string; planName: string; price: string; nextBillingDate: string; dashboardUrl: string }): string {
   return `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-    <div style="text-align:center;padding:30px 0;background:linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%);border-radius:8px 8px 0 0"><h1 style="color:white;margin:0">✅ Subscription Active!</h1></div>
+    <div style="text-align:center;padding:30px 0;background:linear-gradient(135deg,#2563EB 0%,#EA580C 100%);border-radius:8px 8px 0 0"><h1 style="color:white;margin:0">✅ Subscription Active!</h1></div>
     <div style="padding:20px"><p>Hi ${p.userName},</p><p>Your <strong>${p.planName}</strong> plan is now active.</p>
     <table style="width:100%;font-size:14px"><tr style="background:#F3F4F6"><td style="padding:12px"><strong>Plan</strong></td><td style="padding:12px;text-align:right">${p.planName}</td></tr><tr><td style="padding:12px"><strong>Price</strong></td><td style="padding:12px;text-align:right">${p.price}/month</td></tr><tr style="background:#F3F4F6"><td style="padding:12px"><strong>Next Billing</strong></td><td style="padding:12px;text-align:right">${p.nextBillingDate}</td></tr></table>
-    <div style="text-align:center;margin:24px 0"><a href="${p.dashboardUrl}" style="background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Go to Dashboard</a></div>
+    <div style="text-align:center;margin:24px 0"><a href="${p.dashboardUrl}" style="background:#2563EB;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Go to Dashboard</a></div>
     <p style="color:#6B7280;font-size:14px">— The OmniBIZ Team</p></div></div>`
 }
 
 export function userInvitationEmail(p: { inviteeName: string; inviterName: string; storeName: string; role: string; signupUrl: string }): string {
   return `<div style="font-family:system-ui,sans-serif;max-width:600px;margin:0 auto;padding:20px">
-    <div style="text-align:center;padding:30px 0;background:linear-gradient(135deg,#4F46E5 0%,#7C3AED 100%);border-radius:8px 8px 0 0"><h1 style="color:white;margin:0">👋 You're Invited!</h1></div>
+    <div style="text-align:center;padding:30px 0;background:linear-gradient(135deg,#2563EB 0%,#EA580C 100%);border-radius:8px 8px 0 0"><h1 style="color:white;margin:0">👋 You're Invited!</h1></div>
     <div style="padding:20px"><p>Hi ${p.inviteeName},</p><p><strong>${p.inviterName}</strong> has invited you to join <strong>${p.storeName}</strong> on OmniBIZ as a <strong>${p.role}</strong>.</p>
-    <div style="text-align:center;margin:24px 0"><a href="${p.signupUrl}" style="background:#4F46E5;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Accept Invitation</a></div>
+    <div style="text-align:center;margin:24px 0"><a href="${p.signupUrl}" style="background:#2563EB;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Accept Invitation</a></div>
     <p style="color:#6B7280;font-size:14px">This invitation expires in 7 days.<br>— The OmniBIZ Team</p></div></div>`
 }

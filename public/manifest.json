@@ -1,11 +1,11 @@
 {
-  "name": "OmniBIZ",
-  "short_name": "OmniBIZ",
-  "description": "Modern billing & inventory management for Indian retail",
+  "name": "Ezvento",
+  "short_name": "Ezvento",
+  "description": "Simple, powerful POS & billing for Indian retail",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#4F46E5",
+  "theme_color": "#2563EB",
   "orientation": "any",
   "icons": [
     {

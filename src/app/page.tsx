@@ -54,8 +54,8 @@ const scaleIn = {
 
 const heroFeatures = [
   { icon: Zap, text: 'Setup in 10 minutes', color: '#10B981' },
-  { icon: Shield, text: 'GST Compliant', color: '#6366F1' },
-  { icon: Clock, text: '99.9% Uptime', color: '#8B5CF6' },
+  { icon: Shield, text: 'GST Compliant', color: '#2563EB' },
+  { icon: Clock, text: '99.9% Uptime', color: '#F97316' },
 ]
 
 const bentoFeatures = [
@@ -64,8 +64,8 @@ const bentoFeatures = [
     title: 'Multi-Store',
     description: 'Manage multiple locations from one dashboard. Real-time sync across all stores.',
     size: 'large',
-    color: 'from-indigo-500/20 to-violet-500/20',
-    iconBg: 'bg-indigo-500/10 text-indigo-600',
+    color: 'from-blue-600/20 to-orange-500/20',
+    iconBg: 'bg-blue-600/10 text-blue-600',
   },
   {
     icon: Receipt,
@@ -96,8 +96,8 @@ const bentoFeatures = [
     title: 'Sales Reports',
     description: 'Sales reports & insights',
     size: 'wide',
-    color: 'from-violet-500/20 to-purple-500/20',
-    iconBg: 'bg-violet-500/10 text-violet-600',
+    color: 'from-orange-500/20 to-emerald-500/20',
+    iconBg: 'bg-orange-500/10 text-orange-600',
   },
   {
     icon: Users,
@@ -177,7 +177,7 @@ export default function LandingPage() {
       >
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/20">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-500 shadow-lg shadow-blue-500/20">
               <Store className="h-5 w-5 text-white" />
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900">OmniBIZ</span>
@@ -222,7 +222,7 @@ export default function LandingPage() {
               y: [0, -50, 0]
             }}
             transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute -top-20 -left-20 w-[800px] h-[800px] bg-indigo-500/40 rounded-full blur-[100px]"
+            className="absolute -top-20 -left-20 w-[800px] h-[800px] bg-blue-600/40 rounded-full blur-[100px]"
           />
           <motion.div
             animate={{
@@ -231,7 +231,7 @@ export default function LandingPage() {
               y: [0, 100, 0]
             }}
             transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", delay: 2 }}
-            className="absolute -bottom-40 -right-20 w-[600px] h-[600px] bg-violet-500/40 rounded-full blur-[80px]"
+            className="absolute -bottom-40 -right-20 w-[600px] h-[600px] bg-orange-500/40 rounded-full blur-[80px]"
           />
           <motion.div
             animate={{
@@ -276,7 +276,7 @@ export default function LandingPage() {
               className="text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-slate-900 mb-8"
             >
               Run your shop{' '}
-              <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-pink-600 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-emerald-500 bg-clip-text text-transparent">
                 easily
               </span>
             </motion.h1>
@@ -295,7 +295,7 @@ export default function LandingPage() {
               <Link href="/signup">
                 <Button
                   size="lg"
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 shadow-xl shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all text-base h-12"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-8 shadow-xl shadow-blue-500/25 hover:shadow-blue-500/40 transition-all text-base h-12"
                 >
                   Start Free Trial
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -348,7 +348,7 @@ export default function LandingPage() {
             transition={{ duration: 0.5 }}
             className="text-center mb-16"
           >
-            <Badge variant="secondary" className="mb-4 bg-indigo-100 text-indigo-700 hover:bg-indigo-100">
+            <Badge variant="secondary" className="mb-4 bg-blue-100 text-blue-700 hover:bg-blue-100">
               Features
             </Badge>
             <h2 className="text-4xl sm:text-5xl font-bold text-slate-900 mb-4">
@@ -400,7 +400,7 @@ export default function LandingPage() {
                     </div>
 
                     {(feature.size === 'large' || feature.size === 'wide') && (
-                      <div className="mt-auto pt-3 flex items-center text-sm font-medium text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="mt-auto pt-3 flex items-center text-sm font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity">
                         Learn more
                         <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                       </div>
@@ -441,7 +441,7 @@ export default function LandingPage() {
                 transition={{ delay: i * 0.1 }}
                 className="text-center"
               >
-                <p className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-indigo-400 to-violet-400 bg-clip-text text-transparent">
+                <p className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-blue-500 to-blue-400 bg-clip-text text-transparent">
                   {stat.value}
                 </p>
                 <p className="mt-2 text-sm text-slate-400">{stat.label}</p>
@@ -462,7 +462,7 @@ export default function LandingPage() {
               { icon: Clock, text: 'Setup in under 10 minutes' },
             ].map((item, i) => (
               <div key={i} className="flex items-center gap-3 rounded-xl bg-slate-800/50 border border-slate-700 px-4 py-3">
-                <item.icon className="h-5 w-5 text-indigo-400 shrink-0" />
+                <item.icon className="h-5 w-5 text-blue-500 shrink-0" />
                 <span className="text-sm text-slate-300">{item.text}</span>
               </div>
             ))}
@@ -485,7 +485,7 @@ export default function LandingPage() {
             <h2 className="text-4xl sm:text-5xl font-bold text-slate-900 mb-4">
               Simple, transparent pricing
             </h2>
-            <p className="text-lg text-slate-600">Start free, upgrade when you're ready. No hidden fees.</p>
+            <p className="text-lg text-slate-600">Start free, upgrade when you&apos;re ready. No hidden fees.</p>
           </motion.div>
 
           <div className="grid gap-8 lg:grid-cols-3 lg:gap-6">
@@ -507,7 +507,7 @@ export default function LandingPage() {
               >
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-indigo-500 text-white border-0">Most Popular</Badge>
+                    <Badge className="bg-blue-600 text-white border-0">Most Popular</Badge>
                   </div>
                 )}
 
@@ -534,8 +534,8 @@ export default function LandingPage() {
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-center gap-3">
-                      <div className={`h-5 w-5 rounded-full flex items-center justify-center ${plan.popular ? 'bg-indigo-500' : 'bg-indigo-100'}`}>
-                        <Check className={`h-3 w-3 ${plan.popular ? 'text-white' : 'text-indigo-600'}`} />
+                      <div className={`h-5 w-5 rounded-full flex items-center justify-center ${plan.popular ? 'bg-blue-600' : 'bg-blue-100'}`}>
+                        <Check className={`h-3 w-3 ${plan.popular ? 'text-white' : 'text-blue-600'}`} />
                       </div>
                       <span className={`text-sm ${plan.popular ? 'text-slate-300' : 'text-slate-600'}`}>
                         {feature}
@@ -602,7 +602,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
-            className="rounded-3xl bg-gradient-to-br from-indigo-600 via-violet-600 to-pink-600 p-12 text-center text-white relative overflow-hidden"
+            className="rounded-3xl bg-gradient-to-br from-blue-700 via-blue-500 to-emerald-500 p-12 text-center text-white relative overflow-hidden"
           >
             {/* Animated background */}
             <div className="absolute inset-0 overflow-hidden">
@@ -615,12 +615,12 @@ export default function LandingPage() {
 
             <div className="relative">
               <h2 className="text-3xl sm:text-4xl font-bold mb-4">Ready to streamline your store?</h2>
-              <p className="text-lg text-indigo-100 mb-8 max-w-2xl mx-auto">
-                Join hundreds of retailers who've switched to OmniBIZ. Setup takes 10 minutes, and it's free to try.
+              <p className="text-lg text-blue-100 mb-8 max-w-2xl mx-auto">
+                Join hundreds of retailers who&apos;ve switched to OmniBIZ. Setup takes 10 minutes, and it&apos;s free to try.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
                 <Link href="/signup">
-                  <Button size="lg" className="bg-white text-indigo-600 hover:bg-slate-100 px-8">
+                  <Button size="lg" className="bg-white text-blue-600 hover:bg-slate-100 px-8">
                     Start Free Trial
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
@@ -639,7 +639,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-500">
                 <Store className="h-4 w-4 text-white" />
               </div>
               <span className="text-lg font-bold text-slate-900">OmniBIZ</span>

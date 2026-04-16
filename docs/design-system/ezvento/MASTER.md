@@ -6,7 +6,7 @@
 
 ---
 
-**Project:** OmniBIZ
+**Project:** Ezvento
 **Generated:** 2026-04-06 20:40:11
 **Category:** SaaS (General)
 
@@ -18,13 +18,14 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#6366F1` | `--color-primary` |
-| Secondary | `#818CF8` | `--color-secondary` |
-| CTA/Accent | `#10B981` | `--color-cta` |
-| Background | `#F5F3FF` | `--color-background` |
-| Text | `#1E1B4B` | `--color-text` |
+| Primary | `#2563EB` | `--color-primary` |
+| Secondary | `#3B82F6` | `--color-secondary` |
+| Accent/Action | `#F97316` | `--color-accent` |
+| CTA/Success | `#10B981` | `--color-cta` |
+| Background | `#EFF6FF` | `--color-background` |
+| Text | `#0F172A` | `--color-text` |
 
-**Color Notes:** Indigo primary + emerald CTA
+**Color Notes:** Blue primary + emerald CTA + orange accent
 
 ### Typography
 
