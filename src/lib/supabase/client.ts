@@ -3,16 +3,49 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 
 let supabaseClient: SupabaseClient | null = null
 
+/**
+ * Parse cookies from document.cookie string
+ */
+function parseCookies(): Array<{ name: string; value: string }> {
+  if (typeof document === 'undefined') return []
+
+  return document.cookie.split(';').map((c) => {
+    const [name, ...rest] = c.trim().split('=')
+    const value = rest.join('=')
+    return { name, value: decodeURIComponent(value) }
+  })
+}
+
 export function getSupabaseClient(): SupabaseClient {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (supabaseUrl && supabaseAnonKey) {
     if (!supabaseClient) {
-      // createBrowserClient automatically handles cookies in the browser
-      // It stores the PKCE code verifier in cookies so it survives
-      // OAuth redirects and email confirmation links
-      supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
+      // createBrowserClient with proper cookie handling for PKCE flow
+      // The PKCE code verifier must be stored in and retrieved from cookies
+      // so it survives OAuth redirects and email confirmation links
+      supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll: () => parseCookies(),
+          setAll: (cookiesToSet) => {
+            if (typeof document === 'undefined') return
+            cookiesToSet.forEach(({ name, value, options }) => {
+              const cookieString = [
+                `${name}=${encodeURIComponent(value)}`,
+                options.maxAge ? `Max-Age=${options.maxAge}` : '',
+                options.path ? `Path=${options.path}` : 'Path=/',
+                options.sameSite ? `SameSite=${options.sameSite}` : 'SameSite=Lax',
+                options.secure ? 'Secure' : '',
+                options.domain ? `Domain=${options.domain}` : '',
+              ]
+                .filter(Boolean)
+                .join('; ')
+              document.cookie = cookieString
+            })
+          },
+        },
+      })
     }
     return supabaseClient
   }
