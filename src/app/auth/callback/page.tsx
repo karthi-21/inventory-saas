@@ -18,7 +18,7 @@ function AuthCallbackContent() {
         // Get the plan from query params
         const plan = searchParams.get('plan') || 'grow'
 
-        // Check for error in query params
+        // Check for explicit error in query params
         const errorParam = searchParams.get('error')
         if (errorParam) {
           setError(errorParam)
@@ -26,21 +26,59 @@ function AuthCallbackContent() {
           return
         }
 
-        // Check for OAuth code
+        // Check for OAuth code (from Google OAuth or PKCE email confirmation)
         const code = searchParams.get('code')
+
         if (code) {
-          // Exchange OAuth code for session
+          // Exchange the code for a session using PKCE flow
+          // The code verifier must be in cookie storage (set by @supabase/ssr createBrowserClient)
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
           if (exchangeError) {
             console.error('OAuth exchange error:', exchangeError)
-            setError('Failed to complete OAuth sign in')
-            setTimeout(() => router.push('/signup?error=oauth_failed'), 3000)
+
+            // If PKCE verifier is missing, try refreshing to get session from URL hash
+            // This handles the case where email confirmation opens in a new tab
+            // and the PKCE verifier wasn't stored in cookies
+            const { data: { session: refreshSession }, error: refreshError } = await supabase.auth.refreshSession()
+
+            if (refreshError || !refreshSession?.user) {
+              console.error('Session recovery failed:', refreshError)
+              setError('Failed to complete sign in. Please try logging in with your email and password.')
+              setTimeout(() => router.push('/login?error=callback_failed'), 3000)
+              return
+            }
+
+            // Session recovered via refresh — proceed with the refresh session
+            const user = refreshSession.user
+            setMessage('Creating your account...')
+
+            const response = await fetch('/api/auth/callback-server', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                user: {
+                  id: user.id,
+                  email: user.email,
+                  phone: user.phone,
+                  user_metadata: user.user_metadata,
+                  email_confirmed_at: user.email_confirmed_at,
+                },
+                plan,
+              }),
+            })
+
+            if (!response.ok) {
+              const data = await response.json()
+              throw new Error(data.error || 'Failed to create account')
+            }
+
+            router.push(`/payment?plan=${plan}`)
             return
           }
         }
 
-        // Get the current session
-        // Supabase client automatically processes tokens from URL hash (for email confirmation)
+        // Get the current session (Supabase client automatically processes
+        // tokens from URL hash for email confirmation)
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
         if (sessionError) {
@@ -51,7 +89,7 @@ function AuthCallbackContent() {
         }
 
         if (!session?.user) {
-          // No session yet - try to refresh
+          // No session yet — try refresh
           const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
 
           if (refreshError || !refreshedSession?.user) {
@@ -65,7 +103,6 @@ function AuthCallbackContent() {
           const user = refreshedSession.user
           setMessage('Creating your account...')
 
-          // Call the server-side callback to create the user in the database
           const response = await fetch('/api/auth/callback-server', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -86,15 +123,14 @@ function AuthCallbackContent() {
             throw new Error(data.error || 'Failed to create account')
           }
 
-          // Redirect to payment page
           router.push(`/payment?plan=${plan}`)
           return
         }
 
+        // We have a valid session
         const user = session.user
         setMessage('Creating your account...')
 
-        // Call the server-side callback to create the user in the database
         const response = await fetch('/api/auth/callback-server', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -136,7 +172,7 @@ function AuthCallbackContent() {
           </CardHeader>
           <CardContent className="text-center">
             <p className="text-muted-foreground mb-4">{error}</p>
-            <p className="text-sm text-muted-foreground">Redirecting to signup...</p>
+            <p className="text-sm text-muted-foreground">Redirecting to login...</p>
             <Loader2 className="h-6 w-6 animate-spin mx-auto mt-4" />
           </CardContent>
         </Card>
@@ -163,7 +199,7 @@ function AuthCallbackLoading() {
     <div className="min-h-screen flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle>Loading...</CardTitle>
+          <CardTitle className="text-2xl">Loading...</CardTitle>
         </CardHeader>
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />

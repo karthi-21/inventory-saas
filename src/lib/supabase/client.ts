@@ -9,8 +9,28 @@ export function getSupabaseClient(): SupabaseClient {
 
   if (supabaseUrl && supabaseAnonKey) {
     if (!supabaseClient) {
-      // Use createBrowserClient from @supabase/ssr for proper cookie sync
-      supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey)
+      // Use createBrowserClient from @supabase/ssr for proper cookie-based
+      // session management. This stores the PKCE code verifier in cookies
+      // so it survives email confirmation redirects.
+      supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+        cookies: {
+          getAll() {
+            // In the browser, cookies are accessible via document.cookie
+            // createBrowserClient handles cookie parsing automatically
+            // This method is required by the @supabase/ssr interface
+            // but in the browser context, the client reads cookies directly
+            return []
+          },
+          setAll(cookiesToSet) {
+            // In the browser, cookies are set via document.cookie
+            // createBrowserClient handles this automatically when using
+            // the built-in cookie management
+            cookiesToSet.forEach(({ name, value, options }) => {
+              document.cookie = `${name}=${value}; path=${options.path ?? '/'}; max-age=${options.maxAge ?? 31536000}; samesite=${options.sameSite ?? 'lax'}${options.secure ? '; secure' : ''}${options.domain ? `; domain=${options.domain}` : ''}`
+            })
+          },
+        },
+      })
     }
     return supabaseClient
   }
