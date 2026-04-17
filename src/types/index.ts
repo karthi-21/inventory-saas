@@ -161,6 +161,7 @@ export interface OnboardingData {
   hasBatchTracking: boolean
   hasMultiStore: boolean
   personas: string[]
+  plan?: string
 }
 
 // GST calculation helpers

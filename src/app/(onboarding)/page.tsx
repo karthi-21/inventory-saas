@@ -177,7 +177,8 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           ...formData,
           storeType: selectedStoreType,
-          personas: selectedPersonas
+          personas: selectedPersonas,
+          plan: localStorage.getItem('selected_plan') || 'grow'
         })
       })
 
@@ -215,7 +216,7 @@ export default function OnboardingPage() {
                 Go to Dashboard
                 <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
-              <Button variant="outline" onClick={() => router.push('/dashboard/products')} className="w-full">
+              <Button variant="outline" onClick={() => router.push('/dashboard/inventory')} className="w-full">
                 Add Your First Product
               </Button>
             </div>
@@ -289,17 +290,6 @@ export default function OnboardingPage() {
                   />
                 </div>
               </div>
-              {(selectedStoreType === 'GROCERY' || selectedStoreType === 'SUPERMARKET' || selectedStoreType === 'RESTAURANT') && (
-                <div className="space-y-2">
-                  <Label htmlFor="fssai">FSSAI License Number (for food businesses)</Label>
-                  <Input
-                    id="fssaiNumber"
-                    placeholder="12345678901234"
-                    value={formData.fssaiNumber}
-                    onChange={(e) => setFormData({ ...formData, fssaiNumber: e.target.value })}
-                  />
-                </div>
-              )}
             </div>
           </div>
         )
@@ -374,6 +364,17 @@ export default function OnboardingPage() {
                     <SelectItem value="10">10+ stores</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+            )}
+            {(selectedStoreType === 'GROCERY' || selectedStoreType === 'SUPERMARKET' || selectedStoreType === 'RESTAURANT') && (
+              <div className="space-y-2">
+                <Label htmlFor="fssai">FSSAI License Number (for food businesses)</Label>
+                <Input
+                  id="fssaiNumber"
+                  placeholder="12345678901234"
+                  value={formData.fssaiNumber}
+                  onChange={(e) => setFormData({ ...formData, fssaiNumber: e.target.value })}
+                />
               </div>
             )}
           </div>

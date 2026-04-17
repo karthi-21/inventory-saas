@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
-import { StoreType, PermissionModule, PermissionAction } from '@prisma/client'
+import { StoreType, PermissionModule, PermissionAction, TenantPlan } from '@prisma/client'
 import {
   unauthorizedResponse,
   createdResponse,
@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
       hasSerialTracking,
       hasBatchTracking,
       hasMultiStore,
-      personas: selectedPersonas
+      personas: selectedPersonas,
+      plan
     } = body
 
     // Validate required fields
@@ -218,14 +219,20 @@ export async function POST(request: NextRequest) {
         }
       })
 
-      // 7. Create initial subscription (trial)
+      const PLAN_MAP: Record<string, TenantPlan> = {
+        launch: 'STARTER',
+        grow: 'PRO',
+        scale: 'ENTERPRISE',
+      }
+
+      // 7. Create initial subscription (14-day trial)
       await tx.subscription.create({
         data: {
           tenantId: tenant.id,
-          plan: hasMultiStore ? 'PRO' : 'STARTER',
+          plan: (plan && PLAN_MAP[plan]) || (hasMultiStore ? 'PRO' : 'STARTER'),
           status: 'TRIALING',
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days trial
+          currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
         }
       })
 

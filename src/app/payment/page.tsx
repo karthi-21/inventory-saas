@@ -78,6 +78,7 @@ function PaymentContent() {
         }
       } catch (_e) {
         // Ignore errors - user may not be authenticated yet
+        console.warn('Subscription status check failed — user may not be authenticated')
       } finally {
         setIsCheckingSubscription(false)
       }

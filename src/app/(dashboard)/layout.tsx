@@ -254,13 +254,11 @@ export default function DashboardLayout({
       if (error) {
         console.error('Logout error:', error)
       }
-      router.push('/login')
-      router.refresh()
+      // Use full page navigation to ensure session cookies are cleared
+      window.location.href = '/login'
     } catch (err) {
       console.error('Logout failed:', err)
       window.location.href = '/login'
-    } finally {
-      setIsLoggingOut(false)
     }
   }
 

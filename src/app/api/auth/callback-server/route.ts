@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
+import { TenantPlan } from '@prisma/client'
+
+const PLAN_MAP: Record<string, TenantPlan> = {
+  launch: 'STARTER',
+  grow: 'PRO',
+  scale: 'ENTERPRISE',
+}
 
 /**
  * POST /api/auth/callback-server
@@ -59,7 +66,7 @@ export async function POST(request: NextRequest) {
           await tx.subscription.create({
             data: {
               tenantId: tenant.id,
-              plan: 'PRO',
+              plan: PLAN_MAP[plan] || 'PRO',
               status: 'TRIALING',
               currentPeriodStart: new Date(),
               currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
@@ -89,7 +96,7 @@ export async function GET(request: NextRequest) {
   const plan = searchParams.get('plan') || 'grow'
 
   // Redirect URL - use the client-side callback handler
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3003'
+  const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003'
 
   if (error) {
     console.error('OAuth error:', error)

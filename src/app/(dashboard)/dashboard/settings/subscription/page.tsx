@@ -46,7 +46,11 @@ export default function SubscriptionPage() {
 
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/payments/manage-subscription', { method: 'DELETE' })
+      const res = await fetch('/api/payments/manage-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel' })
+      })
       if (!res.ok) throw new Error('Failed to cancel subscription')
       return res.json()
     },

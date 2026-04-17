@@ -55,7 +55,14 @@ export async function POST(request: NextRequest) {
         where: { storeId: invoice.storeId },
       })
 
-      const merchantVPA = storePaymentConfig?.merchantVPA || 'ezvento@ybl'
+      const merchantVPA = storePaymentConfig?.merchantVPA
+
+      if (!merchantVPA) {
+        return NextResponse.json(
+          { error: 'No merchant VPA configured. Set up your VPA in Settings → Payment Methods.' },
+          { status: 400 }
+        )
+      }
       const merchantName = storePaymentConfig?.merchantName || invoice.store.name
 
       const qrData = generateUPIQrString({

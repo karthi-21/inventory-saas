@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 
 // Feature flags for auth providers
-const ENABLE_EMAIL_AUTH = process.env.NEXT_PUBLIC_ENABLE_EMAIL_AUTH === 'true'
+const ENABLE_EMAIL_AUTH = process.env.NEXT_PUBLIC_ENABLE_EMAIL_AUTH !== 'false'
 const ENABLE_GOOGLE_AUTH = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true'
 const ENABLE_PHONE_AUTH = process.env.NEXT_PUBLIC_ENABLE_PHONE_AUTH === 'true'
 

@@ -50,6 +50,23 @@ export default function LoginPage() {
       }
 
       if (authData.user) {
+        // Ensure user exists in app database (idempotent — skipped if already exists)
+        await fetch('/api/auth/callback-server', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user: {
+              id: authData.user.id,
+              email: authData.user.email,
+              phone: authData.user.phone,
+              user_metadata: authData.user.user_metadata,
+              email_confirmed_at: authData.user.email_confirmed_at,
+            },
+            plan: localStorage.getItem('selected_plan') || 'grow',
+          }),
+        }).catch(() => {})
+
+        await supabase.auth.getSession()
         router.push('/dashboard')
         router.refresh()
       }

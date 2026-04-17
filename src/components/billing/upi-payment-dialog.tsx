@@ -170,10 +170,11 @@ export function UPIPaymentDialog({ open, onClose, invoiceId, amount, onSuccess, 
           {paymentState === 'pending' && !qrCodeUrl && (
             <div className="text-center p-4 bg-muted/50 rounded-lg">
               <p className="text-sm text-muted-foreground mb-2">
-                QR code not available. Ask customer to pay via UPI:
+                QR code not available. Ask customer to pay via UPI to the store VPA configured in Payment Settings.
               </p>
-              <p className="font-mono text-lg font-bold">ezvento@ybl</p>
-              <p className="text-xs text-muted-foreground mt-1">or any VPA configured in Payment Settings</p>
+              <p className="text-xs text-muted-foreground">
+                Configure your VPA in Settings → Payment Methods
+              </p>
             </div>
           )}
 
