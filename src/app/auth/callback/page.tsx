@@ -1,66 +1,47 @@
 import { redirect } from 'next/navigation'
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
 
 /**
- * OAuth Callback Handler - Server Component
+ * OAuth Callback Page - Server Component
  * 
- * ⚠️ CRITICAL FIX: This is now a Server Component instead of Client Component
+ * This page handles the OAuth callback by:
+ * 1. Extracting the code from query params
+ * 2. Calling a Route Handler to exchange the code for a session
+ * 3. Creating/updating the account via another API
+ * 4. Redirecting to payment
  * 
- * Why this matters:
- * - OAuth code exchange MUST happen on the server, not the browser
- * - Supabase's @supabase/ssr handles PKCE code verifier server-side
- * - No more "PKCE code verifier not found" errors
- * - Cookies are managed via Next.js cookies API (automatically sent with requests)
- * 
- * How it works:
- * 1. User clicks Google/magic link → redirected here with `code` param
- * 2. Server-side Supabase client exchanges code for session
- * 3. Supabase reads PKCE verifier from request cookies automatically
- * 4. Session is established, redirect to next step
+ * The actual OAuth code exchange happens in:
+ * /api/auth/exchange (Route Handler) - where cookies can be written
  */
 
 async function handleAuthCallback(code: string, plan: string) {
-  const cookieStore = await cookies()
-  
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options)
-          })
-        },
-      },
-    }
-  )
-
   try {
-    // Exchange OAuth code for session (server-side)
-    // Supabase automatically reads the PKCE code verifier from cookies
-    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-    
-    if (exchangeError) {
-      console.error('OAuth exchange error:', exchangeError)
-      redirect(`/signup?error=callback_failed`)
+    // Step 1: Exchange code for session via Route Handler
+    // This is where the PKCE verification happens (in the Route Handler)
+    const exchangeResponse = await fetch(
+      `${process.env.NEXT_PUBLIC_APP_URL || 'https://ezvento.karthi-21.com'}/api/auth/exchange`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code }),
+      }
+    )
+
+    if (!exchangeResponse.ok) {
+      const data = await exchangeResponse.json()
+      console.error('OAuth exchange failed:', data)
+      redirect(`/signup?error=oauth_exchange_failed`)
     }
 
-    // Get authenticated user
-    const { data: { user } } = await supabase.auth.getUser()
+    const { user } = await exchangeResponse.json()
 
     if (!user) {
-      console.error('No user after exchange')
+      console.error('No user returned from exchange')
       redirect(`/signup?error=no_user`)
     }
 
-    // Create account via API
+    // Step 2: Create/update account via callback server API
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ezvento.karthi-21.com'
-    const response = await fetch(`${appUrl}/api/auth/callback-server`, {
+    const createAccountResponse = await fetch(`${appUrl}/api/auth/callback-server`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -75,13 +56,13 @@ async function handleAuthCallback(code: string, plan: string) {
       }),
     })
 
-    if (!response.ok) {
-      const data = await response.json()
-      console.error('Callback server error:', data)
+    if (!createAccountResponse.ok) {
+      const data = await createAccountResponse.json()
+      console.error('Account creation failed:', data)
       redirect(`/signup?error=account_creation_failed`)
     }
 
-    // Success — redirect to payment
+    // Step 3: Redirect to payment
     redirect(`/payment?plan=${plan}`)
   } catch (error) {
     console.error('Callback error:', error)
@@ -99,7 +80,7 @@ export default async function AuthCallbackPage({
   const plan = typeof params.plan === 'string' ? params.plan : 'grow'
   const error = typeof params.error === 'string' ? params.error : null
 
-  // Handle explicit errors
+  // Handle explicit errors from OAuth provider
   if (error) {
     redirect(`/signup?error=${encodeURIComponent(error)}`)
   }
