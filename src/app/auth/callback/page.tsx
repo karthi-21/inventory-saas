@@ -1,218 +1,117 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 
-import { Suspense, useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import { Loader2 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { supabase } from '@/lib/supabase/client'
+/**
+ * OAuth Callback Handler - Server Component
+ * 
+ * ⚠️ CRITICAL FIX: This is now a Server Component instead of Client Component
+ * 
+ * Why this matters:
+ * - OAuth code exchange MUST happen on the server, not the browser
+ * - Supabase's @supabase/ssr handles PKCE code verifier server-side
+ * - No more "PKCE code verifier not found" errors
+ * - Cookies are managed via Next.js cookies API (automatically sent with requests)
+ * 
+ * How it works:
+ * 1. User clicks Google/magic link → redirected here with `code` param
+ * 2. Server-side Supabase client exchanges code for session
+ * 3. Supabase reads PKCE verifier from request cookies automatically
+ * 4. Session is established, redirect to next step
+ */
 
-function AuthCallbackContent() {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [error, setError] = useState<string | null>(null)
-  const [message, setMessage] = useState('Setting up your account...')
-
-  useEffect(() => {
-    const handleCallback = async () => {
-      try {
-        // Get the plan from query params
-        const plan = searchParams.get('plan') || 'grow'
-
-        // Check for explicit error in query params
-        const errorParam = searchParams.get('error')
-        if (errorParam) {
-          setError(errorParam)
-          setTimeout(() => router.push(`/signup?error=${encodeURIComponent(errorParam)}`), 3000)
-          return
-        }
-
-        // Check for OAuth code (from Google OAuth or PKCE email confirmation)
-        const code = searchParams.get('code')
-
-        if (code) {
-          // Exchange the code for a session using PKCE flow
-          // The code verifier must be in cookie storage (set by @supabase/ssr createBrowserClient)
-          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-          if (exchangeError) {
-            console.error('OAuth exchange error:', exchangeError)
-
-            // If PKCE verifier is missing, try refreshing to get session from URL hash
-            // This handles the case where email confirmation opens in a new tab
-            // and the PKCE verifier wasn't stored in cookies
-            const { data: { session: refreshSession }, error: refreshError } = await supabase.auth.refreshSession()
-
-            if (refreshError || !refreshSession?.user) {
-              console.error('Session recovery failed:', refreshError)
-              setError('Failed to complete sign in. Please try logging in with your email and password.')
-              setTimeout(() => router.push('/login?error=callback_failed'), 3000)
-              return
-            }
-
-            // Session recovered via refresh — proceed with the refresh session
-            const user = refreshSession.user
-            setMessage('Creating your account...')
-
-            const response = await fetch('/api/auth/callback-server', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                user: {
-                  id: user.id,
-                  email: user.email,
-                  phone: user.phone,
-                  user_metadata: user.user_metadata,
-                  email_confirmed_at: user.email_confirmed_at,
-                },
-                plan,
-              }),
-            })
-
-            if (!response.ok) {
-              const data = await response.json()
-              throw new Error(data.error || 'Failed to create account')
-            }
-
-            router.push(`/payment?plan=${plan}`)
-            return
-          }
-        }
-
-        // Get the current session (Supabase client automatically processes
-        // tokens from URL hash for email confirmation)
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession()
-
-        if (sessionError) {
-          console.error('Session error:', sessionError)
-          setError('Failed to establish session')
-          setTimeout(() => router.push('/signup?error=session_error'), 3000)
-          return
-        }
-
-        if (!session?.user) {
-          // No session yet — try refresh
-          const { data: { session: refreshedSession }, error: refreshError } = await supabase.auth.refreshSession()
-
-          if (refreshError || !refreshedSession?.user) {
-            console.error('No session after callback')
-            setError('Session not established. Please try signing up again.')
-            setTimeout(() => router.push('/signup?error=no_session'), 3000)
-            return
-          }
-
-          // Use refreshed session
-          const user = refreshedSession.user
-          setMessage('Creating your account...')
-
-          const response = await fetch('/api/auth/callback-server', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              user: {
-                id: user.id,
-                email: user.email,
-                phone: user.phone,
-                user_metadata: user.user_metadata,
-                email_confirmed_at: user.email_confirmed_at,
-              },
-              plan,
-            }),
+async function handleAuthCallback(code: string, plan: string) {
+  const cookieStore = await cookies()
+  
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return cookieStore.getAll()
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            cookieStore.set(name, value, options)
           })
+        },
+      },
+    }
+  )
 
-          if (!response.ok) {
-            const data = await response.json()
-            throw new Error(data.error || 'Failed to create account')
-          }
-
-          router.push(`/payment?plan=${plan}`)
-          return
-        }
-
-        // We have a valid session
-        const user = session.user
-        setMessage('Creating your account...')
-
-        const response = await fetch('/api/auth/callback-server', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user: {
-              id: user.id,
-              email: user.email,
-              phone: user.phone,
-              user_metadata: user.user_metadata,
-              email_confirmed_at: user.email_confirmed_at,
-            },
-            plan,
-          }),
-        })
-
-        if (!response.ok) {
-          const data = await response.json()
-          throw new Error(data.error || 'Failed to create account')
-        }
-
-        // Redirect to payment page
-        router.push(`/payment?plan=${plan}`)
-      } catch (err) {
-        console.error('Callback error:', err)
-        setError(err instanceof Error ? err.message : 'An error occurred')
-        setTimeout(() => router.push('/signup?error=callback_failed'), 3000)
-      }
+  try {
+    // Exchange OAuth code for session (server-side)
+    // Supabase automatically reads the PKCE code verifier from cookies
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+    
+    if (exchangeError) {
+      console.error('OAuth exchange error:', exchangeError)
+      redirect(`/signup?error=callback_failed`)
     }
 
-    handleCallback()
-  }, [router, searchParams])
+    // Get authenticated user
+    const { data: { user } } = await supabase.auth.getUser()
 
+    if (!user) {
+      console.error('No user after exchange')
+      redirect(`/signup?error=no_user`)
+    }
+
+    // Create account via API
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ezvento.karthi-21.com'
+    const response = await fetch(`${appUrl}/api/auth/callback-server`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user: {
+          id: user.id,
+          email: user.email,
+          phone: user.phone,
+          user_metadata: user.user_metadata,
+          email_confirmed_at: user.email_confirmed_at,
+        },
+        plan,
+      }),
+    })
+
+    if (!response.ok) {
+      const data = await response.json()
+      console.error('Callback server error:', data)
+      redirect(`/signup?error=account_creation_failed`)
+    }
+
+    // Success — redirect to payment
+    redirect(`/payment?plan=${plan}`)
+  } catch (error) {
+    console.error('Callback error:', error)
+    redirect(`/signup?error=callback_failed`)
+  }
+}
+
+export default async function AuthCallbackPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  const params = await searchParams
+  const code = typeof params.code === 'string' ? params.code : null
+  const plan = typeof params.plan === 'string' ? params.plan : 'grow'
+  const error = typeof params.error === 'string' ? params.error : null
+
+  // Handle explicit errors
   if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <CardTitle className="text-red-600">Authentication Error</CardTitle>
-          </CardHeader>
-          <CardContent className="text-center">
-            <p className="text-muted-foreground mb-4">{error}</p>
-            <p className="text-sm text-muted-foreground">Redirecting to login...</p>
-            <Loader2 className="h-6 w-6 animate-spin mx-auto mt-4" />
-          </CardContent>
-        </Card>
-      </div>
-    )
+    redirect(`/signup?error=${encodeURIComponent(error)}`)
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle>{message}</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+  // Require code
+  if (!code) {
+    redirect(`/signup?error=missing_code`)
+  }
 
-function AuthCallbackLoading() {
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Loading...</CardTitle>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+  // Process the callback
+  await handleAuthCallback(code, plan)
 
-export default function AuthCallbackPage() {
-  return (
-    <Suspense fallback={<AuthCallbackLoading />}>
-      <AuthCallbackContent />
-    </Suspense>
-  )
+  // Should never reach here (redirect() throws)
+  return null
 }
