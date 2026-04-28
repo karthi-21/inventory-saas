@@ -21,11 +21,14 @@ function PaymentSuccessContent() {
 
         if (sessionId) {
           // Call verify-payment endpoint to confirm Dodo payment
-          await fetch('/api/payments/verify-payment', {
+          const verifyRes = await fetch('/api/payments/verify-payment', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId, planId }),
           })
+          if (!verifyRes.ok) {
+            console.error('Payment verification failed:', await verifyRes.text())
+          }
         }
       } catch (e) {
         console.error('Payment verification error:', e)

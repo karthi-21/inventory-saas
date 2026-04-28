@@ -161,7 +161,27 @@ export default function OnboardingPage() {
     )
   }
 
-  const nextStep = () => setCurrentStep((s) => Math.min(s + 1, 4))
+  const nextStep = () => {
+    if (currentStep === 1) {
+      if (!formData.businessName.trim() || !formData.gstin.trim()) {
+        toast.error('Please fill all required fields')
+        return
+      }
+    }
+    if (currentStep === 2) {
+      if (!selectedStoreType || !formData.storeName.trim()) {
+        toast.error('Please fill all required fields')
+        return
+      }
+    }
+    if (currentStep === 3) {
+      if (!formData.address.trim() || !formData.state.trim() || !formData.pincode.trim()) {
+        toast.error('Please fill all required fields')
+        return
+      }
+    }
+    setCurrentStep((s) => Math.min(s + 1, 4))
+  }
   const prevStep = () => setCurrentStep((s) => Math.max(s - 1, 1))
 
   const handleComplete = async () => {

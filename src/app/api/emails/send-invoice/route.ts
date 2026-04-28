@@ -22,12 +22,12 @@ export async function POST(request: NextRequest) {
       include: {
         items: { include: { product: { select: { name: true } }, variant: { select: { name: true } } } },
         customer: true,
-        store: { include: { tenant: true } },
+        store: { select: { tenantId: true, name: true } },
       },
     })
 
     if (!invoice) return notFoundResponse('Invoice')
-    if (invoice.store.tenant.id !== user.tenantId) return notFoundResponse('Invoice')
+    if (invoice.store.tenantId !== user.tenantId) return errorResponse('Access denied', 403)
 
     const recipientEmail = emailTo || invoice.customer?.email
     if (!recipientEmail) {

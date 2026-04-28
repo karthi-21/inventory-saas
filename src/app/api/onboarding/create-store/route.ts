@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
         html: welcomeEmail({
           userName: dbUser.firstName || dbUser.email?.split('@')[0] || 'Store Owner',
           storeName,
-          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003'}/dashboard`,
+          dashboardUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://ezvento.karthi-21.com'}/dashboard`,
         }),
         tags: { type: 'welcome', tenantId: dbUser.tenantId },
       }).catch(err => console.error('Welcome email failed:', err))

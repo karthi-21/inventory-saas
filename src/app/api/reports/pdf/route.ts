@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     switch (reportType) {
       case 'sales': {
-        const where: Record<string, unknown> = { invoiceStatus: 'ACTIVE' }
+        const where: Record<string, unknown> = { tenantId: user.tenantId, invoiceStatus: 'ACTIVE' }
         if (storeId) where.storeId = storeId
         if (from || to) {
           where.invoiceDate = {}
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       }
 
       case 'gst': {
-        const where: Record<string, unknown> = { invoiceStatus: 'ACTIVE' }
+        const where: Record<string, unknown> = { tenantId: user.tenantId, invoiceStatus: 'ACTIVE' }
         if (storeId) where.storeId = storeId
         if (from || to) {
           where.invoiceDate = {}
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
       }
 
       case 'inventory': {
-        const where: Record<string, unknown> = {}
+        const where: Record<string, unknown> = { store: { tenantId: user.tenantId } }
         if (storeId) where.storeId = storeId
 
         const stocks = await prisma.inventoryStock.findMany({
@@ -191,6 +191,7 @@ export async function GET(request: NextRequest) {
 
       case 'outstanding': {
         const where: Record<string, unknown> = {
+          tenantId: user.tenantId,
           invoiceStatus: 'ACTIVE',
           paymentStatus: { in: ['DUE', 'OVERDUE', 'PARTIAL'] },
         }

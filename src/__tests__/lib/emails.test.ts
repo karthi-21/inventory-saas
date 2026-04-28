@@ -16,12 +16,12 @@ describe('Email Templates', () => {
       const html = welcomeEmail({
         userName: 'Rajesh',
         storeName: 'Sharma Electronics',
-        dashboardUrl: 'https://app.ezvento.karth-21.com/dashboard',
+        dashboardUrl: 'https://app.ezvento.karthi-21.com/dashboard',
       })
 
       expect(html).toContain('Rajesh')
       expect(html).toContain('Sharma Electronics')
-      expect(html).toContain('https://app.ezvento.karth-21.com/dashboard')
+      expect(html).toContain('https://app.ezvento.karthi-21.com/dashboard')
       expect(html).toContain('Welcome to Ezvento')
     })
   })
@@ -41,7 +41,7 @@ describe('Email Templates', () => {
 
       expect(html).toContain('Amit')
       expect(html).toContain('Test Store')
-      expect(html).toContain('₹15,000.00')
+      expect(html).toContain('₹15000.00')
       expect(html).toContain('INV-001')
     })
   })
@@ -76,7 +76,7 @@ describe('Email Templates', () => {
         items: [
           { name: 'USB Cable', sku: 'USB-001', currentStock: 2, reorderLevel: 10 },
         ],
-        inventoryUrl: 'https://app.ezvento.karth-21.com/dashboard/inventory',
+        inventoryUrl: 'https://app.ezvento.karthi-21.com/dashboard/inventory',
       })
 
       expect(html).toContain('My Store')

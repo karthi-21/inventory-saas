@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, FileText } from 'lucide-react'
+import { LEGAL_EMAIL } from '@/config/emails'
 
 export default function TermsOfServicePage() {
   return (
@@ -131,8 +132,8 @@ export default function TermsOfServicePage() {
           <h2 className="text-base font-semibold text-foreground mb-2">12. Contact Us</h2>
           <p>
             If you have questions about these Terms, please contact us at{' '}
-            <a href="mailto:legal@ezvento.karth-21.com" className="text-primary hover:underline">
-              legal@ezvento.karth-21.com
+            <a href={`mailto:${LEGAL_EMAIL}`} className="text-primary hover:underline">
+              {LEGAL_EMAIL}
             </a>{' '}
             or visit our{' '}
             <Link href="/support" className="text-primary hover:underline">

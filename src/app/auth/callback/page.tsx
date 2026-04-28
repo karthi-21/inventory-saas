@@ -1,98 +1,139 @@
-import { redirect } from 'next/navigation'
+'use client'
+
+import { useSearchParams, useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 
 /**
- * OAuth Callback Page - Server Component
- * 
- * This page handles the OAuth callback by:
- * 1. Extracting the code from query params
- * 2. Calling a Route Handler to exchange the code for a session
- * 3. Creating/updating the account via another API
- * 4. Redirecting to payment
- * 
- * The actual OAuth code exchange happens in:
- * /api/auth/exchange (Route Handler) - where cookies can be written
+ * OAuth/Email Confirmation Callback Page — Client Component
+ *
+ * This page handles the auth callback by making browser-side fetch calls
+ * to /api/auth/exchange. This is REQUIRED because the PKCE code verifier
+ * cookie must travel with the request, and response session cookies must
+ * be set in the browser. Server Component fetch calls to internal routes
+ * do not preserve cookies, so a Client Component is necessary here.
  */
 
-async function handleAuthCallback(code: string, plan: string) {
-  try {
-    // Step 1: Exchange code for session via Route Handler
-    // This is where the PKCE verification happens (in the Route Handler)
-    const exchangeResponse = await fetch(
-      `${process.env.NEXT_PUBLIC_APP_URL || 'https://ezvento.karthi-21.com'}/api/auth/exchange`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code }),
+export default function AuthCallbackPage() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const hasRun = useRef(false)
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+
+  const code = searchParams.get('code')
+  const plan = searchParams.get('plan') || 'grow'
+  const error = searchParams.get('error')
+
+  useEffect(() => {
+    if (hasRun.current) return
+    hasRun.current = true
+
+    // Handle explicit OAuth errors
+    if (error) {
+      router.push(`/signup?error=${encodeURIComponent(error)}`)
+      return
+    }
+
+    if (!code) {
+      router.push(`/signup?error=missing_code`)
+      return
+    }
+
+    async function handleAuthCallback() {
+      setStatus('loading')
+
+      try {
+        // Step 1: Exchange code for session via Route Handler
+        // Browser fetch automatically sends cookies (PKCE verifier)
+        // and receives session cookies in the response
+        const exchangeResponse = await fetch('/api/auth/exchange', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code }),
+        })
+
+        if (!exchangeResponse.ok) {
+          const data = await exchangeResponse.json().catch(() => ({}))
+          console.error('OAuth exchange failed:', data)
+          setStatus('error')
+          setErrorMessage(data.error || 'OAuth exchange failed')
+          return
+        }
+
+        const { user } = await exchangeResponse.json()
+
+        if (!user) {
+          console.error('No user returned from exchange')
+          setStatus('error')
+          setErrorMessage('No user returned from exchange')
+          return
+        }
+
+        // Step 2: Create/update account via callback server API
+        const createAccountResponse = await fetch('/api/auth/callback-server', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user: {
+              id: user.id,
+              email: user.email,
+              phone: user.phone,
+              user_metadata: user.user_metadata,
+              email_confirmed_at: user.email_confirmed_at,
+            },
+            plan,
+          }),
+        })
+
+        if (!createAccountResponse.ok) {
+          const data = await createAccountResponse.json().catch(() => ({}))
+          console.error('Account creation failed:', data)
+          setStatus('error')
+          setErrorMessage(data.error || 'Account creation failed')
+          return
+        }
+
+        // Step 3: Redirect to payment
+        router.push(`/payment?plan=${plan}`)
+      } catch (err) {
+        console.error('Callback error:', err)
+        setStatus('error')
+        setErrorMessage(err instanceof Error ? err.message : 'Unknown error')
       }
+    }
+
+    handleAuthCallback()
+  }, [code, plan, error, router])
+
+  if (status === 'error') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-muted/30">
+        <div className="text-center space-y-4 max-w-md px-4">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+            <span className="text-red-600 text-xl">✕</span>
+          </div>
+          <h1 className="text-lg font-semibold">Authentication failed</h1>
+          <p className="text-sm text-muted-foreground">
+            {errorMessage || 'Something went wrong during authentication. Please try again.'}
+          </p>
+          <button
+            onClick={() => router.push('/signup')}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2"
+          >
+            Back to Sign Up
+          </button>
+        </div>
+      </div>
     )
-
-    if (!exchangeResponse.ok) {
-      const data = await exchangeResponse.json()
-      console.error('OAuth exchange failed:', data)
-      redirect(`/signup?error=oauth_exchange_failed`)
-    }
-
-    const { user } = await exchangeResponse.json()
-
-    if (!user) {
-      console.error('No user returned from exchange')
-      redirect(`/signup?error=no_user`)
-    }
-
-    // Step 2: Create/update account via callback server API
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://ezvento.karthi-21.com'
-    const createAccountResponse = await fetch(`${appUrl}/api/auth/callback-server`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        user: {
-          id: user.id,
-          email: user.email,
-          phone: user.phone,
-          user_metadata: user.user_metadata,
-          email_confirmed_at: user.email_confirmed_at,
-        },
-        plan,
-      }),
-    })
-
-    if (!createAccountResponse.ok) {
-      const data = await createAccountResponse.json()
-      console.error('Account creation failed:', data)
-      redirect(`/signup?error=account_creation_failed`)
-    }
-
-    // Step 3: Redirect to payment
-    redirect(`/payment?plan=${plan}`)
-  } catch (error) {
-    console.error('Callback error:', error)
-    redirect(`/signup?error=callback_failed`)
-  }
-}
-
-export default async function AuthCallbackPage({
-  searchParams,
-}: {
-  searchParams: Promise<Record<string, string | string[] | undefined>>
-}) {
-  const params = await searchParams
-  const code = typeof params.code === 'string' ? params.code : null
-  const plan = typeof params.plan === 'string' ? params.plan : 'grow'
-  const error = typeof params.error === 'string' ? params.error : null
-
-  // Handle explicit errors from OAuth provider
-  if (error) {
-    redirect(`/signup?error=${encodeURIComponent(error)}`)
   }
 
-  // Require code
-  if (!code) {
-    redirect(`/signup?error=missing_code`)
-  }
-
-  // Process the callback
-  await handleAuthCallback(code, plan)
-
-  // Should never reach here (redirect() throws)
-  return null
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-muted/30">
+      <div className="text-center space-y-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+        <p className="text-sm text-muted-foreground">Confirming your account…</p>
+      </div>
+    </div>
+  )
 }

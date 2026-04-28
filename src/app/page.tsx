@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { SALES_EMAIL } from '@/config/emails'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -1132,7 +1133,7 @@ export default function LandingPage() {
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Button>
                 </Link>
-                <a href="mailto:sales@ezvento.karth-21.com">
+                <a href={`mailto:${SALES_EMAIL}`}>
                   <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 h-13 cursor-pointer">
                     <PhoneCall className="mr-2 h-4 w-4" />
                     Talk to Sales
@@ -1197,8 +1198,8 @@ export default function LandingPage() {
               <h4 className="font-semibold text-slate-900 mb-3 text-sm">Get in touch</h4>
               <ul className="space-y-2">
                 <li>
-                  <a href="mailto:sales@ezvento.karth-21.com" className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                    sales@ezvento.karth-21.com
+                  <a href={`mailto:${SALES_EMAIL}`} className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
+                    {SALES_EMAIL}
                   </a>
                 </li>
                 <li className="text-sm text-slate-500">Made in India</li>

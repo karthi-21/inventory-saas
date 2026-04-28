@@ -3,10 +3,19 @@
  */
 
 import { Resend } from 'resend'
+import { FROM_EMAIL, REPLY_TO } from '@/config/emails'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Ezvento <billing@ezvento.karth-21.com>'
-const REPLY_TO = process.env.RESEND_REPLY_TO || 'support@ezvento.karth-21.com'
+let resend: Resend | null = null
+function getResend(): Resend {
+  if (!resend) {
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY is not configured')
+    }
+    resend = new Resend(apiKey)
+  }
+  return resend
+}
 
 export interface SendEmailParams {
   to: string | string[]
@@ -19,7 +28,7 @@ export interface SendEmailParams {
 
 export async function sendEmail(params: SendEmailParams): Promise<{ id: string; error?: string }> {
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: params.from || FROM_EMAIL,
       to: Array.isArray(params.to) ? params.to : [params.to],
       subject: params.subject,

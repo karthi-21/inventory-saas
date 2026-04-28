@@ -1,73 +1,82 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { exportToExcel, exportSalesReport, exportInventoryReport, exportOutstandingReport } from '@/lib/export-excel'
 
-// Mock XLSX
-vi.mock('xlsx', () => ({
-  utils: {
-    aoa_to_sheet: vi.fn().mockReturnValue({ '!cols': [] }),
-    book_new: vi.fn().mockReturnValue({ SheetNames: [] }),
-    book_append_sheet: vi.fn(),
+const mockAddRow = vi.fn()
+const mockAddWorksheet = vi.fn().mockReturnValue({ addRow: mockAddRow, getColumn: vi.fn().mockReturnValue({ width: 0 }) })
+const mockWriteBuffer = vi.fn().mockResolvedValue(Buffer.from('mock-excel'))
+
+vi.mock('exceljs', () => ({
+  default: {
+    Workbook: class Workbook {
+      addWorksheet = mockAddWorksheet
+      xlsx = { writeBuffer: mockWriteBuffer }
+    },
   },
-  writeFile: vi.fn(),
 }))
 
+// Mock browser APIs
+Object.assign(globalThis, {
+  URL: {
+    createObjectURL: vi.fn().mockReturnValue('blob:mock'),
+    revokeObjectURL: vi.fn(),
+  },
+  document: {
+    createElement: vi.fn().mockReturnValue({ click: vi.fn() }),
+  },
+})
+
 describe('Excel Export', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   describe('exportToExcel', () => {
-    it('should call XLSX.writeFile with correct filename', async () => {
-      const XLSX = await import('xlsx')
-      exportToExcel(
+    it('should create workbook and add sheets', async () => {
+      await exportToExcel(
         [{ name: 'Test', headers: ['A', 'B'], rows: [[1, 2]] }],
         'test-report'
       )
-      expect(XLSX.writeFile).toHaveBeenCalled()
+      expect(mockAddWorksheet).toHaveBeenCalledWith('Test')
+      expect(mockAddRow).toHaveBeenCalledTimes(2) // header + 1 data row
     })
 
     it('should add .xlsx extension if missing', async () => {
-      const XLSX = await import('xlsx')
-      exportToExcel(
-        [{ name: 'Test', headers: ['A'], rows: [[1]] }],
-        'test'
-      )
-      expect(XLSX.writeFile).toHaveBeenCalled()
+      const link = document.createElement('a')
+      await exportToExcel([{ name: 'Test', headers: ['A'], rows: [[1]] }], 'test')
+      expect(link.download).toBe('test.xlsx')
     })
 
     it('should not double-add .xlsx extension', async () => {
-      const XLSX = await import('xlsx')
-      exportToExcel(
-        [{ name: 'Test', headers: ['A'], rows: [[1]] }],
-        'test.xlsx'
-      )
-      expect(XLSX.writeFile).toHaveBeenCalled()
+      const link = document.createElement('a')
+      await exportToExcel([{ name: 'Test', headers: ['A'], rows: [[1]] }], 'test.xlsx')
+      expect(link.download).toBe('test.xlsx')
     })
   })
 
   describe('exportSalesReport', () => {
     it('should create two sheets (Daily Sales + Summary)', async () => {
-      const XLSX = await import('xlsx')
-      exportSalesReport([
+      await exportSalesReport([
         { date: '2026-04-01', invoices: 5, revenue: 10000, paid: 8000, due: 2000, gst: 1800 },
       ])
-      expect(XLSX.writeFile).toHaveBeenCalled()
+      expect(mockAddWorksheet).toHaveBeenCalledTimes(2)
     })
   })
 
   describe('exportInventoryReport', () => {
     it('should create Inventory sheet', async () => {
-      const XLSX = await import('xlsx')
-      exportInventoryReport([
+      await exportInventoryReport([
         { name: 'USB Cable', sku: 'USB-001', category: 'Accessories', stock: 50, reorderLevel: 10, sellingPrice: 150 },
       ])
-      expect(XLSX.writeFile).toHaveBeenCalled()
+      expect(mockAddWorksheet).toHaveBeenCalledTimes(1)
     })
   })
 
   describe('exportOutstandingReport', () => {
     it('should create Amounts Due + Summary sheets', async () => {
-      const XLSX = await import('xlsx')
-      exportOutstandingReport([
+      await exportOutstandingReport([
         { firstName: 'Rajesh', lastName: 'Kumar', phone: '9876543210', totalPurchases: 50000, totalDue: 15000 },
       ])
-      expect(XLSX.writeFile).toHaveBeenCalled()
+      expect(mockAddWorksheet).toHaveBeenCalledTimes(2)
     })
   })
 })

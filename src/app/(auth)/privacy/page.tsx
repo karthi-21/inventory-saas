@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Shield } from 'lucide-react'
+import { PRIVACY_EMAIL } from '@/config/emails'
 
 export default function PrivacyPolicyPage() {
   return (
@@ -98,8 +99,8 @@ export default function PrivacyPolicyPage() {
           <h2 className="text-base font-semibold text-foreground mb-2">8. Contact Us</h2>
           <p>
             If you have any questions about this Privacy Policy, please contact us at{' '}
-            <a href="mailto:privacy@ezvento.karth-21.com" className="text-primary hover:underline">
-              privacy@ezvento.karth-21.com
+            <a href={`mailto:${PRIVACY_EMAIL}`} className="text-primary hover:underline">
+              {PRIVACY_EMAIL}
             </a>{' '}
             or visit our{' '}
             <Link href="/support" className="text-primary hover:underline">

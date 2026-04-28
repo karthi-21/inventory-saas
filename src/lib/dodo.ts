@@ -8,6 +8,7 @@
  */
 
 import crypto from 'crypto'
+import { PLANS } from '@/config/plans'
 
 const DODO_BASE_URL = process.env.DODO_BASE_URL || 'https://api.sandbox.dodopayments.com'
 const DODO_API_KEY = process.env.DODO_API_KEY || ''
@@ -15,15 +16,15 @@ const DODO_API_KEY = process.env.DODO_API_KEY || ''
 export const PLAN_MAPPING: Record<string, { dodoPlanId: string; name: string; price: number; priceDisplay: string }> = {
   launch: {
     dodoPlanId: process.env.DODO_LAUNCH_PLAN_ID || 'launch_monthly',
-    name: 'Launch',
-    price: 999,
-    priceDisplay: '₹999',
+    name: PLANS.launch.name,
+    price: PLANS.launch.price,
+    priceDisplay: PLANS.launch.priceDisplay,
   },
   grow: {
     dodoPlanId: process.env.DODO_GROW_PLAN_ID || 'grow_monthly',
-    name: 'Grow',
-    price: 2499,
-    priceDisplay: '₹2,499',
+    name: PLANS.grow.name,
+    price: PLANS.grow.price,
+    priceDisplay: PLANS.grow.priceDisplay,
   },
 }
 

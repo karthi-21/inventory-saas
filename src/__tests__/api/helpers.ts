@@ -159,6 +159,7 @@ export function seedInvoices(tenantId: string, count = 2) {
     totalAmount: 1180 + i * 590,
     amountPaid: 1180 + i * 590,
     amountDue: 0,
+    invoiceStatus: 'ACTIVE',
     paymentStatus: 'PAID',
     billingType: 'CASH',
     customerId: `customer-${tenantId}-1`,

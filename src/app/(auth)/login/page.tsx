@@ -64,7 +64,10 @@ export default function LoginPage() {
             },
             plan: localStorage.getItem('selected_plan') || 'grow',
           }),
-        }).catch(() => {})
+        }).catch((err) => {
+          console.error('Failed to sync user to database:', err)
+          // Non-blocking: user is logged in but tenant data may be missing
+        })
 
         await supabase.auth.getSession()
         router.push('/dashboard')

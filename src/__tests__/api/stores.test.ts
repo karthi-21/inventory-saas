@@ -164,6 +164,12 @@ vi.mock('@/lib/db', () => {
     payment: { createMany: vi.fn(), create: vi.fn() },
     loyaltyPointsLog: { create: vi.fn() },
     activityLog: { create: vi.fn() },
+    tenant: {
+      findUnique: makeFindFirst('tenants'),
+    },
+    location: {
+      create: makeCreate('locations'),
+    },
     $transaction: vi.fn(async (fn: any) => fn(prisma)),
   }
 
@@ -400,6 +406,7 @@ describe('POST /api/stores', () => {
     setPrismaData({
       users: [TENANT_A_DB],
       stores: seedStores('tenant-a', 1),
+      tenants: [{ id: 'tenant-a', plan: 'PRO', name: 'Tenant A', createdAt: new Date(), updatedAt: new Date() }],
     })
   })
 

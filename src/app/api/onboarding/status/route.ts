@@ -4,41 +4,25 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 
 /**
  * GET /api/onboarding/status
- * Returns whether the user has already completed onboarding (has a store)
+ * Returns whether the currently authenticated user already has a tenant with at least one store
  */
 export async function GET() {
   try {
     const supabase = await createServerSupabaseClient()
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    // Get user from DB with stores
-    const dbUser = await prisma.user.findFirst({
-      where: { email: user.email },
-      include: {
-        tenant: {
-          include: {
-            stores: true
-          }
-        }
-      }
-    })
-
-    if (!dbUser?.tenant) {
+    if (!user?.email) {
       return NextResponse.json({ hasExistingStore: false })
     }
 
-    // Check if tenant has any stores
-    const hasExistingStore = dbUser.tenant.stores.length > 0
-
-    return NextResponse.json({
-      hasExistingStore,
-      tenant: dbUser.tenant,
-      storeCount: dbUser.tenant.stores.length
+    const dbUser = await prisma.user.findFirst({
+      where: { email: user.email },
+      include: { tenant: { include: { stores: true } } }
     })
+
+    const hasExistingStore = dbUser?.tenant && dbUser.tenant.stores.length > 0
+
+    return NextResponse.json({ hasExistingStore })
   } catch (error) {
     console.error('Onboarding status error:', error)
     return NextResponse.json({ hasExistingStore: false })

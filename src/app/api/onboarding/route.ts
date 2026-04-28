@@ -8,7 +8,8 @@ import {
   errorResponse,
   validateRequired,
   handlePrismaError,
-  logActivity
+  logActivity,
+  generateStoreCode
 } from '@/lib/api'
 import type { OnboardingData } from '@/types'
 
@@ -50,6 +51,144 @@ export async function POST(request: NextRequest) {
       'storeName', 'storeType', 'businessName', 'address', 'state', 'pincode', 'phone'
     ])
     if (validationError) return errorResponse(validationError, 400)
+
+    // Check if user already has a tenant
+    const existingUser = await prisma.user.findFirst({
+      where: { email: authUser.email! },
+      include: { tenant: true }
+    })
+
+    if (existingUser?.tenantId) {
+      const storeCode = await generateStoreCode(existingUser.tenantId)
+      const result = await prisma.$transaction(async (tx) => {
+        // Create Store with locations
+        const store = await tx.store.create({
+          data: {
+            tenantId: existingUser.tenantId,
+            name: storeName,
+            code: storeCode,
+            storeType: storeType as StoreType,
+            address,
+            state,
+            pincode,
+            phone,
+            isActive: true,
+            locations: {
+              create: [
+                {
+                  name: storeType === 'RESTAURANT' ? 'Main Kitchen' : 'Main Location',
+                  type: storeType === 'RESTAURANT' ? 'KITCHEN' : 'SHOWROOM',
+                  isActive: true
+                }
+              ]
+            }
+          },
+          include: { locations: true }
+        })
+
+        // Create additional stores if multi-store
+        if (hasMultiStore && storeCount && parseInt(storeCount) > 1) {
+          const count = parseInt(storeCount)
+          for (let i = 2; i <= Math.min(count, 5); i++) {
+            await tx.store.create({
+              data: {
+                tenantId: existingUser.tenantId,
+                name: `${storeName} - Location ${i}`,
+                code: `STR-${String(i).padStart(3, '0')}`,
+                storeType: storeType as StoreType,
+                address,
+                state,
+                pincode,
+                phone,
+                isActive: true,
+                locations: {
+                  create: [
+                    {
+                      name: storeType === 'RESTAURANT' ? 'Kitchen' : 'Showroom',
+                      type: storeType === 'RESTAURANT' ? 'KITCHEN' : 'SHOWROOM',
+                      isActive: true
+                    }
+                  ]
+                }
+              }
+            })
+          }
+        }
+
+        // Create default categories
+        const categoryNames = getDefaultCategories(storeType as StoreType)
+        const categories = await Promise.all(
+          categoryNames.map(name =>
+            tx.category.create({
+              data: {
+                tenantId: existingUser.tenantId,
+                name,
+                isActive: true
+              }
+            })
+          )
+        )
+
+        // Grant user access to store
+        await tx.userStoreAccess.create({
+          data: {
+            userId: existingUser.id,
+            storeId: store.id,
+            isDefault: true
+          }
+        })
+
+        return {
+          tenant: existingUser.tenant,
+          user: existingUser,
+          store,
+          categories,
+          personas: []
+        }
+      })
+
+      // Log onboarding completion
+      await logActivity({
+        tenantId: result.tenant.id,
+        userId: result.user.id,
+        action: 'ONBOARDING_COMPLETE',
+        module: 'SETTINGS_EDIT',
+        entityType: 'Tenant',
+        entityId: result.tenant.id,
+        metadata: {
+          storeName,
+          storeType,
+          businessName,
+          categoryCount: result.categories.length,
+          personaCount: 0
+        }
+      })
+
+      return createdResponse({
+        success: true,
+        message: 'Onboarding completed successfully',
+        data: {
+          tenant: {
+            id: result.tenant.id,
+            name: result.tenant.name,
+            subdomain: result.tenant.subdomain
+          },
+          store: {
+            id: result.store.id,
+            name: result.store.name,
+            code: result.store.code,
+            locations: result.store.locations.length
+          },
+          user: {
+            id: result.user.id,
+            email: result.user.email,
+            isOwner: result.user.isOwner
+          },
+          categories: result.categories.map(c => ({ id: c.id, name: c.name })),
+          personas: []
+        }
+      })
+    }
 
     // Generate subdomain from business name
     const subdomain = generateSubdomain(businessName)

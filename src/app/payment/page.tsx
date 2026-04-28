@@ -10,42 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Loader2, Check, Star, IndianRupee } from 'lucide-react'
+import { PLANS, type PlanKey } from '@/config/plans'
+import { SALES_EMAIL } from '@/config/emails'
 
-const PLAN_DETAILS: Record<string, {
-  name: string
-  price: number
-  priceDisplay: string
-  description: string
-  features: string[]
-  highlight: boolean
-}> = {
-  launch: {
-    name: 'Launch',
-    price: 999,
-    priceDisplay: '₹999',
-    description: 'Perfect for a single store',
-    features: ['1 Store', '3 Users', 'GST Billing', 'Stock Tracking', 'Email Support'],
-    highlight: false,
-  },
-  grow: {
-    name: 'Grow',
-    price: 2499,
-    priceDisplay: '₹2,499',
-    description: 'Growing retail businesses',
-    features: ['3 Stores', '10 Users', 'Full Stock', 'Multi-Payment', 'Customer Management', 'Reports & Export', 'Priority Support'],
-    highlight: true,
-  },
-  scale: {
-    name: 'Scale',
-    price: 0,
-    priceDisplay: 'Custom',
-    description: 'Franchises & large operations',
-    features: ['Unlimited Stores', 'Unlimited Users', 'Custom Roles', 'API Access', 'White-label', 'Dedicated Support'],
-    highlight: false,
-  },
-}
-
-type PlanKey = keyof typeof PLAN_DETAILS
+const PLAN_DETAILS = PLANS
 
 function PaymentContent() {
   const searchParams = useSearchParams()
@@ -57,6 +25,7 @@ function PaymentContent() {
   const [isCheckingSubscription, setIsCheckingSubscription] = useState(true)
 
   const plan = PLAN_DETAILS[planId]
+  const isDev = process.env.NODE_ENV === 'development'
 
   useEffect(() => {
     const planParam = searchParams.get('plan') as PlanKey | null
@@ -86,9 +55,29 @@ function PaymentContent() {
     checkSubscription()
   }, [])
 
+  const handleDevSkip = async () => {
+    setIsLoading(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/payments/dev-bypass', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ planId }),
+      })
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || 'Dev bypass failed')
+      }
+      router.push('/onboarding')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Dev bypass failed')
+      setIsLoading(false)
+    }
+  }
+
   const handlePayment = async () => {
     if (planId === 'scale') {
-      window.location.href = 'mailto:sales@ezvento.karth-21.com?subject=Ezvento%20Scale%20Plan'
+      window.location.href = `mailto:${SALES_EMAIL}?subject=Ezvento%20Scale%20Plan`
       return
     }
 
@@ -210,7 +199,7 @@ function PaymentContent() {
 
             {/* Pay Button */}
             {planId === 'scale' ? (
-              <Link href="mailto:sales@ezvento.karth-21.com?subject=Ezvento%20Scale%20Plan%20Inquiry">
+              <Link href={`mailto:${SALES_EMAIL}?subject=Ezvento%20Scale%20Plan%20Inquiry`}>
                 <Button className="w-full" size="lg">
                   Contact Sales
                 </Button>
@@ -237,6 +226,35 @@ function PaymentContent() {
             )}
 
             <Separator />
+
+            {/* Dev Mode Skip */}
+            {isDev && (
+              <>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Development</span>
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={handleDevSkip}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Setting up...
+                    </>
+                  ) : (
+                    'Skip Payment (Dev Mode)'
+                  )}
+                </Button>
+              </>
+            )}
 
             {/* Security Note */}
             <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">

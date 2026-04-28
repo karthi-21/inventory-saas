@@ -34,11 +34,16 @@ export async function GET(request: NextRequest) {
           irnAckDate: true,
           irnError: true,
           irnRetriedAt: true,
+          store: { select: { tenantId: true } },
         },
       })
 
       if (!invoice) {
         return errorResponse('Invoice not found', 404)
+      }
+
+      if (invoice.store.tenantId !== user.tenantId) {
+        return errorResponse('Access denied', 403)
       }
 
       return successResponse({ invoice })

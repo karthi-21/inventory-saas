@@ -66,6 +66,8 @@ model Subscription {
   razorpaySubscriptionId String?  
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
+
+  @@index([tenantId, status])
 }
 
 enum SubscriptionStatus {
@@ -373,6 +375,8 @@ model Product {
   bomItems        BOMItem[]
 
   @@unique([tenantId, sku])
+  @@index([tenantId, name])
+  @@index([tenantId, barcode])
 }
 
 enum ProductType {
@@ -521,6 +525,7 @@ model Customer {
   followUps       FollowUp[]
 
   @@unique([tenantId, phone])
+  @@index([tenantId, firstName])
 }
 
 enum CustomerType {
@@ -710,6 +715,9 @@ model SalesInvoice {
   returns  SalesReturn[]
 
   @@unique([tenantId, storeId, invoiceNumber])
+  @@index([tenantId, createdAt])
+  @@index([tenantId, invoiceDate])
+  @@index([tenantId, storeId, invoiceDate])
 }
 
 enum InvoiceType {

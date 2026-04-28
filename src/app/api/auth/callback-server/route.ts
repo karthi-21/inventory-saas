@@ -24,21 +24,32 @@ export async function POST(request: NextRequest) {
     // Check if user already exists in Prisma
     let dbUser = await prisma.user.findFirst({
       where: { email: user.email },
-      include: { tenant: { include: { subscriptions: true } } }
     })
 
     // First time user - create tenant, user, and subscription in a transaction
     if (!dbUser) {
-      const subdomain = (user.user_metadata?.store_name || user.email?.split('@')[0] || 'store')
+      // Use email prefix for subdomain to ensure uniqueness per user
+      const emailPrefix = user.email?.split('@')[0] || 'store'
+      const baseSubdomain = emailPrefix
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '-')
         .replace(/-+/g, '-')
-        .slice(0, 50)
+        .slice(0, 40)
+
+      // Check if subdomain already exists and append random suffix if needed
+      let subdomain = baseSubdomain
+      let existingTenant = await prisma.tenant.findUnique({ where: { subdomain } })
+      let attempts = 0
+      while (existingTenant && attempts < 5) {
+        subdomain = `${baseSubdomain}-${Math.floor(Math.random() * 10000)}`
+        existingTenant = await prisma.tenant.findUnique({ where: { subdomain } })
+        attempts++
+      }
 
       dbUser = await prisma.$transaction(async (tx) => {
         const tenant = await tx.tenant.create({
           data: {
-            name: user.user_metadata?.store_name || `${user.email?.split('@')[0]}'s Store`,
+            name: user.user_metadata?.store_name || `${emailPrefix}'s Store`,
             subdomain,
           }
         })
@@ -54,7 +65,6 @@ export async function POST(request: NextRequest) {
             emailVerified: user.email_confirmed_at != null,
             tenantId: tenant.id,
           },
-          include: { tenant: { include: { subscriptions: true } } }
         })
 
         // Create trial subscription if not exists
@@ -95,8 +105,9 @@ export async function GET(request: NextRequest) {
   const error = searchParams.get('error')
   const plan = searchParams.get('plan') || 'grow'
 
-  // Redirect URL - use the client-side callback handler
-  const origin = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3003'
+  // Redirect URL — derive from the incoming request so localhost testing works
+  const requestOrigin = request.nextUrl.origin
+  const origin = requestOrigin.includes('localhost') ? requestOrigin : (process.env.NEXT_PUBLIC_APP_URL || 'https://ezvento.karthi-21.com')
 
   if (error) {
     console.error('OAuth error:', error)
@@ -104,9 +115,14 @@ export async function GET(request: NextRequest) {
   }
 
   // For OAuth, redirect to the client-side callback with the code
-  // The client will exchange it and get the session
+  // Validate code format: Supabase PKCE codes are 43+ chars of alphanumeric + hyphens/underscores
   if (code) {
-    return NextResponse.redirect(`${origin}/auth/callback?code=${code}&plan=${plan}`)
+    const isValidCode = /^[A-Za-z0-9_-]{43,128}$/.test(code)
+    if (!isValidCode) {
+      console.error('Invalid OAuth code format')
+      return NextResponse.redirect(`${origin}/signup?error=${encodeURIComponent('Invalid authentication code')}`)
+    }
+    return NextResponse.redirect(`${origin}/auth/callback?code=${encodeURIComponent(code)}&plan=${plan}`)
   }
 
   // No code or error - redirect to signup

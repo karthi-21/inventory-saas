@@ -169,9 +169,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate invoice number
-    const invoiceNumber = await generateInvoiceNumber(user.tenantId, storeId)
-
     // Calculate amounts
     const paidAmount = amountPaid || totalAmount
     const dueAmount = Number(totalAmount) - Number(paidAmount)
@@ -179,6 +176,9 @@ export async function POST(request: NextRequest) {
 
     // Use transaction for atomic operations
     const result = await prisma.$transaction(async (tx) => {
+      // Generate invoice number inside transaction to prevent race conditions
+      const invoiceNumber = await generateInvoiceNumber(user.tenantId, storeId, 'INV', tx)
+
       // Create invoice
       const invoice = await tx.salesInvoice.create({
         data: {
@@ -364,7 +364,7 @@ export async function POST(request: NextRequest) {
       entityType: 'SalesInvoice',
       entityId: result.id,
       metadata: {
-        invoiceNumber,
+        invoiceNumber: result.invoiceNumber,
         totalAmount,
         billingType,
         paymentStatus,

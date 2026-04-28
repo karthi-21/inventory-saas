@@ -1,8 +1,8 @@
 /**
  * Excel Export Utility
- * Uses xlsx library to export data to .xlsx files with multiple sheets
+ * Uses exceljs to export data to .xlsx files with multiple sheets
  */
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 export interface ExcelSheet {
   name: string
@@ -10,28 +10,45 @@ export interface ExcelSheet {
   rows: (string | number | null | undefined)[][]
 }
 
-export function exportToExcel(sheets: ExcelSheet[], filename: string) {
-  const wb = XLSX.utils.book_new()
+export async function exportToExcel(sheets: ExcelSheet[], filename: string) {
+  const wb = new ExcelJS.Workbook()
 
   for (const sheet of sheets) {
-    const ws = XLSX.utils.aoa_to_sheet([sheet.headers, ...sheet.rows])
+    const ws = wb.addWorksheet(sheet.name)
+    ws.addRow(sheet.headers)
+    sheet.rows.forEach((row) => ws.addRow(row))
 
     // Set column widths based on header length
-    ws['!cols'] = sheet.headers.map((h) => ({
-      wch: Math.max(h.length + 2, 12),
-    }))
-
-    XLSX.utils.book_append_sheet(wb, ws, sheet.name)
+    sheet.headers.forEach((h, i) => {
+      const col = ws.getColumn(i + 1)
+      col.width = Math.max(h.length + 2, 12)
+    })
   }
 
-  XLSX.writeFile(wb, filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`)
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename.endsWith('.xlsx') ? filename : `${filename}.xlsx`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 /**
  * Export sales report to Excel
  */
 export function exportSalesReport(
-  dailySales: Array<{ date: string; invoices: number; revenue: number; paid: number; due: number; gst: number }>,
+  dailySales: Array<{
+    date: string
+    invoices: number
+    revenue: number
+    paid: number
+    due: number
+    gst: number
+  }>,
   filename = 'sales-report'
 ) {
   exportToExcel(
@@ -61,7 +78,14 @@ export function exportSalesReport(
  * Export inventory report to Excel
  */
 export function exportInventoryReport(
-  items: Array<{ name: string; sku: string; category: string; stock: number; reorderLevel: number; sellingPrice: number }>,
+  items: Array<{
+    name: string
+    sku: string
+    category: string
+    stock: number
+    reorderLevel: number
+    sellingPrice: number
+  }>,
   filename = 'inventory-report'
 ) {
   exportToExcel(
@@ -80,7 +104,13 @@ export function exportInventoryReport(
  * Export outstanding payments report to Excel
  */
 export function exportOutstandingReport(
-  customers: Array<{ firstName: string; lastName?: string; phone: string; totalPurchases: number; totalDue: number }>,
+  customers: Array<{
+    firstName: string
+    lastName?: string
+    phone: string
+    totalPurchases: number
+    totalDue: number
+  }>,
   filename = 'outstanding-report'
 ) {
   exportToExcel(

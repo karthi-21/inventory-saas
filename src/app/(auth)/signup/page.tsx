@@ -12,46 +12,12 @@ import { Separator } from '@/components/ui/separator'
 import { Loader2, Store, Star, Mail, Lock, Phone } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { toast } from 'sonner'
+import { PLANS, type PlanKey } from '@/config/plans'
 
 // Feature flags for auth providers
 const ENABLE_EMAIL_AUTH = process.env.NEXT_PUBLIC_ENABLE_EMAIL_AUTH !== 'false'
 const ENABLE_GOOGLE_AUTH = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true'
 const ENABLE_PHONE_AUTH = process.env.NEXT_PUBLIC_ENABLE_PHONE_AUTH === 'true'
-
-const plans = {
-  launch: {
-    id: 'launch',
-    name: 'Launch',
-    price: 999,
-    priceDisplay: '₹999',
-    period: '/month',
-    description: 'Perfect for a single store',
-    features: ['1 Store', '3 Users', 'GST Billing', 'Stock Tracking', 'Email Support'],
-    highlight: false,
-  },
-  grow: {
-    id: 'grow',
-    name: 'Grow',
-    price: 2499,
-    priceDisplay: '₹2,499',
-    period: '/month',
-    description: 'Growing retail businesses',
-    features: ['3 Stores', '10 Users', 'Full Stock', 'Multi-Payment', 'Customer Management', 'Reports & Export', 'Priority Support'],
-    highlight: true,
-  },
-  scale: {
-    id: 'scale',
-    name: 'Scale',
-    price: 0,
-    priceDisplay: 'Custom',
-    period: '',
-    description: 'Franchises & large operations',
-    features: ['Unlimited Stores', 'Unlimited Users', 'Custom Roles', 'API Access', 'White-label', 'Dedicated Support'],
-    highlight: false,
-  },
-}
-
-type PlanKey = keyof typeof plans
 
 function SignupContent() {
   const searchParams = useSearchParams()
@@ -74,23 +40,29 @@ function SignupContent() {
   // Get plan from URL param
   useEffect(() => {
     const planParam = searchParams.get('plan') as PlanKey | null
-    if (planParam && plans[planParam]) {
+    if (planParam && PLANS[planParam]) {
       setSelectedPlan(planParam)
       setStep('signup')
     }
   }, [searchParams])
 
-  const plan = plans[selectedPlan]
+  const plan = PLANS[selectedPlan]
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true)
     setAuthError(null)
 
     try {
+      const redirectTo = `${window.location.origin}/auth/callback?plan=${selectedPlan}`
+      if (process.env.NODE_ENV === 'development') {
+         
+        console.log('[OAuth Debug] redirectTo:', redirectTo)
+      }
+
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?plan=${selectedPlan}`,
+          redirectTo,
         },
       })
 
@@ -327,7 +299,7 @@ function SignupContent() {
           {/* Plan Selection Step */}
           {step === 'plan' && (
             <div className="space-y-4">
-              {Object.entries(plans).map(([key, p]) => (
+              {Object.entries(PLANS).map(([key, p]) => (
                 <button
                   key={key}
                   onClick={() => setSelectedPlan(key as PlanKey)}
@@ -350,7 +322,7 @@ function SignupContent() {
                 </button>
               ))}
               <Button onClick={() => setStep('signup')} className="w-full">
-                Continue with {plans[selectedPlan].name}
+                Continue with {PLANS[selectedPlan].name}
               </Button>
             </div>
           )}

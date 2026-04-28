@@ -54,6 +54,8 @@ playwright-report/
 skills-lock.json
 .claude/settings.local.json
 .claude/worktrees/
+.claude/skills/
+skills/
 
 # Continue.dev (no longer used)
 .continue/*
