@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { prisma } from './db'
 import { createServerSupabaseClient } from './supabase/server'
 import { Prisma, PermissionModule, PermissionAction } from '@prisma/client'
@@ -95,28 +95,40 @@ export function getPagination(searchParams: URLSearchParams) {
 /**
  * Generate invoice number
  */
-export async function generateInvoiceNumber(tenantId: string, storeId: string, prefix = 'INV') {
+type PrismaTx = Omit<typeof prisma, '$connect' | '$disconnect' | '$on' | '$transaction' | '$use' | '$extends'>
+
+export async function generateInvoiceNumber(tenantId: string, storeId: string, prefix = 'INV', tx?: PrismaTx) {
+  const client = tx || prisma
   const date = new Date()
   const year = date.getFullYear()
   const month = String(date.getMonth() + 1).padStart(2, '0')
   const day = String(date.getDate()).padStart(2, '0')
   const datePrefix = `${prefix}${year}${month}${day}`
 
-  // Get the last invoice for this store
-  const lastInvoice = await prisma.salesInvoice.findFirst({
-    where: { tenantId, storeId },
-    orderBy: { createdAt: 'desc' }
-  })
+  // Use advisory lock to prevent race conditions on invoice number generation
+  const lockKey = `invoice:${tenantId}:${storeId}:${datePrefix}`
+  const lockHash = Array.from(lockKey).reduce((h, c) => (h * 31 + c.charCodeAt(0)) & 0x7fffffff, 0)
+  await client.$executeRaw`SELECT pg_advisory_lock(${lockHash})`
 
-  let sequence = 1
-  if (lastInvoice?.invoiceNumber) {
-    const match = lastInvoice.invoiceNumber.match(/(\d+)$/)
-    if (match) {
-      sequence = parseInt(match[1]) + 1
+  try {
+    // Get the last invoice for this store
+    const lastInvoice = await client.salesInvoice.findFirst({
+      where: { tenantId, storeId },
+      orderBy: { createdAt: 'desc' }
+    })
+
+    let sequence = 1
+    if (lastInvoice?.invoiceNumber) {
+      const match = lastInvoice.invoiceNumber.match(/(\d+)$/)
+      if (match) {
+        sequence = parseInt(match[1]) + 1
+      }
     }
-  }
 
-  return `${datePrefix}-${String(sequence).padStart(4, '0')}`
+    return `${datePrefix}-${String(sequence).padStart(4, '0')}`
+  } finally {
+    await client.$executeRaw`SELECT pg_advisory_unlock(${lockHash})`
+  }
 }
 
 /**

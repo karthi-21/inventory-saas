@@ -109,7 +109,7 @@ export async function searchOfflineProducts(query: string, storeId?: string): Pr
     .limit(50)
     .toArray()
 
-  return products.map(({ updatedAt: _updatedAt, ...rest }) => rest) // eslint-disable-line @typescript-eslint/no-unused-vars
+  return products.map(({ updatedAt: _updatedAt, ...rest }) => rest)
 }
 
 /**

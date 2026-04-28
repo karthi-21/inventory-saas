@@ -291,37 +291,14 @@ CREATE POLICY user_persona_tenant_isolation ON "UserPersona"
         )
     );
 
-CREATE POLICY loyalty_tenant_isolation ON "LoyaltyTransaction"
+CREATE POLICY loyalty_points_log_tenant_isolation ON "LoyaltyPointsLog"
     FOR ALL
     TO authenticated
     USING (
         EXISTS (
             SELECT 1 FROM "Customer" c
-            WHERE c.id = "LoyaltyTransaction".customerId
+            WHERE c.id = "LoyaltyPointsLog".customerId
             AND c.tenantId = current_setting('app.current_tenant', true)::text
-        )
-    );
-
-CREATE POLICY stock_transfer_tenant_isolation ON "StockTransfer"
-    FOR ALL
-    TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM "Store" s
-            WHERE s.id = "StockTransfer".fromStoreId
-            AND s.tenantId = current_setting('app.current_tenant', true)::text
-        )
-    );
-
-CREATE POLICY stock_transfer_item_tenant_isolation ON "StockTransferItem"
-    FOR ALL
-    TO authenticated
-    USING (
-        EXISTS (
-            SELECT 1 FROM "StockTransfer" st
-            JOIN "Store" s ON s.id = st.fromStoreId
-            WHERE st.id = "StockTransferItem".transferId
-            AND s.tenantId = current_setting('app.current_tenant', true)::text
         )
     );
 

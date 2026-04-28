@@ -5,38 +5,164 @@ import { hash } from 'bcrypt'
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('Starting seed...')
+  console.log('🌱 Starting Ezvento POS seed...')
 
-  // Create a demo tenant
-  const tenant = await prisma.tenant.upsert({
-    where: { subdomain: 'demo' },
-    update: {},
-    create: {
-      name: 'Demo Electronics Store',
-      subdomain: 'demo',
-      pan: 'ABCDE1234F',
-      gstin: '27ABCDE1234F1Z5',
+  const tenantId = 'demo-tenant-1'
+  const store1Id = 'demo-store-1'
+  const store2Id = 'demo-store-2'
+
+  // ============================================
+  // CLEANUP: Delete existing demo data (idempotent)
+  // ============================================
+  console.log('🧹 Cleaning up existing demo data...')
+
+  await prisma.salesReturnItem.deleteMany({ where: { return: { invoice: { tenantId } } } })
+  await prisma.salesReturn.deleteMany({ where: { invoice: { tenantId } } })
+  await prisma.payment.deleteMany({ where: { invoice: { tenantId } } })
+  await prisma.salesInvoiceItem.deleteMany({ where: { invoice: { tenantId } } })
+  await prisma.salesInvoice.deleteMany({ where: { tenantId } })
+  await prisma.purchaseInvoice.deleteMany({ where: { tenantId } })
+  await prisma.purchaseOrder.deleteMany({ where: { tenantId } })
+  await prisma.stockAdjustment.deleteMany({ where: { storeId: { in: [store1Id, store2Id] } } })
+  await prisma.stockMovement.deleteMany({ where: { storeId: { in: [store1Id, store2Id] } } })
+  await prisma.inventoryStock.deleteMany({ where: { storeId: { in: [store1Id, store2Id] } } })
+  await prisma.loyaltyPointsLog.deleteMany({ where: { customer: { tenantId } } })
+  await prisma.followUp.deleteMany({ where: { customer: { tenantId } } })
+  await prisma.customer.deleteMany({ where: { tenantId } })
+  await prisma.productVariant.deleteMany({ where: { product: { tenantId } } })
+  await prisma.product.deleteMany({ where: { tenantId } })
+  await prisma.category.deleteMany({ where: { tenantId } })
+  await prisma.vendor.deleteMany({ where: { tenantId } })
+  await prisma.userPersona.deleteMany({ where: { user: { tenantId } } })
+  await prisma.personaPermission.deleteMany({ where: { persona: { tenantId } } })
+  await prisma.persona.deleteMany({ where: { tenantId } })
+  await prisma.userStoreAccess.deleteMany({ where: { user: { tenantId } } })
+  await prisma.shift.deleteMany({ where: { storeId: { in: [store1Id, store2Id] } } })
+  await prisma.user.deleteMany({ where: { tenantId } })
+  await prisma.printerConfig.deleteMany({ where: { tenantId } })
+  await prisma.storePaymentConfig.deleteMany({ where: { storeId: { in: [store1Id, store2Id] } } })
+  await prisma.location.deleteMany({ where: { storeId: { in: [store1Id, store2Id] } } })
+  await prisma.store.deleteMany({ where: { tenantId } })
+  await prisma.tenantSettings.deleteMany({ where: { tenantId } })
+  await prisma.subscription.deleteMany({ where: { tenantId } })
+  await prisma.emailLog.deleteMany({ where: { tenantId } })
+  await prisma.activityLog.deleteMany({ where: { tenantId } })
+  await prisma.tenant.deleteMany({ where: { id: tenantId } })
+
+  console.log('✅ Cleanup complete')
+
+  // ============================================
+  // 1. TENANT
+  // ============================================
+  console.log('🏢 Creating tenant...')
+
+  const tenant = await prisma.tenant.create({
+    data: {
+      id: tenantId,
+      name: 'Demo Store',
+      subdomain: 'demo-store',
+      plan: TenantPlan.PRO,
+      gstin: '27AABCU9603R1ZM',
+      address: '42 Anna Salai, Chennai',
+      state: 'Tamil Nadu',
+      pincode: '600002',
       phone: '+919876543210',
       email: 'demo@ezvento.karth-21.com',
-      address: '123 MG Road, Chennai',
-      state: 'Tamil Nadu',
-      pincode: '600001',
-      plan: TenantPlan.PRO,
     },
   })
 
-  console.log('Created tenant:', tenant.id)
+  console.log(`  ✅ Tenant: ${tenant.name} (${tenant.id})`)
 
-  // Create a demo user
+  // ============================================
+  // 2. SUBSCRIPTION
+  // ============================================
+  console.log('💳 Creating subscription...')
+
+  const now = new Date()
+  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1)
+  const periodEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59)
+
+  await prisma.subscription.create({
+    data: {
+      id: 'demo-sub-1',
+      tenantId: tenant.id,
+      plan: TenantPlan.PRO,
+      status: 'ACTIVE',
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: periodEnd,
+    },
+  })
+
+  console.log('  ✅ Subscription: PRO (ACTIVE)')
+
+  // ============================================
+  // 3. STORES & LOCATIONS
+  // ============================================
+  console.log('🏬 Creating stores and locations...')
+
+  const showroomStore = await prisma.store.create({
+    data: {
+      id: store1Id,
+      tenantId: tenant.id,
+      name: 'Chennai Showroom',
+      code: 'STR-ELEC',
+      storeType: StoreType.ELECTRONICS,
+      address: '42 Anna Salai, Chennai',
+      state: 'Tamil Nadu',
+      pincode: '600002',
+      phone: '+919876543211',
+      isActive: true,
+    },
+  })
+
+  const groceryStore = await prisma.store.create({
+    data: {
+      id: store2Id,
+      tenantId: tenant.id,
+      name: 'Chennai Grocery',
+      code: 'STR-GROC',
+      storeType: StoreType.GROCERY,
+      address: '15 T Nagar, Chennai',
+      state: 'Tamil Nadu',
+      pincode: '600017',
+      phone: '+919876543212',
+      isActive: true,
+    },
+  })
+
+  console.log(`  ✅ ${showroomStore.name} (${showroomStore.id})`)
+  console.log(`  ✅ ${groceryStore.name} (${groceryStore.id})`)
+
+  // Locations
+  const showroomLoc1 = await prisma.location.create({
+    data: { id: 'demo-loc-showroom', storeId: showroomStore.id, name: 'Main Showroom', type: 'SHOWROOM', isActive: true },
+  })
+  const showroomLoc2 = await prisma.location.create({
+    data: { id: 'demo-loc-warehouse', storeId: showroomStore.id, name: 'Back Warehouse', type: 'WAREHOUSE', isActive: true },
+  })
+  const groceryLoc1 = await prisma.location.create({
+    data: { id: 'demo-loc-shelves', storeId: groceryStore.id, name: 'Main Shelves', type: 'RACK', isActive: true },
+  })
+  const groceryLoc2 = await prisma.location.create({
+    data: { id: 'demo-loc-cold', storeId: groceryStore.id, name: 'Cold Storage', type: 'COLD_STORAGE', isActive: true },
+  })
+
+  console.log('  ✅ Locations: 2 per store')
+
+  // ============================================
+  // 4. USERS
+  // ============================================
+  console.log('👤 Creating users...')
+
   const password = await hash('demo123', 10)
-  const user = await prisma.user.upsert({
-    where: { tenantId_email: { tenantId: tenant.id, email: 'demo@ezvento.karth-21.com' } },
-    update: {},
-    create: {
+
+  const owner = await prisma.user.create({
+    data: {
+      id: 'demo-user-owner',
       tenantId: tenant.id,
       email: 'demo@ezvento.karth-21.com',
-      firstName: 'Demo',
-      lastName: 'User',
+      firstName: 'Aravind',
+      lastName: 'Kumar',
       phone: '+919876543210',
       passwordHash: password,
       isOwner: true,
@@ -45,1227 +171,508 @@ async function main() {
     },
   })
 
-  console.log('Created user:', user.id)
-
-  // Create a store
-  const store = await prisma.store.upsert({
-    where: { id: 'demo-store-001' },
-    update: {},
-    create: {
-      id: 'demo-store-001',
+  const manager = await prisma.user.create({
+    data: {
+      id: 'demo-user-manager',
       tenantId: tenant.id,
-      name: 'Chennai Main Store',
-      code: 'STR-001',
-      storeType: StoreType.ELECTRONICS,
-      address: '123 MG Road, Chennai',
-      state: 'Tamil Nadu',
-      pincode: '600001',
-      phone: '+919876543210',
+      email: 'manager@ezvento.karth-21.com',
+      firstName: 'Priya',
+      lastName: 'Sharma',
+      phone: '+919876543220',
+      passwordHash: password,
+      isOwner: false,
       isActive: true,
+      emailVerified: true,
     },
   })
 
-  console.log('Created store:', store.id)
-
-  // Create store location
-  const location = await prisma.location.upsert({
-    where: { id: 'demo-location-001' },
-    update: {},
-    create: {
-      id: 'demo-location-001',
-      storeId: store.id,
-      name: 'Main Showroom',
-      type: 'SHOWROOM',
+  const cashier = await prisma.user.create({
+    data: {
+      id: 'demo-user-cashier',
+      tenantId: tenant.id,
+      email: 'cashier@ezvento.karth-21.com',
+      firstName: 'Ramesh',
+      lastName: 'V',
+      phone: '+919876543230',
+      passwordHash: password,
+      isOwner: false,
       isActive: true,
+      emailVerified: true,
     },
   })
 
-  console.log('Created location:', location.id)
+  console.log(`  ✅ ${owner.firstName} (Owner)`)
+  console.log(`  ✅ ${manager.firstName} (Manager)`)
+  console.log(`  ✅ ${cashier.firstName} (Cashier)`)
 
-  // Create categories
-  const categories = await Promise.all([
-    prisma.category.upsert({
-      where: { id: 'cat-mobiles' },
-      update: {},
-      create: {
-        id: 'cat-mobiles',
-        tenantId: tenant.id,
-        name: 'Mobiles',
-        description: 'Smartphones and mobile phones',
-        hsnCode: '8517',
-        isActive: true,
-      },
-    }),
-    prisma.category.upsert({
-      where: { id: 'cat-tvs' },
-      update: {},
-      create: {
-        id: 'cat-tvs',
-        tenantId: tenant.id,
-        name: 'TVs',
-        description: 'Televisions and displays',
-        hsnCode: '8528',
-        isActive: true,
-      },
-    }),
-    prisma.category.upsert({
-      where: { id: 'cat-accessories' },
-      update: {},
-      create: {
-        id: 'cat-accessories',
-        tenantId: tenant.id,
-        name: 'Accessories',
-        description: 'Phone cases, chargers, cables',
-        hsnCode: '8544',
-        isActive: true,
-      },
-    }),
-    prisma.category.upsert({
-      where: { id: 'cat-audio' },
-      update: {},
-      create: {
-        id: 'cat-audio',
-        tenantId: tenant.id,
-        name: 'Audio',
-        description: 'Headphones, speakers, earbuds',
-        hsnCode: '8518',
-        isActive: true,
-      },
-    }),
-  ])
+  // ============================================
+  // 5. USER STORE ACCESS
+  // ============================================
+  console.log('🔑 Assigning store access...')
 
-  console.log('Created categories:', categories.length)
+  const accesses = [
+    { userId: owner.id, storeId: showroomStore.id, isDefault: true },
+    { userId: owner.id, storeId: groceryStore.id, isDefault: false },
+    { userId: manager.id, storeId: showroomStore.id, isDefault: true },
+    { userId: manager.id, storeId: groceryStore.id, isDefault: false },
+    { userId: cashier.id, storeId: showroomStore.id, isDefault: true },
+    { userId: cashier.id, storeId: groceryStore.id, isDefault: false },
+  ]
 
-  // Create sample products
-  const products = await Promise.all([
-    prisma.product.upsert({
-      where: { id: 'prod-iphone15' },
-      update: {},
-      create: {
-        id: 'prod-iphone15',
-        tenantId: tenant.id,
-        categoryId: 'cat-mobiles',
-        name: 'iPhone 15 Pro (256GB)',
-        sku: 'IPHONE15-256',
-        hsnCode: '8517',
-        gstRate: 18,
-        mrp: 134900,
-        costPrice: 115000,
-        sellingPrice: 129900,
-        reorderLevel: 5,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-samsung-tv' },
-      update: {},
-      create: {
-        id: 'prod-samsung-tv',
-        tenantId: tenant.id,
-        categoryId: 'cat-tvs',
-        name: 'Samsung 43" Smart TV',
-        sku: 'SAMSUNG-43TV',
-        hsnCode: '8528',
-        gstRate: 18,
-        mrp: 45000,
-        costPrice: 35000,
-        sellingPrice: 42000,
-        reorderLevel: 3,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-sony-headphones' },
-      update: {},
-      create: {
-        id: 'prod-sony-headphones',
-        tenantId: tenant.id,
-        categoryId: 'cat-audio',
-        name: 'Sony WH-1000XM5',
-        sku: 'SONY-XM5',
-        hsnCode: '8518',
-        gstRate: 18,
-        mrp: 29990,
-        costPrice: 22000,
-        sellingPrice: 27990,
-        reorderLevel: 10,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-charger' },
-      update: {},
-      create: {
-        id: 'prod-charger',
-        tenantId: tenant.id,
-        categoryId: 'cat-accessories',
-        name: 'Anker 20W Fast Charger',
-        sku: 'ANKER-20W',
-        hsnCode: '8544',
-        gstRate: 18,
-        mrp: 1499,
-        costPrice: 800,
-        sellingPrice: 1299,
-        reorderLevel: 20,
-        isActive: true,
-      },
-    }),
-  ])
+  for (const a of accesses) {
+    await prisma.userStoreAccess.create({ data: a })
+  }
 
-  console.log('Created products:', products.length)
+  console.log(`  ✅ ${accesses.length} access records`)
 
-  // Create inventory stock for products
-  for (const product of products) {
-    await prisma.inventoryStock.upsert({
-      where: { id: `stock-${product.id}` },
-      update: {},
-      create: {
-        id: `stock-${product.id}`,
-        productId: product.id,
-        storeId: store.id,
-        locationId: location.id,
-        quantity: Math.floor(Math.random() * 50) + 10,
-        reservedQty: 0,
+  // ============================================
+  // 6. CATEGORIES (8)
+  // ============================================
+  console.log('📦 Creating categories...')
+
+  const catData = [
+    { id: 'demo-cat-mobiles', name: 'Mobiles & Tablets', desc: 'Smartphones, tablets, and accessories', hsn: '8517' },
+    { id: 'demo-cat-tvs', name: 'TVs & Displays', desc: 'Televisions, monitors, and projectors', hsn: '8528' },
+    { id: 'demo-cat-audio', name: 'Audio & Accessories', desc: 'Headphones, speakers, chargers, cables', hsn: '8518' },
+    { id: 'demo-cat-laptops', name: 'Laptops & Computers', desc: 'Laptops, desktops, and peripherals', hsn: '8471' },
+    { id: 'demo-cat-staples', name: 'Food Grains & Staples', desc: 'Rice, wheat, flour, pulses, and oils', hsn: '1006' },
+    { id: 'demo-cat-dairy', name: 'Dairy & Beverages', desc: 'Milk, butter, tea, coffee, and juices', hsn: '0405' },
+    { id: 'demo-cat-snacks', name: 'Snacks & Confectionery', desc: 'Chips, chocolates, biscuits, and sweets', hsn: '1905' },
+    { id: 'demo-cat-household', name: 'Household & Cleaning', desc: 'Detergents, cleaners, and home essentials', hsn: '3402' },
+  ]
+
+  for (const c of catData) {
+    await prisma.category.create({
+      data: { id: c.id, tenantId: tenant.id, name: c.name, description: c.desc, hsnCode: c.hsn, isActive: true },
+    })
+  }
+
+  console.log(`  ✅ ${catData.length} categories`)
+
+  // ============================================
+  // 7. PRODUCTS (14)
+  // ============================================
+  console.log('🛒 Creating products...')
+
+  interface SeedProduct {
+    id: string; cat: string; name: string; sku: string; barcode: string; brand: string;
+    hsn: string; gst: number; mrp: number; cost: number; sell: number; reorder: number;
+    weight?: number; wunit?: string;
+  }
+
+  const prodData: SeedProduct[] = [
+    // Electronics (7)
+    { id: 'demo-prod-iphone15', cat: 'demo-cat-mobiles', name: 'iPhone 15 Pro 256GB', sku: 'IPH15-256', barcode: '8901234567001', brand: 'Apple', hsn: '8517', gst: 18, mrp: 134900, cost: 115000, sell: 129900, reorder: 5 },
+    { id: 'demo-prod-samsung-s24', cat: 'demo-cat-mobiles', name: 'Samsung Galaxy S24 Ultra', sku: 'S24U-512', barcode: '8901234567002', brand: 'Samsung', hsn: '8517', gst: 18, mrp: 134999, cost: 110000, sell: 124999, reorder: 5 },
+    { id: 'demo-prod-samsung-tv', cat: 'demo-cat-tvs', name: 'Samsung 43" Crystal 4K TV', sku: 'SAM-43TV-4K', barcode: '8901234567003', brand: 'Samsung', hsn: '8528', gst: 18, mrp: 45000, cost: 35000, sell: 41990, reorder: 3 },
+    { id: 'demo-prod-sony-headphones', cat: 'demo-cat-audio', name: 'Sony WH-1000XM5', sku: 'SONY-XM5', barcode: '8901234567004', brand: 'Sony', hsn: '8518', gst: 18, mrp: 29990, cost: 22000, sell: 27990, reorder: 8 },
+    { id: 'demo-prod-charger', cat: 'demo-cat-audio', name: 'Anker 20W Fast Charger', sku: 'ANK-20W', barcode: '8901234567005', brand: 'Anker', hsn: '8544', gst: 18, mrp: 1499, cost: 800, sell: 1299, reorder: 20 },
+    { id: 'demo-prod-macbook', cat: 'demo-cat-laptops', name: 'MacBook Air M2 13"', sku: 'MBA-M2-256', barcode: '8901234567006', brand: 'Apple', hsn: '8471', gst: 18, mrp: 114900, cost: 95000, sell: 109900, reorder: 3 },
+    { id: 'demo-prod-bose-speaker', cat: 'demo-cat-audio', name: 'Bose SoundLink Revolve+ II', sku: 'BOSE-REV2', barcode: '8901234567007', brand: 'Bose', hsn: '8518', gst: 18, mrp: 26900, cost: 21000, sell: 24990, reorder: 5 },
+    // Grocery (7)
+    { id: 'demo-prod-basmati', cat: 'demo-cat-staples', name: 'India Gate Basmati Rice 5kg', sku: 'RICE-BAS-5KG', barcode: '8901234567101', brand: 'India Gate', hsn: '1006', gst: 5, mrp: 650, cost: 480, sell: 599, reorder: 15, weight: 5, wunit: 'kg' },
+    { id: 'demo-prod-atta', cat: 'demo-cat-staples', name: 'Aashirvaad Atta 10kg', sku: 'ATTA-10KG', barcode: '8901234567102', brand: 'Aashirvaad', hsn: '1101', gst: 5, mrp: 520, cost: 400, sell: 489, reorder: 10, weight: 10, wunit: 'kg' },
+    { id: 'demo-prod-amul-butter', cat: 'demo-cat-dairy', name: 'Amul Butter 500g', sku: 'AMUL-BTR-500', barcode: '8901234567103', brand: 'Amul', hsn: '0405', gst: 5, mrp: 260, cost: 220, sell: 250, reorder: 20, weight: 0.5, wunit: 'kg' },
+    { id: 'demo-prod-nescafe', cat: 'demo-cat-dairy', name: 'Nescafe Classic 200g', sku: 'NESCF-200G', barcode: '8901234567104', brand: 'Nescafe', hsn: '2101', gst: 18, mrp: 550, cost: 420, sell: 519, reorder: 12, weight: 0.2, wunit: 'kg' },
+    { id: 'demo-prod-dairy-milk', cat: 'demo-cat-snacks', name: 'Cadbury Dairy Milk 150g', sku: 'CDM-150G', barcode: '8901234567105', brand: 'Cadbury', hsn: '1806', gst: 18, mrp: 180, cost: 130, sell: 170, reorder: 25, weight: 0.15, wunit: 'kg' },
+    { id: 'demo-prod-lays', cat: 'demo-cat-snacks', name: 'Lays Classic Salted 52g', sku: 'LAYS-52G', barcode: '8901234567106', brand: 'Lays', hsn: '2005', gst: 12, mrp: 20, cost: 14, sell: 20, reorder: 50, weight: 0.052, wunit: 'kg' },
+    { id: 'demo-prod-surf-excel', cat: 'demo-cat-household', name: 'Surf Excel Easy Wash 1kg', sku: 'SURF-1KG', barcode: '8901234567107', brand: 'Surf Excel', hsn: '3402', gst: 18, mrp: 210, cost: 155, sell: 199, reorder: 15, weight: 1, wunit: 'kg' },
+  ]
+
+  for (const p of prodData) {
+    await prisma.product.create({
+      data: {
+        id: p.id,
+        tenantId: tenant.id,
+        categoryId: p.cat,
+        name: p.name,
+        sku: p.sku,
+        barcode: p.barcode,
+        brand: p.brand,
+        hsnCode: p.hsn,
+        gstRate: p.gst,
+        mrp: p.mrp,
+        costPrice: p.cost,
+        sellingPrice: p.sell,
+        reorderLevel: p.reorder,
+        isActive: true,
+        ...(p.weight !== undefined && { weight: p.weight, weightUnit: p.wunit }),
       },
     })
   }
 
-  // Create tenant settings
-  await prisma.tenantSettings.upsert({
-    where: { tenantId: tenant.id },
-    update: {},
-    create: {
+  console.log(`  ✅ ${prodData.length} products`)
+
+  // ============================================
+  // 8. INVENTORY STOCK
+  // ============================================
+  console.log('📊 Creating inventory stock...')
+
+  const elecIds = prodData.filter(p => !p.weight).map(p => p.id)
+  const grocIds = prodData.filter(p => p.weight).map(p => p.id)
+
+  // Showroom: Main Showroom
+  for (let i = 0; i < elecIds.length; i++) {
+    await prisma.inventoryStock.create({
+      data: { id: `demo-stock-el-sh-${i + 1}`, productId: elecIds[i], storeId: showroomStore.id, locationId: showroomLoc1.id, quantity: [25, 18, 12, 20, 45, 8, 14][i] },
+    })
+  }
+  // Showroom: Warehouse
+  for (let i = 0; i < elecIds.length; i++) {
+    await prisma.inventoryStock.create({
+      data: { id: `demo-stock-el-wh-${i + 1}`, productId: elecIds[i], storeId: showroomStore.id, locationId: showroomLoc2.id, quantity: [10, 8, 6, 15, 30, 4, 8][i] },
+    })
+  }
+  // Grocery: Main Shelves
+  const grocQtys = [40, 30, 50, 25, 60, 120, 35]
+  for (let i = 0; i < grocIds.length; i++) {
+    await prisma.inventoryStock.create({
+      data: { id: `demo-stock-gr-sh-${i + 1}`, productId: grocIds[i], storeId: groceryStore.id, locationId: groceryLoc1.id, quantity: grocQtys[i] },
+    })
+  }
+  // Grocery: Cold Storage (Amul Butter only)
+  await prisma.inventoryStock.create({
+    data: { id: 'demo-stock-gr-cold-1', productId: 'demo-prod-amul-butter', storeId: groceryStore.id, locationId: groceryLoc2.id, quantity: 30 },
+  })
+
+  const totalStock = elecIds.length * 2 + grocIds.length + 1
+  console.log(`  ✅ ${totalStock} stock records`)
+
+  // ============================================
+  // 9. VENDORS (2)
+  // ============================================
+  console.log('🚚 Creating vendors...')
+
+  await prisma.vendor.create({
+    data: { id: 'demo-vendor-1', tenantId: tenant.id, name: 'Samsung India Electronics', phone: '+914449876543', email: 'billing@samsung-india.com', gstin: '33AAACS1234B1Z9', address: 'SP Road, Bengaluru', state: 'Karnataka', creditPeriodDays: 30, isActive: true },
+  })
+  await prisma.vendor.create({
+    data: { id: 'demo-vendor-2', tenantId: tenant.id, name: 'Metro Cash & Carry Chennai', phone: '+914428765432', email: 'chennai@metro.co.in', gstin: '33AAACM5678C1Z2', address: 'Pallikaranai, Chennai', state: 'Tamil Nadu', creditPeriodDays: 15, isActive: true },
+  })
+
+  console.log('  ✅ 2 vendors')
+
+  // ============================================
+  // 10. CUSTOMERS (5)
+  // ============================================
+  console.log('👥 Creating customers...')
+
+  const custData = [
+    { id: 'demo-cust-1', store: showroomStore.id, type: 'RETAIL', first: 'Rajesh', last: 'Menon', phone: '+919841234567', email: 'rajesh@email.com', city: 'Chennai', climit: 50000, cbal: 15000, lp: 350 },
+    { id: 'demo-cust-2', store: showroomStore.id, type: 'RETAIL', first: 'Anita', last: 'Iyer', phone: '+919841234568', email: 'anita@email.com', city: 'Chennai', climit: 25000, cbal: 0, lp: 120 },
+    { id: 'demo-cust-3', store: groceryStore.id, type: 'RETAIL', first: 'Murugan', last: 'T', phone: '+919841234569', email: null, city: 'Chennai', climit: 5000, cbal: 3200, lp: 80 },
+    { id: 'demo-cust-4', store: groceryStore.id, type: 'WHOLESALE', first: 'Hotel', last: 'Saravana Bhavan', phone: '+919841234570', email: 'orders@saravanabhavan.com', gstin: '33AABCS1234D1Z6', city: 'Chennai', climit: 100000, cbal: 45000, lp: 0 },
+    { id: 'demo-cust-5', store: showroomStore.id, type: 'RETAIL', first: 'Deepika', last: 'S', phone: '+919841234571', email: 'deepika@email.com', city: 'Chennai', climit: 15000, cbal: 8000, lp: 210 },
+  ]
+
+  for (const c of custData) {
+    await prisma.customer.create({
+      data: {
+        id: c.id,
+        tenantId: tenant.id,
+        storeId: c.store,
+        customerType: c.type as 'RETAIL' | 'WHOLESALE',
+        firstName: c.first,
+        lastName: c.last,
+        phone: c.phone,
+        email: c.email,
+        gstin: c.gstin ?? null,
+        city: c.city,
+        state: 'Tamil Nadu',
+        creditLimit: c.climit,
+        creditBalance: c.cbal,
+        loyaltyPoints: c.lp,
+        isActive: true,
+      },
+    })
+  }
+
+  console.log(`  ✅ ${custData.length} customers`)
+
+  // ============================================
+  // 11. SALES INVOICES (6)
+  // ============================================
+  console.log('🧾 Creating sales invoices...')
+
+  const today = new Date()
+
+  async function makeInvoice(args: {
+    num: string; store: string; loc: string; cust: string | null; by: string;
+    itype: string; btype: string;
+    items: { pid: string; hsn: string; qty: number; price: number; gst: number }[];
+    pmethod: string; daysAgo: number;
+  }) {
+    const d = new Date(today)
+    d.setDate(d.getDate() - args.daysAgo)
+
+    const lineTotals = args.items.map(i => i.qty * i.price)
+    const subtotal = lineTotals.reduce((a, b) => a + b, 0)
+    const gstAmounts = args.items.map((item, idx) => Math.round(lineTotals[idx] * item.gst / 100 * 100) / 100)
+    const totalGst = gstAmounts.reduce((a, b) => a + b, 0)
+    const totalAmount = subtotal + totalGst
+
+    return prisma.salesInvoice.create({
+      data: {
+        tenantId: tenant.id,
+        storeId: args.store,
+        locationId: args.loc,
+        invoiceNumber: args.num,
+        invoiceType: args.itype as import('@prisma/client').InvoiceType,
+        customerId: args.cust,
+        createdById: args.by,
+        invoiceDate: d,
+        subtotal,
+        totalGst,
+        roundOff: 0,
+        totalAmount,
+        amountPaid: totalAmount,
+        amountDue: 0,
+        paymentStatus: 'PAID',
+        billingType: args.btype as import('@prisma/client').BillingType,
+        items: {
+          create: args.items.map((item, idx) => ({
+            productId: item.pid,
+            hsnCode: item.hsn,
+            quantity: item.qty,
+            unitPrice: item.price,
+            gstRate: item.gst,
+            gstAmount: gstAmounts[idx],
+            totalAmount: lineTotals[idx] + gstAmounts[idx],
+          })),
+        },
+        payments: {
+          create: {
+            amount: totalAmount,
+            method: args.pmethod as import('@prisma/client').PaymentMethod,
+          },
+        },
+      },
+    })
+  }
+
+  // INV-001: iPhone + 2x charger (Rajesh, UPI, 1 day ago)
+  await makeInvoice({
+    num: 'INV-2026-00101', store: showroomStore.id, loc: showroomLoc1.id, cust: 'demo-cust-1', by: cashier.id,
+    itype: 'RETAIL_INVOICE', btype: 'UPI',
+    items: [
+      { pid: 'demo-prod-iphone15', hsn: '8517', qty: 1, price: 129900, gst: 18 },
+      { pid: 'demo-prod-charger', hsn: '8544', qty: 2, price: 1299, gst: 18 },
+    ],
+    pmethod: 'UPI', daysAgo: 1,
+  })
+
+  // INV-002: TV + headphones (Anita, CARD, 1 day ago)
+  await makeInvoice({
+    num: 'INV-2026-00102', store: showroomStore.id, loc: showroomLoc1.id, cust: 'demo-cust-2', by: cashier.id,
+    itype: 'RETAIL_INVOICE', btype: 'CARD',
+    items: [
+      { pid: 'demo-prod-samsung-tv', hsn: '8528', qty: 1, price: 41990, gst: 18 },
+      { pid: 'demo-prod-sony-headphones', hsn: '8518', qty: 1, price: 27990, gst: 18 },
+    ],
+    pmethod: 'CARD', daysAgo: 1,
+  })
+
+  // INV-003: Grocery — rice, atta, detergent (Murugan, CASH, 2 days ago)
+  await makeInvoice({
+    num: 'INV-2026-00103', store: groceryStore.id, loc: groceryLoc1.id, cust: 'demo-cust-3', by: cashier.id,
+    itype: 'CASH_MEMO', btype: 'CASH',
+    items: [
+      { pid: 'demo-prod-basmati', hsn: '1006', qty: 2, price: 599, gst: 5 },
+      { pid: 'demo-prod-atta', hsn: '1101', qty: 1, price: 489, gst: 5 },
+      { pid: 'demo-prod-surf-excel', hsn: '3402', qty: 1, price: 199, gst: 18 },
+    ],
+    pmethod: 'CASH', daysAgo: 2,
+  })
+
+  // INV-004: B2B wholesale — bulk rice + butter (Hotel Saravana, CREDIT, 3 days ago)
+  await makeInvoice({
+    num: 'INV-2026-00104', store: groceryStore.id, loc: groceryLoc1.id, cust: 'demo-cust-4', by: manager.id,
+    itype: 'TAX_INVOICE', btype: 'CREDIT',
+    items: [
+      { pid: 'demo-prod-basmati', hsn: '1006', qty: 20, price: 580, gst: 5 },
+      { pid: 'demo-prod-amul-butter', hsn: '0405', qty: 50, price: 245, gst: 5 },
+    ],
+    pmethod: 'CREDIT', daysAgo: 3,
+  })
+
+  // INV-005: MacBook + Bose speaker (Deepika, MIXED, 3 days ago)
+  await makeInvoice({
+    num: 'INV-2026-00105', store: showroomStore.id, loc: showroomLoc1.id, cust: 'demo-cust-5', by: cashier.id,
+    itype: 'RETAIL_INVOICE', btype: 'MIXED',
+    items: [
+      { pid: 'demo-prod-macbook', hsn: '8471', qty: 1, price: 109900, gst: 18 },
+      { pid: 'demo-prod-bose-speaker', hsn: '8518', qty: 1, price: 24990, gst: 18 },
+    ],
+    pmethod: 'MIXED', daysAgo: 3,
+  })
+
+  // INV-006: Walk-in grocery — chocolate, chips, coffee (no customer, CASH, today)
+  await makeInvoice({
+    num: 'INV-2026-00106', store: groceryStore.id, loc: groceryLoc1.id, cust: null, by: cashier.id,
+    itype: 'CASH_MEMO', btype: 'CASH',
+    items: [
+      { pid: 'demo-prod-dairy-milk', hsn: '1806', qty: 3, price: 170, gst: 18 },
+      { pid: 'demo-prod-lays', hsn: '2005', qty: 5, price: 20, gst: 12 },
+      { pid: 'demo-prod-nescafe', hsn: '2101', qty: 1, price: 519, gst: 18 },
+    ],
+    pmethod: 'CASH', daysAgo: 0,
+  })
+
+  console.log('  ✅ 6 sales invoices with items & payments')
+
+  // ============================================
+  // 12. TENANT SETTINGS
+  // ============================================
+  console.log('⚙️ Creating tenant settings...')
+
+  await prisma.tenantSettings.create({
+    data: {
+      id: 'demo-settings-1',
       tenantId: tenant.id,
-      defaultLanguage: 'en',
       currency: 'INR',
       fiscalYearStart: 4,
       lowStockAlertDays: 7,
-      expiryAlertDays: 30,
+      expiryAlertDays: 7,
       invoicePrefix: 'INV',
       decimalPlaces: 2,
       roundOffEnabled: true,
+      creditLimitMode: 'SOFT',
+      loyaltyEnabled: true,
+      pointsPerRupee: 1,
+      rupeePerPoint: 0.25,
+      minimumRedemption: 100,
+      pointsExpiryDays: 365,
+      emailNotificationsEnabled: true,
+      invoiceAutoSend: true,
+      lowStockEmailAlerts: true,
+      paymentReminderFrequency: 'WEEKLY',
     },
   })
 
-  // Create persona (find or create to handle existing data)
-  let persona = await prisma.persona.findFirst({
-    where: { tenantId: tenant.id, name: 'Owner/Admin' }
-  })
-  if (!persona) {
-    persona = await prisma.persona.create({
-      data: {
-        id: 'persona-owner',
-        tenantId: tenant.id,
-        name: 'Owner/Admin',
-        description: 'Full access to all features',
-        isSystem: true,
-      },
-    })
-  }
+  console.log('  ✅ Settings configured')
 
-  // Create user persona link (find or create)
-  const existingPersonaLink = await prisma.userPersona.findFirst({
-    where: { userId: user.id, personaId: persona.id }
-  })
-  if (!existingPersonaLink) {
-    await prisma.userPersona.create({
-      data: {
-        id: 'user-persona-demo',
-        userId: user.id,
-        personaId: persona.id,
-        storeId: store.id,
-      },
-    })
-  }
+  // ============================================
+  // 13. STORE PAYMENT CONFIGS
+  // ============================================
+  console.log('💳 Creating store payment configs...')
 
-  // Create subscription
-  await prisma.subscription.upsert({
-    where: { id: 'sub-demo' },
-    update: {},
-    create: {
-      id: 'sub-demo',
-      tenantId: tenant.id,
-      plan: TenantPlan.PRO,
-      status: 'ACTIVE',
-      currentPeriodStart: new Date(),
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-    },
-  })
-
-  // Create sample customers
-  const customers = await Promise.all([
-    prisma.customer.upsert({
-      where: { id: 'cust-001' },
-      update: {},
-      create: {
-        id: 'cust-001',
-        tenantId: tenant.id,
-        firstName: 'Priya',
-        lastName: 'Sharma',
-        phone: '+919876543211',
-        email: 'priya@example.com',
-        customerType: 'RETAIL',
-      },
-    }),
-    prisma.customer.upsert({
-      where: { id: 'cust-002' },
-      update: {},
-      create: {
-        id: 'cust-002',
-        tenantId: tenant.id,
-        firstName: 'Quick',
-        lastName: 'Mart',
-        phone: '+919876543212',
-        email: 'quickmart@example.com',
-        customerType: 'WHOLESALE',
-        gstin: '27AAAAA0000A1Z5',
-      },
-    }),
-  ])
-
-  console.log('Created customers:', customers.length)
-
-  // Create sample vendor
-  const vendor = await prisma.vendor.upsert({
-    where: { id: 'vendor-001' },
-    update: {},
-    create: {
-      id: 'vendor-001',
-      tenantId: tenant.id,
-      name: 'Samsung India Electronics',
-      phone: '+918000000000',
-      email: 'orders@samsung.in',
-      gstin: '27AAACS8337M1Z5',
-      address: 'Samsung House, Gurgaon',
-      state: 'Haryana',
-      pincode: '122001',
-    },
-  })
-
-  console.log('Created vendor:', vendor.id)
-
-  // =============================================
-  // ENHANCED SEED DATA
-  // =============================================
-
-  // --- More Customers (8 additional, 10 total) ---
-  const moreCustomers = await Promise.all([
-    prisma.customer.upsert({
-      where: { id: 'cust-003' },
-      update: {},
-      create: {
-        id: 'cust-003',
-        tenantId: tenant.id,
-        storeId: store.id,
-        firstName: 'Rajesh',
-        lastName: 'Kumar',
-        phone: '+919940012345',
-        email: 'rajesh.kumar@gmail.com',
-        customerType: 'RETAIL',
-        address: '45 Anna Nagar, Chennai',
-        city: 'Chennai',
-        state: 'Tamil Nadu',
-        pincode: '600040',
-      },
-    }),
-    prisma.customer.upsert({
-      where: { id: 'cust-004' },
-      update: {},
-      create: {
-        id: 'cust-004',
-        tenantId: tenant.id,
-        storeId: store.id,
-        firstName: 'Meena',
-        lastName: 'Iyer',
-        phone: '+919876543001',
-        email: 'meena.iyer@outlook.com',
-        customerType: 'RETAIL',
-        address: '12 Besant Nagar, Chennai',
-        city: 'Chennai',
-        state: 'Tamil Nadu',
-        pincode: '600090',
-      },
-    }),
-    prisma.customer.upsert({
-      where: { id: 'cust-005' },
-      update: {},
-      create: {
-        id: 'cust-005',
-        tenantId: tenant.id,
-        storeId: store.id,
-        firstName: 'Sri',
-        lastName: 'Electronics',
-        phone: '+918010056789',
-        email: 'purchases@srielectronics.in',
-        customerType: 'WHOLESALE',
-        gstin: '27BBBCC1234D1Z9',
-        address: '88 Ritchie Road, Mumbai',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pincode: '400001',
-        creditLimit: 500000,
-        creditBalance: 125000,
-      },
-    }),
-    prisma.customer.upsert({
-      where: { id: 'cust-006' },
-      update: {},
-      create: {
-        id: 'cust-006',
-        tenantId: tenant.id,
-        storeId: store.id,
-        firstName: 'Arjun',
-        lastName: 'Reddy',
-        phone: '+919710123456',
-        email: 'arjun.reddy@yahoo.com',
-        customerType: 'RETAIL',
-        address: '23 Jubilee Hills, Hyderabad',
-        city: 'Hyderabad',
-        state: 'Telangana',
-        pincode: '500033',
-      },
-    }),
-    prisma.customer.upsert({
-      where: { id: 'cust-007' },
-      update: {},
-      create: {
-        id: 'cust-007',
-        tenantId: tenant.id,
-        storeId: store.id,
-        firstName: 'Deepa',
-        lastName: 'Nair',
-        phone: '+919446789012',
-        email: 'deepa.nair@gmail.com',
-        customerType: 'RETAIL',
-        address: '56 Kaloor, Kochi',
-        city: 'Kochi',
-        state: 'Kerala',
-        pincode: '682017',
-      },
-    }),
-    prisma.customer.upsert({
-      where: { id: 'cust-008' },
-      update: {},
-      create: {
-        id: 'cust-008',
-        tenantId: tenant.id,
-        storeId: store.id,
-        firstName: 'Gupta',
-        lastName: 'Traders',
-        phone: '+919876504321',
-        email: 'orders@guptatraders.in',
-        customerType: 'WHOLESALE',
-        gstin: '27CCCPP5678Q1Z3',
-        address: '14 Sector 18, Noida',
-        city: 'Noida',
-        state: 'Uttar Pradesh',
-        pincode: '201301',
-        creditLimit: 1000000,
-        creditBalance: 450000,
-      },
-    }),
-    prisma.customer.upsert({
-      where: { id: 'cust-009' },
-      update: {},
-      create: {
-        id: 'cust-009',
-        tenantId: tenant.id,
-        storeId: store.id,
-        firstName: 'Kavitha',
-        lastName: 'Subramaniam',
-        phone: '+919600011122',
-        email: 'kavitha.s@hotmail.com',
-        customerType: 'RETAIL',
-        address: '7 T Nagar, Chennai',
-        city: 'Chennai',
-        state: 'Tamil Nadu',
-        pincode: '600017',
-      },
-    }),
-    prisma.customer.upsert({
-      where: { id: 'cust-010' },
-      update: {},
-      create: {
-        id: 'cust-010',
-        tenantId: tenant.id,
-        storeId: store.id,
-        firstName: 'Patel',
-        lastName: 'Distributors',
-        phone: '+917990033445',
-        email: 'sales@pateldist.in',
-        customerType: 'WHOLESALE',
-        gstin: '27DDDPQ9012R1Z7',
-        address: '31 CG Road, Ahmedabad',
-        city: 'Ahmedabad',
-        state: 'Gujarat',
-        pincode: '380006',
-        creditLimit: 750000,
-        creditBalance: 0,
-      },
-    }),
-  ])
-
-  console.log('Created additional customers:', moreCustomers.length)
-
-  // --- More Vendors (3 additional, 4 total) ---
-  const moreVendors = await Promise.all([
-    prisma.vendor.upsert({
-      where: { id: 'vendor-002' },
-      update: {},
-      create: {
-        id: 'vendor-002',
-        tenantId: tenant.id,
-        name: 'Apple India Distribution',
-        phone: '+918000010001',
-        email: 'orders@appleindia.co.in',
-        gstin: '27AAACI1234A1Z1',
-        address: 'Apple India Pvt Ltd, Cyber City, DLF Phase 2',
-        city: 'Gurgaon',
-        state: 'Haryana',
-        pincode: '122002',
-        creditPeriodDays: 30,
-      },
-    }),
-    prisma.vendor.upsert({
-      where: { id: 'vendor-003' },
-      update: {},
-      create: {
-        id: 'vendor-003',
-        tenantId: tenant.id,
-        name: 'Sony India Pvt Ltd',
-        phone: '+918000020002',
-        email: 'distributors@sony.co.in',
-        gstin: '27AAACS5678B1Z5',
-        address: 'Sony India, Bandra Kurla Complex',
-        city: 'Mumbai',
-        state: 'Maharashtra',
-        pincode: '400051',
-        creditPeriodDays: 21,
-      },
-    }),
-    prisma.vendor.upsert({
-      where: { id: 'vendor-004' },
-      update: {},
-      create: {
-        id: 'vendor-004',
-        tenantId: tenant.id,
-        name: 'Anker Innovations India',
-        phone: '+918000030003',
-        email: 'wholesale@ankerindia.com',
-        gstin: '27BBBBA9012C1Z9',
-        address: 'Anker India, Outer Ring Road, Marathahalli',
-        city: 'Bangalore',
-        state: 'Karnataka',
-        pincode: '560037',
-        creditPeriodDays: 15,
-      },
-    }),
-  ])
-
-  console.log('Created additional vendors:', moreVendors.length)
-
-  // --- More Products (11 additional, 15 total) ---
-  const moreProducts = await Promise.all([
-    // Mobiles
-    prisma.product.upsert({
-      where: { id: 'prod-samsung-s24' },
-      update: {},
-      create: {
-        id: 'prod-samsung-s24',
-        tenantId: tenant.id,
-        categoryId: 'cat-mobiles',
-        name: 'Samsung Galaxy S24 Ultra (256GB)',
-        sku: 'SAMSUNG-S24U-256',
-        brand: 'Samsung',
-        hsnCode: '8517',
-        gstRate: 18,
-        mrp: 134999,
-        costPrice: 110000,
-        sellingPrice: 129999,
-        reorderLevel: 5,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-oneplus-12' },
-      update: {},
-      create: {
-        id: 'prod-oneplus-12',
-        tenantId: tenant.id,
-        categoryId: 'cat-mobiles',
-        name: 'OnePlus 12 (256GB)',
-        sku: 'ONEPLUS-12-256',
-        brand: 'OnePlus',
-        hsnCode: '8517',
-        gstRate: 18,
-        mrp: 64999,
-        costPrice: 52000,
-        sellingPrice: 61999,
-        reorderLevel: 8,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-pixel8' },
-      update: {},
-      create: {
-        id: 'prod-pixel8',
-        tenantId: tenant.id,
-        categoryId: 'cat-mobiles',
-        name: 'Google Pixel 8 Pro (128GB)',
-        sku: 'PIXEL-8PRO-128',
-        brand: 'Google',
-        hsnCode: '8517',
-        gstRate: 18,
-        mrp: 106999,
-        costPrice: 88000,
-        sellingPrice: 99999,
-        reorderLevel: 4,
-        isActive: true,
-      },
-    }),
-    // TVs
-    prisma.product.upsert({
-      where: { id: 'prod-lg-tv' },
-      update: {},
-      create: {
-        id: 'prod-lg-tv',
-        tenantId: tenant.id,
-        categoryId: 'cat-tvs',
-        name: 'LG 55" OLED C3 Smart TV',
-        sku: 'LG-55OLED-C3',
-        brand: 'LG',
-        hsnCode: '8528',
-        gstRate: 18,
-        mrp: 149990,
-        costPrice: 115000,
-        sellingPrice: 139990,
-        reorderLevel: 2,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-tcl-tv' },
-      update: {},
-      create: {
-        id: 'prod-tcl-tv',
-        tenantId: tenant.id,
-        categoryId: 'cat-tvs',
-        name: 'TCL 50" 4K LED Smart TV',
-        sku: 'TCL-50-4K',
-        brand: 'TCL',
-        hsnCode: '8528',
-        gstRate: 18,
-        mrp: 39990,
-        costPrice: 28000,
-        sellingPrice: 36990,
-        reorderLevel: 4,
-        isActive: true,
-      },
-    }),
-    // Audio
-    prisma.product.upsert({
-      where: { id: 'prod-bose-speaker' },
-      update: {},
-      create: {
-        id: 'prod-bose-speaker',
-        tenantId: tenant.id,
-        categoryId: 'cat-audio',
-        name: 'Bose SoundLink Revolve+ II',
-        sku: 'BOSE-REVLVE2',
-        brand: 'Bose',
-        hsnCode: '8518',
-        gstRate: 18,
-        mrp: 29900,
-        costPrice: 21000,
-        sellingPrice: 26900,
-        reorderLevel: 6,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-airpods' },
-      update: {},
-      create: {
-        id: 'prod-airpods',
-        tenantId: tenant.id,
-        categoryId: 'cat-audio',
-        name: 'Apple AirPods Pro (2nd Gen)',
-        sku: 'AIRPODS-PRO2',
-        brand: 'Apple',
-        hsnCode: '8518',
-        gstRate: 18,
-        mrp: 24900,
-        costPrice: 18500,
-        sellingPrice: 22900,
-        reorderLevel: 12,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-jbl-earbuds' },
-      update: {},
-      create: {
-        id: 'prod-jbl-earbuds',
-        tenantId: tenant.id,
-        categoryId: 'cat-audio',
-        name: 'JBL Tune 230NC TWS Earbuds',
-        sku: 'JBL-T230NC',
-        brand: 'JBL',
-        hsnCode: '8518',
-        gstRate: 18,
-        mrp: 7999,
-        costPrice: 4500,
-        sellingPrice: 6999,
-        reorderLevel: 15,
-        isActive: true,
-      },
-    }),
-    // Accessories
-    prisma.product.upsert({
-      where: { id: 'prod-usbc-cable' },
-      update: {},
-      create: {
-        id: 'prod-usbc-cable',
-        tenantId: tenant.id,
-        categoryId: 'cat-accessories',
-        name: 'Belkin USB-C to Lightning Cable (1.5m)',
-        sku: 'BELKIN-USBC-LTG',
-        brand: 'Belkin',
-        hsnCode: '8544',
-        gstRate: 18,
-        mrp: 1999,
-        costPrice: 1000,
-        sellingPrice: 1699,
-        reorderLevel: 25,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-powerbank' },
-      update: {},
-      create: {
-        id: 'prod-powerbank',
-        tenantId: tenant.id,
-        categoryId: 'cat-accessories',
-        name: 'Mi 20000mAh Power Bank',
-        sku: 'MI-PB-20K',
-        brand: 'Xiaomi',
-        hsnCode: '8507',
-        gstRate: 18,
-        mrp: 2499,
-        costPrice: 1400,
-        sellingPrice: 2199,
-        reorderLevel: 20,
-        isActive: true,
-      },
-    }),
-    prisma.product.upsert({
-      where: { id: 'prod-phone-case' },
-      update: {},
-      create: {
-        id: 'prod-phone-case',
-        tenantId: tenant.id,
-        categoryId: 'cat-accessories',
-        name: 'Apple Silicone Case for iPhone 15 Pro',
-        sku: 'APPLE-CASE-15P',
-        brand: 'Apple',
-        hsnCode: '3926',
-        gstRate: 18,
-        mrp: 4900,
-        costPrice: 2800,
-        sellingPrice: 4490,
-        reorderLevel: 15,
-        isActive: true,
-      },
-    }),
-  ])
-
-  console.log('Created additional products:', moreProducts.length)
-
-  // Create inventory stock for new products
-  for (const product of moreProducts) {
-    await prisma.inventoryStock.upsert({
-      where: { id: `stock-${product.id}` },
-      update: {},
-      create: {
-        id: `stock-${product.id}`,
-        productId: product.id,
-        storeId: store.id,
-        locationId: location.id,
-        quantity: Math.floor(Math.random() * 50) + 10,
-        reservedQty: 0,
-      },
-    })
-  }
-
-  // Collect all product IDs for invoice creation
-  const allProducts = [...products, ...moreProducts]
-  const allCustomers = [...customers, ...moreCustomers]
-
-  // Helper: get product by id suffix
-  const getProduct = (id: string) => allProducts.find(p => p.id === id)!
-  const getCustomer = (id: string) => allCustomers.find(c => c.id === id)!
-
-  // --- Sample Sales Invoices (6 invoices) ---
-  // Delete existing invoices for idempotency (invoices use create, not upsert)
-  const existingInvoices = await prisma.salesInvoice.findMany({
-    where: { tenantId: tenant.id, storeId: store.id },
-    select: { id: true },
-  })
-  if (existingInvoices.length > 0) {
-    const existingInvoiceIds = existingInvoices.map(i => i.id)
-    await prisma.payment.deleteMany({ where: { invoiceId: { in: existingInvoiceIds } } })
-    await prisma.salesInvoiceItem.deleteMany({ where: { invoiceId: { in: existingInvoiceIds } } })
-    await prisma.salesInvoice.deleteMany({ where: { id: { in: existingInvoiceIds } } })
-  }
-
-  const existingPurchaseInvoices = await prisma.purchaseInvoice.findMany({
-    where: { tenantId: tenant.id, storeId: store.id },
-    select: { id: true },
-  })
-  if (existingPurchaseInvoices.length > 0) {
-    const existingPIIds = existingPurchaseInvoices.map(i => i.id)
-    await prisma.purchaseInvoiceItem.deleteMany({ where: { purchaseInvoiceId: { in: existingPIIds } } })
-    await prisma.purchaseInvoice.deleteMany({ where: { id: { in: existingPIIds } } })
-  }
-
-  console.log('Creating sales invoices...')
-
-  // Invoice 1: Cash sale - iPhone 15 Pro + case + charger to retail customer
-  const inv1Subtotal = 129900 + 4490 + 1299
-  const inv1Gst = Math.round((inv1Subtotal * 18 / 118) * 100) / 100 // extract GST from inclusive
-  const inv1Total = inv1Subtotal
-  const inv1RoundOff = Math.round(inv1Total) - inv1Total
-  const invoice1 = await prisma.salesInvoice.create({
+  await prisma.storePaymentConfig.create({
     data: {
-      tenantId: tenant.id,
-      storeId: store.id,
-      invoiceNumber: 'INV20260415-0001',
-      invoiceType: 'RETAIL_INVOICE',
-      customerId: 'cust-003',
-      createdById: user.id,
-      invoiceDate: new Date('2026-04-10T10:30:00'),
-      subtotal: inv1Subtotal - inv1Gst,
-      totalGst: inv1Gst,
-      roundOff: inv1RoundOff,
-      totalAmount: Math.round(inv1Total),
-      amountPaid: Math.round(inv1Total),
-      amountDue: 0,
-      paymentStatus: 'PAID',
-      billingType: 'CASH',
-      items: {
-        create: [
-          {
-            productId: 'prod-iphone15',
-            hsnCode: '8517',
-            quantity: 1,
-            unitPrice: 129900,
-            gstRate: 18,
-            gstAmount: Math.round(129900 * 18 / 118 * 100) / 100,
-            totalAmount: 129900,
-          },
-          {
-            productId: 'prod-phone-case',
-            hsnCode: '3926',
-            quantity: 1,
-            unitPrice: 4490,
-            gstRate: 18,
-            gstAmount: Math.round(4490 * 18 / 118 * 100) / 100,
-            totalAmount: 4490,
-          },
-          {
-            productId: 'prod-charger',
-            hsnCode: '8544',
-            quantity: 1,
-            unitPrice: 1299,
-            gstRate: 18,
-            gstAmount: Math.round(1299 * 18 / 118 * 100) / 100,
-            totalAmount: 1299,
-          },
-        ],
-      },
-      payments: {
-        create: {
-          amount: Math.round(inv1Total),
-          method: 'CASH',
-        },
-      },
+      id: 'demo-paycfg-1',
+      storeId: showroomStore.id,
+      merchantVPA: 'ezvento-showroom@upi',
+      merchantName: 'Ezvento Chennai Showroom',
+      phonepeEnabled: true,
+      cashEnabled: true,
+      cardEnabled: true,
+      upiQrEnabled: true,
+      autoSendReceipt: true,
     },
   })
 
-  // Decrement inventory for invoice 1
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-iphone15' }, data: { quantity: { decrement: 1 } } })
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-phone-case' }, data: { quantity: { decrement: 1 } } })
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-charger' }, data: { quantity: { decrement: 1 } } })
-
-  // Invoice 2: UPI sale - Samsung TV to retail customer
-  const inv2Items = [
-    { productId: 'prod-samsung-tv', hsnCode: '8528', qty: 1, price: 42000, gstRate: 18 },
-  ]
-  const inv2Subtotal = 42000
-  const inv2Gst = Math.round(inv2Subtotal * 18 / 118 * 100) / 100
-  const invoice2 = await prisma.salesInvoice.create({
+  await prisma.storePaymentConfig.create({
     data: {
-      tenantId: tenant.id,
-      storeId: store.id,
-      invoiceNumber: 'INV20260415-0002',
-      invoiceType: 'RETAIL_INVOICE',
-      customerId: 'cust-004',
-      createdById: user.id,
-      invoiceDate: new Date('2026-04-11T14:15:00'),
-      subtotal: inv2Subtotal - inv2Gst,
-      totalGst: inv2Gst,
-      roundOff: 0,
-      totalAmount: inv2Subtotal,
-      amountPaid: inv2Subtotal,
-      amountDue: 0,
-      paymentStatus: 'PAID',
-      billingType: 'UPI',
-      items: {
-        create: inv2Items.map(item => ({
-          productId: item.productId,
-          hsnCode: item.hsnCode,
-          quantity: item.qty,
-          unitPrice: item.price,
-          gstRate: item.gstRate,
-          gstAmount: Math.round(item.price * 18 / 118 * 100) / 100,
-          totalAmount: item.price,
-        })),
-      },
-      payments: {
-        create: {
-          amount: inv2Subtotal,
-          method: 'UPI',
-          reference: 'UPI-20260411-14A5',
-        },
-      },
+      id: 'demo-paycfg-2',
+      storeId: groceryStore.id,
+      merchantVPA: 'ezvento-grocery@upi',
+      merchantName: 'Ezvento Chennai Grocery',
+      phonepeEnabled: true,
+      cashEnabled: true,
+      cardEnabled: false,
+      upiQrEnabled: true,
+      autoSendReceipt: true,
     },
   })
 
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-samsung-tv' }, data: { quantity: { decrement: 1 } } })
+  console.log('  ✅ 2 payment configs')
 
-  // Invoice 3: Credit sale (B2B Tax Invoice) - bulk Samsung phones + accessories to wholesale customer
-  const inv3Items = [
-    { productId: 'prod-samsung-s24', hsnCode: '8517', qty: 5, price: 125000, gstRate: 18 },
-    { productId: 'prod-charger', hsnCode: '8544', qty: 10, price: 1100, gstRate: 18 },
-    { productId: 'prod-usbc-cable', hsnCode: '8544', qty: 10, price: 1400, gstRate: 18 },
-  ]
-  const inv3LineTotals = inv3Items.map(i => i.qty * i.price)
-  const inv3Subtotal = inv3LineTotals.reduce((a, b) => a + b, 0)
-  const inv3Gst = Math.round(inv3Subtotal * 18 / 118 * 100) / 100
-  const inv3Total = inv3Subtotal
-  const inv3Paid = 300000 // partial payment
-  const invoice3 = await prisma.salesInvoice.create({
+  // ============================================
+  // 14. SHIFTS (1 closed, 1 open)
+  // ============================================
+  console.log('🕐 Creating shifts...')
+
+  await prisma.shift.create({
     data: {
-      tenantId: tenant.id,
-      storeId: store.id,
-      invoiceNumber: 'INV20260412-0003',
-      invoiceType: 'TAX_INVOICE',
-      customerId: 'cust-005',
-      createdById: user.id,
-      invoiceDate: new Date('2026-04-12T11:00:00'),
-      subtotal: inv3Subtotal - inv3Gst,
-      totalGst: inv3Gst,
-      roundOff: 0,
-      totalAmount: inv3Total,
-      amountPaid: inv3Paid,
-      amountDue: inv3Total - inv3Paid,
-      paymentStatus: 'PARTIAL',
-      billingType: 'CREDIT',
-      gstin: '27BBBCC1234D1Z9',
-      items: {
-        create: inv3Items.map((item, idx) => ({
-          productId: item.productId,
-          hsnCode: item.hsnCode,
-          quantity: item.qty,
-          unitPrice: item.price,
-          gstRate: item.gstRate,
-          gstAmount: Math.round(inv3LineTotals[idx] * 18 / 118 * 100) / 100,
-          totalAmount: inv3LineTotals[idx],
-        })),
-      },
-      payments: {
-        create: [
-          { amount: 200000, method: 'BANK_TRANSFER', reference: 'NEFT-AX123456' },
-          { amount: 100000, method: 'UPI', reference: 'UPI-20260412-B2B' },
-        ],
-      },
+      id: 'demo-shift-1',
+      storeId: showroomStore.id,
+      locationId: showroomLoc1.id,
+      cashierId: cashier.id,
+      openingCash: 5000,
+      closingCash: 52350,
+      expectedCash: 52350,
+      variance: 0,
+      openedAt: new Date(today.getTime() - 86400000),
+      closedAt: new Date(today.getTime() - 86400000 + 28800000),
+      status: 'CLOSED',
     },
   })
 
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-samsung-s24' }, data: { quantity: { decrement: 5 } } })
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-charger' }, data: { quantity: { decrement: 10 } } })
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-usbc-cable' }, data: { quantity: { decrement: 10 } } })
-
-  // Invoice 4: UPI sale - AirPods + JBL earbuds to retail customer
-  const inv4Items = [
-    { productId: 'prod-airpods', hsnCode: '8518', qty: 1, price: 22900, gstRate: 18 },
-    { productId: 'prod-jbl-earbuds', hsnCode: '8518', qty: 2, price: 6999, gstRate: 18 },
-  ]
-  const inv4LineTotals = inv4Items.map(i => i.qty * i.price)
-  const inv4Subtotal = inv4LineTotals.reduce((a, b) => a + b, 0)
-  const inv4Gst = Math.round(inv4Subtotal * 18 / 118 * 100) / 100
-  const invoice4 = await prisma.salesInvoice.create({
+  await prisma.shift.create({
     data: {
-      tenantId: tenant.id,
-      storeId: store.id,
-      invoiceNumber: 'INV20260413-0004',
-      invoiceType: 'RETAIL_INVOICE',
-      customerId: 'cust-006',
-      createdById: user.id,
-      invoiceDate: new Date('2026-04-13T16:45:00'),
-      subtotal: inv4Subtotal - inv4Gst,
-      totalGst: inv4Gst,
-      roundOff: 0,
-      totalAmount: inv4Subtotal,
-      amountPaid: inv4Subtotal,
-      amountDue: 0,
-      paymentStatus: 'PAID',
-      billingType: 'UPI',
-      items: {
-        create: inv4Items.map((item, idx) => ({
-          productId: item.productId,
-          hsnCode: item.hsnCode,
-          quantity: item.qty,
-          unitPrice: item.price,
-          gstRate: item.gstRate,
-          gstAmount: Math.round(inv4LineTotals[idx] * 18 / 118 * 100) / 100,
-          totalAmount: inv4LineTotals[idx],
-        })),
-      },
-      payments: {
-        create: {
-          amount: inv4Subtotal,
-          method: 'UPI',
-          reference: 'UPI-20260413-78GH',
-        },
-      },
+      id: 'demo-shift-2',
+      storeId: showroomStore.id,
+      locationId: showroomLoc1.id,
+      cashierId: cashier.id,
+      openingCash: 5000,
+      openedAt: today,
+      status: 'OPEN',
     },
   })
 
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-airpods' }, data: { quantity: { decrement: 1 } } })
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-jbl-earbuds' }, data: { quantity: { decrement: 2 } } })
+  console.log('  ✅ 2 shifts (1 closed, 1 open)')
 
-  // Invoice 5: Credit sale (B2B) - LG OLED TVs to wholesale Gupta Traders
-  const inv5Items = [
-    { productId: 'prod-lg-tv', hsnCode: '8528', qty: 3, price: 135000, gstRate: 18 },
-    { productId: 'prod-tcl-tv', hsnCode: '8528', qty: 5, price: 35000, gstRate: 18 },
-  ]
-  const inv5LineTotals = inv5Items.map(i => i.qty * i.price)
-  const inv5Subtotal = inv5LineTotals.reduce((a, b) => a + b, 0)
-  const inv5Gst = Math.round(inv5Subtotal * 18 / 118 * 100) / 100
-  const invoice5 = await prisma.salesInvoice.create({
+  // ============================================
+  // 15. ACTIVITY LOGS
+  // ============================================
+  console.log('📝 Creating activity logs...')
+
+  await prisma.activityLog.create({
     data: {
+      id: 'demo-log-1',
       tenantId: tenant.id,
-      storeId: store.id,
-      invoiceNumber: 'INV20260414-0005',
-      invoiceType: 'TAX_INVOICE',
-      customerId: 'cust-008',
-      createdById: user.id,
-      invoiceDate: new Date('2026-04-14T09:20:00'),
-      subtotal: inv5Subtotal - inv5Gst,
-      totalGst: inv5Gst,
-      roundOff: 0,
-      totalAmount: inv5Subtotal,
-      amountPaid: 0,
-      amountDue: inv5Subtotal,
-      paymentStatus: 'DUE',
-      billingType: 'CREDIT',
-      gstin: '27CCCPP5678Q1Z3',
-      items: {
-        create: inv5Items.map((item, idx) => ({
-          productId: item.productId,
-          hsnCode: item.hsnCode,
-          quantity: item.qty,
-          unitPrice: item.price,
-          gstRate: item.gstRate,
-          gstAmount: Math.round(inv5LineTotals[idx] * 18 / 118 * 100) / 100,
-          totalAmount: inv5LineTotals[idx],
-        })),
-      },
+      userId: cashier.id,
+      action: 'LOGIN',
+      module: 'AUTH',
+      entityType: 'User',
+      entityId: cashier.id,
+      createdAt: new Date(today.getTime() - 7200000),
     },
   })
 
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-lg-tv' }, data: { quantity: { decrement: 3 } } })
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-tcl-tv' }, data: { quantity: { decrement: 5 } } })
-
-  // Invoice 6: Cash sale - Sony headphones + power bank to retail customer
-  const inv6Items = [
-    { productId: 'prod-sony-headphones', hsnCode: '8518', qty: 1, price: 27990, gstRate: 18 },
-    { productId: 'prod-powerbank', hsnCode: '8507', qty: 1, price: 2199, gstRate: 18 },
-  ]
-  const inv6LineTotals = inv6Items.map(i => i.qty * i.price)
-  const inv6Subtotal = inv6LineTotals.reduce((a, b) => a + b, 0)
-  const inv6Gst = Math.round(inv6Subtotal * 18 / 118 * 100) / 100
-  const invoice6 = await prisma.salesInvoice.create({
+  await prisma.activityLog.create({
     data: {
+      id: 'demo-log-2',
       tenantId: tenant.id,
-      storeId: store.id,
-      invoiceNumber: 'INV20260415-0006',
-      invoiceType: 'RETAIL_INVOICE',
-      customerId: 'cust-001',
-      createdById: user.id,
-      invoiceDate: new Date('2026-04-15T08:30:00'),
-      subtotal: inv6Subtotal - inv6Gst,
-      totalGst: inv6Gst,
-      roundOff: 0,
-      totalAmount: inv6Subtotal,
-      amountPaid: inv6Subtotal,
-      amountDue: 0,
-      paymentStatus: 'PAID',
-      billingType: 'CASH',
-      items: {
-        create: inv6Items.map((item, idx) => ({
-          productId: item.productId,
-          hsnCode: item.hsnCode,
-          quantity: item.qty,
-          unitPrice: item.price,
-          gstRate: item.gstRate,
-          gstAmount: Math.round(inv6LineTotals[idx] * 18 / 118 * 100) / 100,
-          totalAmount: inv6LineTotals[idx],
-        })),
-      },
-      payments: {
-        create: {
-          amount: inv6Subtotal,
-          method: 'CASH',
-        },
-      },
+      userId: cashier.id,
+      action: 'CREATE',
+      module: 'BILLING',
+      entityType: 'SalesInvoice',
+      metadata: { invoiceNumber: 'INV-2026-00106', amount: 1250 },
+      createdAt: new Date(today.getTime() - 3600000),
     },
   })
 
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-sony-headphones' }, data: { quantity: { decrement: 1 } } })
-  await prisma.inventoryStock.update({ where: { id: 'stock-prod-powerbank' }, data: { quantity: { decrement: 1 } } })
+  console.log('  ✅ 2 activity logs')
 
-  console.log('Created sales invoices: 6')
-
-  // --- Sample Purchase Invoices (3) ---
-  console.log('Creating purchase invoices...')
-
-  // Purchase Invoice 1: Samsung India - Samsung TVs + Samsung phones
-  const pi1Items = [
-    { productId: 'prod-samsung-tv', qty: 10, unitPrice: 35000, gstRate: 18, desc: 'Samsung 43" Smart TV' },
-    { productId: 'prod-samsung-s24', qty: 15, unitPrice: 110000, gstRate: 18, desc: 'Samsung Galaxy S24 Ultra' },
-  ]
-  const pi1LineTotals = pi1Items.map(i => i.qty * i.unitPrice)
-  const pi1Subtotal = pi1LineTotals.reduce((a, b) => a + b, 0)
-  const pi1Gst = Math.round(pi1Subtotal * 18 / 100 * 100) / 100
-  const pi1Total = pi1Subtotal + pi1Gst
-  const purchaseInvoice1 = await prisma.purchaseInvoice.create({
-    data: {
-      tenantId: tenant.id,
-      vendorId: 'vendor-001',
-      storeId: store.id,
-      invoiceNumber: 'PUR-2026-001',
-      invoiceDate: new Date('2026-04-01'),
-      dueDate: new Date('2026-04-30'),
-      subtotal: pi1Subtotal,
-      totalGst: pi1Gst,
-      totalAmount: pi1Total,
-      amountPaid: pi1Total,
-      status: 'PAID',
-      createdById: user.id,
-      items: {
-        create: pi1Items.map((item, idx) => ({
-          productId: item.productId,
-          description: item.desc,
-          quantity: item.qty,
-          receivedQty: item.qty,
-          unitPrice: item.unitPrice,
-          gstRate: item.gstRate,
-          gstAmount: Math.round(pi1LineTotals[idx] * 18 / 100 * 100) / 100,
-          totalAmount: pi1LineTotals[idx] + Math.round(pi1LineTotals[idx] * 18 / 100 * 100) / 100,
-        })),
-      },
-    },
-  })
-
-  // Purchase Invoice 2: Apple India - iPhones + AirPods
-  const pi2Items = [
-    { productId: 'prod-iphone15', qty: 20, unitPrice: 115000, gstRate: 18, desc: 'iPhone 15 Pro 256GB' },
-    { productId: 'prod-airpods', qty: 30, unitPrice: 18500, gstRate: 18, desc: 'Apple AirPods Pro 2nd Gen' },
-  ]
-  const pi2LineTotals = pi2Items.map(i => i.qty * i.unitPrice)
-  const pi2Subtotal = pi2LineTotals.reduce((a, b) => a + b, 0)
-  const pi2Gst = Math.round(pi2Subtotal * 18 / 100 * 100) / 100
-  const pi2Total = pi2Subtotal + pi2Gst
-  const purchaseInvoice2 = await prisma.purchaseInvoice.create({
-    data: {
-      tenantId: tenant.id,
-      vendorId: 'vendor-002',
-      storeId: store.id,
-      invoiceNumber: 'PUR-2026-002',
-      invoiceDate: new Date('2026-04-05'),
-      dueDate: new Date('2026-05-05'),
-      subtotal: pi2Subtotal,
-      totalGst: pi2Gst,
-      totalAmount: pi2Total,
-      amountPaid: 1000000,
-      status: 'PENDING',
-      createdById: user.id,
-      items: {
-        create: pi2Items.map((item, idx) => ({
-          productId: item.productId,
-          description: item.desc,
-          quantity: item.qty,
-          receivedQty: item.qty,
-          unitPrice: item.unitPrice,
-          gstRate: item.gstRate,
-          gstAmount: Math.round(pi2LineTotals[idx] * 18 / 100 * 100) / 100,
-          totalAmount: pi2LineTotals[idx] + Math.round(pi2LineTotals[idx] * 18 / 100 * 100) / 100,
-        })),
-      },
-    },
-  })
-
-  // Purchase Invoice 3: Sony India + Anker - Audio gear and accessories
-  const pi3Items = [
-    { productId: 'prod-sony-headphones', qty: 25, unitPrice: 22000, gstRate: 18, desc: 'Sony WH-1000XM5' },
-    { productId: 'prod-charger', qty: 100, unitPrice: 800, gstRate: 18, desc: 'Anker 20W Fast Charger' },
-    { productId: 'prod-bose-speaker', qty: 10, unitPrice: 21000, gstRate: 18, desc: 'Bose SoundLink Revolve+ II' },
-  ]
-  const pi3LineTotals = pi3Items.map(i => i.qty * i.unitPrice)
-  const pi3Subtotal = pi3LineTotals.reduce((a, b) => a + b, 0)
-  const pi3Gst = Math.round(pi3Subtotal * 18 / 100 * 100) / 100
-  const pi3Total = pi3Subtotal + pi3Gst
-  const purchaseInvoice3 = await prisma.purchaseInvoice.create({
-    data: {
-      tenantId: tenant.id,
-      vendorId: 'vendor-003',
-      storeId: store.id,
-      invoiceNumber: 'PUR-2026-003',
-      invoiceDate: new Date('2026-04-08'),
-      dueDate: new Date('2026-04-29'),
-      subtotal: pi3Subtotal,
-      totalGst: pi3Gst,
-      totalAmount: pi3Total,
-      amountPaid: 0,
-      status: 'PENDING',
-      createdById: user.id,
-      items: {
-        create: pi3Items.map((item, idx) => ({
-          productId: item.productId,
-          description: item.desc,
-          quantity: item.qty,
-          receivedQty: item.qty,
-          unitPrice: item.unitPrice,
-          gstRate: item.gstRate,
-          gstAmount: Math.round(pi3LineTotals[idx] * 18 / 100 * 100) / 100,
-          totalAmount: pi3LineTotals[idx] + Math.round(pi3LineTotals[idx] * 18 / 100 * 100) / 100,
-        })),
-      },
-    },
-  })
-
-  console.log('Created purchase invoices: 3')
-
-  console.log('Seed completed successfully!')
+  // ============================================
+  // DONE
+  // ============================================
+  console.log('\n🎉 Seed completed successfully!')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+  console.log('  Tenant:      demo-store')
+  console.log('  Owner:       demo@ezvento.karth-21.com')
+  console.log('  Password:    demo123')
+  console.log('  Store 1:     Chennai Showroom (Electronics)')
+  console.log('  Store 2:     Chennai Grocery (Grocery)')
+  console.log('  Products:    14 (7 electronics + 7 grocery)')
+  console.log('  Customers:   5')
+  console.log('  Invoices:    6')
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n')
 }
 
 main()
   .catch((e) => {
-    console.error('Seed failed:', e)
+    console.error('❌ Seed failed:', e)
     process.exit(1)
   })
   .finally(async () => {
