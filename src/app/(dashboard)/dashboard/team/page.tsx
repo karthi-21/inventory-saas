@@ -1,6 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -31,6 +34,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Switch } from '@/components/ui/switch'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Users,
   Plus,
@@ -242,6 +247,24 @@ function actionLabel(action: string): string {
   return action.charAt(0) + action.slice(1).toLowerCase()
 }
 
+// --- Schemas ---
+
+const inviteSchema = z.object({
+  firstName: z.string().min(1, 'First name is required'),
+  lastName: z.string().optional().or(z.literal('')),
+  email: z.string().min(1, 'Email is required').email('Valid email is required'),
+  personaId: z.string().optional(),
+  storeIds: z.array(z.string()),
+})
+
+const roleSchema = z.object({
+  name: z.string().min(1, 'Role name is required'),
+  description: z.string().optional().or(z.literal('')),
+})
+
+type InviteForm = z.infer<typeof inviteSchema>
+type RoleForm = z.infer<typeof roleSchema>
+
 // --- Component ---
 
 export default function TeamPage() {
@@ -262,9 +285,17 @@ export default function TeamPage() {
   const [roleToDelete, setRoleToDelete] = useState<string | null>(null)
 
   // Form state
-  const [inviteForm, setInviteForm] = useState({ email: '', firstName: '', lastName: '', personaId: '', storeIds: [] as string[] })
+  const inviteForm = useForm<InviteForm>({
+    resolver: zodResolver(inviteSchema),
+    mode: 'onChange',
+    defaultValues: { firstName: '', lastName: '', email: '', personaId: '', storeIds: [] },
+  })
   const [editUserForm, setEditUserForm] = useState({ personaId: '', storeIds: [] as string[] })
-  const [roleForm, setRoleForm] = useState({ name: '', description: '' })
+  const roleForm = useForm<RoleForm>({
+    resolver: zodResolver(roleSchema),
+    mode: 'onChange',
+    defaultValues: { name: '', description: '' },
+  })
   const [permSet, setPermSet] = useState<Set<string>>(new Set())
 
   // --- Queries ---
@@ -307,7 +338,7 @@ export default function TeamPage() {
   // --- Mutations ---
 
   const inviteUser = useMutation({
-    mutationFn: async (data: typeof inviteForm) => {
+    mutationFn: async (data: InviteForm) => {
       const res = await fetch('/api/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -323,7 +354,7 @@ export default function TeamPage() {
       queryClient.invalidateQueries({ queryKey: ['users'] })
       toast.success('Team member invited')
       setShowInviteDialog(false)
-      setInviteForm({ email: '', firstName: '', lastName: '', personaId: '', storeIds: [] })
+      inviteForm.reset()
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to invite user')
@@ -391,7 +422,7 @@ export default function TeamPage() {
       queryClient.invalidateQueries({ queryKey: ['personas'] })
       toast.success('Role created')
       setShowCreateRoleDialog(false)
-      setRoleForm({ name: '', description: '' })
+      roleForm.reset()
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to create role')
@@ -444,12 +475,8 @@ export default function TeamPage() {
 
   // --- Handlers ---
 
-  const handleInvite = () => {
-    if (!inviteForm.email.trim() || !inviteForm.firstName.trim()) {
-      toast.error('Email and first name are required')
-      return
-    }
-    inviteUser.mutate(inviteForm)
+  const handleInvite = (data: InviteForm) => {
+    inviteUser.mutate(data)
   }
 
   const handleEditUser = (user: TeamUser) => {
@@ -482,16 +509,12 @@ export default function TeamPage() {
     updatePersona.mutate({ id: selectedPersona.id, permissions })
   }
 
-  const handleCreateRole = () => {
-    if (!roleForm.name.trim()) {
-      toast.error('Role name is required')
-      return
-    }
+  const handleCreateRole = (data: RoleForm) => {
     const permissions = Array.from(permSet).map((key) => {
       const [module, action] = key.split(':')
       return { module, action }
     })
-    createPersona.mutate({ ...roleForm, permissions })
+    createPersona.mutate({ name: data.name, description: data.description || '', permissions })
   }
 
   const togglePerm = (module: string, action: string) => {
@@ -506,12 +529,12 @@ export default function TeamPage() {
 
   const toggleStoreAccess = (storeId: string, formType: 'invite' | 'editUser') => {
     if (formType === 'invite') {
-      setInviteForm((prev) => ({
-        ...prev,
-        storeIds: prev.storeIds.includes(storeId)
-          ? prev.storeIds.filter((id) => id !== storeId)
-          : [...prev.storeIds, storeId],
-      }))
+      const current = inviteForm.getValues('storeIds')
+      inviteForm.setValue(
+        'storeIds',
+        current.includes(storeId) ? current.filter((id) => id !== storeId) : [...current, storeId],
+        { shouldValidate: true },
+      )
     } else {
       setEditUserForm((prev) => ({
         ...prev,
@@ -550,7 +573,7 @@ export default function TeamPage() {
             </Button>
           )}
           {activeTab === 'roles' && (
-            <Button onClick={() => { setRoleForm({ name: '', description: '' }); setPermSet(new Set()); setShowCreateRoleDialog(true) }} className="gap-2">
+            <Button onClick={() => { roleForm.reset(); setPermSet(new Set()); setShowCreateRoleDialog(true) }} className="gap-2">
               <Plus className="h-4 w-4" />
               Create Role
             </Button>
@@ -598,7 +621,9 @@ export default function TeamPage() {
       {/* Search */}
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Label htmlFor="team-search" className="sr-only">Search team members</Label>
         <Input
+          id="team-search"
           placeholder="Search by name or email..."
           className="pl-9"
           value={searchQuery}
@@ -726,7 +751,7 @@ export default function TeamPage() {
                   <Shield className="h-12 w-12 text-muted-foreground/50 mb-4" />
                   <p className="text-lg font-medium">No roles defined</p>
                   <p className="text-sm text-muted-foreground mb-4">Create your first custom role</p>
-                  <Button onClick={() => { setRoleForm({ name: '', description: '' }); setPermSet(new Set()); setShowCreateRoleDialog(true) }}>
+                  <Button onClick={() => { roleForm.reset(); setPermSet(new Set()); setShowCreateRoleDialog(true) }}>
                     <Plus className="h-4 w-4 mr-2" /> Create Role
                   </Button>
                 </div>
@@ -797,61 +822,68 @@ export default function TeamPage() {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>First Name *</Label>
+                <Label htmlFor="invite-firstName">First Name *</Label>
                 <Input
-                  placeholder="First name"
-                  value={inviteForm.firstName}
-                  onChange={(e) => setInviteForm({ ...inviteForm, firstName: e.target.value })}
+                  id="invite-firstName"
+                  placeholder="Ravi"
+                  {...inviteForm.register('firstName')}
                 />
+                {inviteForm.formState.errors.firstName && (
+                  <p className="text-sm text-destructive">{inviteForm.formState.errors.firstName.message}</p>
+                )}
               </div>
               <div className="space-y-2">
-                <Label>Last Name</Label>
+                <Label htmlFor="invite-lastName">Last Name</Label>
                 <Input
+                  id="invite-lastName"
                   placeholder="Last name"
-                  value={inviteForm.lastName}
-                  onChange={(e) => setInviteForm({ ...inviteForm, lastName: e.target.value })}
+                  {...inviteForm.register('lastName')}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Email *</Label>
+              <Label htmlFor="invite-email">Email *</Label>
               <Input
+                id="invite-email"
                 type="email"
-                placeholder="member@example.com"
-                value={inviteForm.email}
-                onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                placeholder="ravi@example.com"
+                {...inviteForm.register('email')}
               />
+              {inviteForm.formState.errors.email && (
+                <p className="text-sm text-destructive">{inviteForm.formState.errors.email.message}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Role</Label>
-              <Select
-                value={inviteForm.personaId}
-                onValueChange={(v) => setInviteForm({ ...inviteForm, personaId: v ?? '' })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  {personas.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label id="invite-role-label">Role</Label>
+              <Controller
+                name="personaId"
+                control={inviteForm.control}
+                render={({ field }) => (
+                  <Select value={field.value || ''} onValueChange={field.onChange}>
+                    <SelectTrigger aria-labelledby="invite-role-label">
+                      <SelectValue placeholder="Select a role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {personas.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
             {stores.length > 0 && (
               <div className="space-y-2">
-                <Label>Store Access</Label>
+                <Label id="invite-store-label">Store Access</Label>
                 <div className="space-y-2 border rounded-md p-3">
                   {stores.map((store) => (
-                    <label key={store.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={inviteForm.storeIds.includes(store.id)}
-                        onChange={() => toggleStoreAccess(store.id, 'invite')}
-                        className="h-4 w-4 rounded border-gray-300"
+                    <div key={store.id} className="flex items-center justify-between text-sm">
+                      <span>{store.name}</span>
+                      <Switch
+                        checked={inviteForm.watch('storeIds').includes(store.id)}
+                        onCheckedChange={() => toggleStoreAccess(store.id, 'invite')}
                       />
-                      {store.name}
-                    </label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -859,7 +891,7 @@ export default function TeamPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowInviteDialog(false)}>Cancel</Button>
-            <Button onClick={handleInvite} disabled={inviteUser.isPending} className="gap-2">
+            <Button onClick={inviteForm.handleSubmit(handleInvite)} disabled={inviteUser.isPending} className="gap-2">
               {inviteUser.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               <Mail className="h-4 w-4" />
               Send Invite
@@ -877,12 +909,12 @@ export default function TeamPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>Role</Label>
+              <Label id="edit-role-label">Role</Label>
               <Select
                 value={editUserForm.personaId}
                 onValueChange={(v) => setEditUserForm({ ...editUserForm, personaId: v ?? '' })}
               >
-                <SelectTrigger>
+                <SelectTrigger aria-labelledby="edit-role-label">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
@@ -894,18 +926,16 @@ export default function TeamPage() {
             </div>
             {stores.length > 0 && (
               <div className="space-y-2">
-                <Label>Store Access</Label>
+                <Label id="edit-store-label">Store Access</Label>
                 <div className="space-y-2 border rounded-md p-3">
                   {stores.map((store) => (
-                    <label key={store.id} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input
-                        type="checkbox"
+                    <div key={store.id} className="flex items-center justify-between text-sm">
+                      <span>{store.name}</span>
+                      <Switch
                         checked={editUserForm.storeIds.includes(store.id)}
-                        onChange={() => toggleStoreAccess(store.id, 'editUser')}
-                        className="h-4 w-4 rounded border-gray-300"
+                        onCheckedChange={() => toggleStoreAccess(store.id, 'editUser')}
                       />
-                      {store.name}
-                    </label>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -931,24 +961,27 @@ export default function TeamPage() {
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Role Name *</Label>
+                <Label htmlFor="role-name">Role Name *</Label>
                 <Input
-                  placeholder="e.g. Billing Operator"
-                  value={roleForm.name}
-                  onChange={(e) => setRoleForm({ ...roleForm, name: e.target.value })}
+                  id="role-name"
+                  placeholder="e.g., Store Operator"
+                  {...roleForm.register('name')}
                 />
+                {roleForm.formState.errors.name && (
+                  <p className="text-sm text-destructive">{roleForm.formState.errors.name.message}</p>
+                )}
               </div>
               <div className="space-y-2">
-                <Label>Description</Label>
+                <Label htmlFor="role-description">Description</Label>
                 <Input
+                  id="role-description"
                   placeholder="Brief description"
-                  value={roleForm.description}
-                  onChange={(e) => setRoleForm({ ...roleForm, description: e.target.value })}
+                  {...roleForm.register('description')}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Permissions</Label>
+              <Label id="permissions-label">Permissions</Label>
               <div className="border rounded-md overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
@@ -970,11 +1003,11 @@ export default function TeamPage() {
                             return (
                               <td key={key} className="text-center px-2 py-1.5">
                                 {applicable ? (
-                                  <input
-                                    type="checkbox"
+                                  <Checkbox
+                                    id={`perm-${mod}-${action}`}
                                     checked={permSet.has(key)}
-                                    onChange={() => togglePerm(mod, action)}
-                                    className="h-4 w-4 rounded border-gray-300"
+                                    onCheckedChange={() => togglePerm(mod, action)}
+                                    aria-label={`${moduleLabel(mod)} ${actionLabel(action)}`}
                                   />
                                 ) : (
                                   <span className="text-muted-foreground/30">-</span>
@@ -992,7 +1025,7 @@ export default function TeamPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCreateRoleDialog(false)}>Cancel</Button>
-            <Button onClick={handleCreateRole} disabled={createPersona.isPending} className="gap-2">
+            <Button onClick={roleForm.handleSubmit(handleCreateRole)} disabled={createPersona.isPending} className="gap-2">
               {createPersona.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Create Role
             </Button>
@@ -1029,11 +1062,11 @@ export default function TeamPage() {
                           return (
                             <td key={key} className="text-center px-2 py-1.5">
                               {applicable ? (
-                                <input
-                                  type="checkbox"
+                                <Checkbox
+                                  id={`perm-${mod}-${action}`}
                                   checked={permSet.has(key)}
-                                  onChange={() => togglePerm(mod, action)}
-                                  className="h-4 w-4 rounded border-gray-300"
+                                  onCheckedChange={() => togglePerm(mod, action)}
+                                  aria-label={`${moduleLabel(mod)} ${actionLabel(action)}`}
                                 />
                               ) : (
                                 <span className="text-muted-foreground/30">-</span>

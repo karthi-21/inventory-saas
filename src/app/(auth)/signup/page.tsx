@@ -3,6 +3,9 @@
 import { Suspense, useState, useEffect } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,6 +22,19 @@ const ENABLE_EMAIL_AUTH = process.env.NEXT_PUBLIC_ENABLE_EMAIL_AUTH !== 'false'
 const ENABLE_GOOGLE_AUTH = process.env.NEXT_PUBLIC_ENABLE_GOOGLE_AUTH === 'true'
 const ENABLE_PHONE_AUTH = process.env.NEXT_PUBLIC_ENABLE_PHONE_AUTH === 'true'
 
+const signupSchema = z.object({
+  email: z.string().email('Valid email is required'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  phone: z.string().min(10, 'Valid phone number is required').optional().or(z.literal('')),
+})
+
+const otpSchema = z.object({
+  otp: z.string().length(6, 'OTP must be 6 digits'),
+})
+
+type SignupForm = z.infer<typeof signupSchema>
+type OtpForm = z.infer<typeof otpSchema>
+
 function SignupContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -27,15 +43,23 @@ function SignupContent() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [isEmailLoading, setIsEmailLoading] = useState(false)
   const [isPhoneLoading, setIsPhoneLoading] = useState(false)
-  const [phone, setPhone] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [otp, setOtp] = useState('')
   const [otpSent, setOtpSent] = useState(false)
   const [emailConfirmSent, setEmailConfirmSent] = useState(false)
-  const [authError, setAuthError] = useState<string | null>(null)
+  const [serverError, setServerError] = useState<string | null>(null)
   const [resendTimer, setResendTimer] = useState(0)
   const [emailResendTimer, setEmailResendTimer] = useState(0)
+
+  const signupForm = useForm<SignupForm>({
+    resolver: zodResolver(signupSchema),
+    mode: 'onChange',
+    defaultValues: { email: '', password: '', phone: '' },
+  })
+
+  const otpForm = useForm<OtpForm>({
+    resolver: zodResolver(otpSchema),
+    mode: 'onChange',
+    defaultValues: { otp: '' },
+  })
 
   // Get plan from URL param
   useEffect(() => {
@@ -50,12 +74,12 @@ function SignupContent() {
 
   const handleGoogleSignIn = async () => {
     setIsGoogleLoading(true)
-    setAuthError(null)
+    setServerError(null)
 
     try {
       const redirectTo = `${window.location.origin}/auth/callback?plan=${selectedPlan}`
       if (process.env.NODE_ENV === 'development') {
-         
+
         console.log('[OAuth Debug] redirectTo:', redirectTo)
       }
 
@@ -67,32 +91,27 @@ function SignupContent() {
       })
 
       if (error) {
-        setAuthError(error.message)
+        setServerError(error.message)
         setIsGoogleLoading(false)
       }
     } catch {
-      setAuthError('Failed to initiate Google sign in. Please try again.')
+      setServerError('Failed to initiate Google sign in. Please try again.')
       setIsGoogleLoading(false)
     }
   }
 
   const handleEmailSignUp = async () => {
-    if (!email || !password) {
-      setAuthError('Please enter email and password')
-      return
-    }
-    if (password.length < 6) {
-      setAuthError('Password must be at least 6 characters')
-      return
-    }
+    const valid = await signupForm.trigger()
+    if (!valid) return
 
     setIsEmailLoading(true)
-    setAuthError(null)
+    setServerError(null)
 
     try {
+      const formData = signupForm.getValues()
       const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
+        email: formData.email,
+        password: formData.password,
         options: {
           data: {
             plan: selectedPlan,
@@ -103,9 +122,9 @@ function SignupContent() {
 
       if (error) {
         if (error.message.includes('rate_limit') || error.message.includes('over_email_send_rate_limit')) {
-          setAuthError('Email rate limit reached. Please wait a few minutes and try again, or use Phone OTP instead.')
+          setServerError('Email rate limit reached. Please wait a few minutes and try again, or use Phone OTP instead.')
         } else {
-          setAuthError(error.message)
+          setServerError(error.message)
         }
         setIsEmailLoading(false)
         return
@@ -114,30 +133,30 @@ function SignupContent() {
       if (data.user && data.user.email_confirmed_at) {
         // Email already confirmed (for some providers)
         localStorage.setItem('selected_plan', selectedPlan)
-        localStorage.setItem('user_email', email)
+        localStorage.setItem('user_email', formData.email)
         router.push(`/payment?plan=${selectedPlan}`)
       } else if (data.user) {
         // Email not confirmed yet - stay on page, show message
         localStorage.setItem('selected_plan', selectedPlan)
-        localStorage.setItem('user_email', email)
+        localStorage.setItem('user_email', formData.email)
         setEmailConfirmSent(true)
-        setAuthError(null)
+        setServerError(null)
       }
     } catch {
-      setAuthError('Failed to sign up. Please try again.')
+      setServerError('Failed to sign up. Please try again.')
     } finally {
       setIsEmailLoading(false)
     }
   }
 
   const handlePhoneSignIn = async () => {
-    if (!phone || phone.length < 10) {
-      setAuthError('Please enter a valid phone number')
-      return
-    }
+    const valid = await signupForm.trigger(['phone'])
+    if (!valid) return
 
     setIsPhoneLoading(true)
-    setAuthError(null)
+    setServerError(null)
+
+    const phone = signupForm.getValues('phone')
 
     try {
       const { error } = await supabase.auth.signInWithOtp({
@@ -150,7 +169,7 @@ function SignupContent() {
       })
 
       if (error) {
-        setAuthError(error.message)
+        setServerError(error.message)
         setIsPhoneLoading(false)
         return
       }
@@ -159,30 +178,31 @@ function SignupContent() {
       setResendTimer(30)
       toast.success('OTP sent to your phone!')
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Failed to send OTP')
+      setServerError(err instanceof Error ? err.message : 'Failed to send OTP')
     } finally {
       setIsPhoneLoading(false)
     }
   }
 
   const handleVerifyOtp = async () => {
-    if (!otp || otp.length < 6) {
-      setAuthError('Please enter the 6-digit OTP')
-      return
-    }
+    const valid = await otpForm.trigger()
+    if (!valid) return
 
     setIsPhoneLoading(true)
-    setAuthError(null)
+    setServerError(null)
+
+    const phone = signupForm.getValues('phone')
+    const formData = otpForm.getValues()
 
     try {
       const { error } = await supabase.auth.verifyOtp({
         phone: `+91${phone}`,
-        token: otp,
+        token: formData.otp,
         type: 'sms',
       })
 
       if (error) {
-        setAuthError(error.message)
+        setServerError(error.message)
         setIsPhoneLoading(false)
         return
       }
@@ -192,7 +212,7 @@ function SignupContent() {
       toast.success('Phone verified!')
       router.push(`/payment?plan=${selectedPlan}`)
     } catch (err) {
-      setAuthError(err instanceof Error ? err.message : 'Invalid OTP. Please try again.')
+      setServerError(err instanceof Error ? err.message : 'Invalid OTP. Please try again.')
     } finally {
       setIsPhoneLoading(false)
     }
@@ -220,6 +240,7 @@ function SignupContent() {
   }, [emailResendTimer])
 
   const handleResendEmail = async () => {
+    const email = signupForm.getValues('email')
     if (emailResendTimer > 0 || !email) return
 
     try {
@@ -232,7 +253,7 @@ function SignupContent() {
       })
 
       if (error) {
-        setAuthError(error.message)
+        setServerError(error.message)
         return
       }
 
@@ -241,9 +262,9 @@ function SignupContent() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       if (message.includes('rate_limit')) {
-        setAuthError('Email rate limit reached. Please wait a few minutes before resending.')
+        setServerError('Email rate limit reached. Please wait a few minutes before resending.')
       } else {
-        setAuthError('Failed to resend email. Please try again.')
+        setServerError('Failed to resend email. Please try again.')
       }
     }
   }
@@ -290,7 +311,7 @@ function SignupContent() {
             {step === 'plan'
               ? 'You can change this anytime later'
               : otpSent
-              ? `We sent a code to +91 ${phone}`
+              ? `We sent a code to +91 ${signupForm.watch('phone')}`
               : 'Start your 14-day free trial. No credit card required.'}
           </CardDescription>
         </CardHeader>
@@ -330,9 +351,9 @@ function SignupContent() {
           {/* Signup Step */}
           {step === 'signup' && !otpSent && (
             <div className="space-y-4">
-              {authError && (
+              {serverError && (
                 <div className="p-3 text-sm text-white bg-destructive rounded-md">
-                  {authError}
+                  {serverError}
                 </div>
               )}
 
@@ -346,7 +367,7 @@ function SignupContent() {
                     <p className="font-medium">Check your email</p>
                     <p className="text-sm text-muted-foreground mt-1">
                       We sent a confirmation link to<br />
-                      <span className="font-medium text-foreground">{email}</span>
+                      <span className="font-medium text-foreground">{signupForm.watch('email')}</span>
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -415,10 +436,12 @@ function SignupContent() {
                               id="email"
                               type="email"
                               placeholder="you@yourstore.com"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
+                              {...signupForm.register('email')}
                               className="pl-10"
                             />
+                            {signupForm.formState.errors.email && (
+                              <p className="text-sm text-destructive">{signupForm.formState.errors.email.message}</p>
+                            )}
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -429,16 +452,18 @@ function SignupContent() {
                               id="password"
                               type="password"
                               placeholder="Min 6 characters"
-                              value={password}
-                              onChange={(e) => setPassword(e.target.value)}
+                              {...signupForm.register('password')}
                               className="pl-10"
                             />
+                            {signupForm.formState.errors.password && (
+                              <p className="text-sm text-destructive">{signupForm.formState.errors.password.message}</p>
+                            )}
                           </div>
                         </div>
                         <Button
                           className="w-full"
                           onClick={handleEmailSignUp}
-                          disabled={isEmailLoading || !email || !password}
+                          disabled={isEmailLoading}
                         >
                           {isEmailLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Sign Up with Email
@@ -460,24 +485,27 @@ function SignupContent() {
                   {ENABLE_PHONE_AUTH && (
                     <div className="space-y-3">
                       <div className="space-y-2">
-                        <Label>Phone number</Label>
+                        <Label htmlFor="phone">Phone number</Label>
                         <div className="flex gap-2">
                           <div className="flex items-center justify-center w-14 bg-muted rounded-md text-sm font-medium">
                             +91
                           </div>
                           <Input
+                            id="phone"
                             type="tel"
                             placeholder="98765 43210"
-                            value={phone}
-                            onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                            {...signupForm.register('phone')}
                           />
+                          {signupForm.formState.errors.phone && (
+                            <p className="text-sm text-destructive">{signupForm.formState.errors.phone.message}</p>
+                          )}
                         </div>
                       </div>
                       <Button
                         className="w-full"
                         variant="outline"
                         onClick={handlePhoneSignIn}
-                        disabled={isPhoneLoading || phone.length < 10}
+                        disabled={isPhoneLoading}
                       >
                         {isPhoneLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         <Phone className="mr-2 h-4 w-4" />
@@ -501,20 +529,23 @@ function SignupContent() {
           {step === 'signup' && otpSent && (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label>Enter 6-digit code</Label>
+                <Label htmlFor="otp">Enter 6-digit code</Label>
                 <Input
+                  id="otp"
                   type="text"
                   placeholder="• • • • • •"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  {...otpForm.register('otp')}
                   className="w-full px-3 py-3 text-center text-2xl tracking-widest"
                   maxLength={6}
                 />
+                {otpForm.formState.errors.otp && (
+                  <p className="text-sm text-destructive">{otpForm.formState.errors.otp.message}</p>
+                )}
               </div>
               <Button
                 className="w-full"
                 onClick={handleVerifyOtp}
-                disabled={isPhoneLoading || otp.length < 6}
+                disabled={isPhoneLoading}
               >
                 {isPhoneLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Verify & Continue

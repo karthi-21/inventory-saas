@@ -392,15 +392,17 @@ export default function InventoryPage() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1 max-w-md">
+          <Label htmlFor="inventory-search" className="sr-only">Search inventory</Label>
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
+            id="inventory-search"
             placeholder="Search by name or code..."
             className="pl-9"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-        <Select value={selectedStore} onValueChange={(v) => { setSelectedStore(v || 'all'); setSelectedLocation('all'); }}>
+        <Select value={selectedStore} onValueChange={(v) => { setSelectedStore(v || 'all'); setSelectedLocation('all'); }} aria-label="Filter by store">
           <SelectTrigger className="w-48">
             {selectedStore === 'all' ? 'All Stores' : stores?.find(s => s.id === selectedStore)?.name ?? 'All Stores'}
           </SelectTrigger>
@@ -414,7 +416,7 @@ export default function InventoryPage() {
           </SelectContent>
         </Select>
         {selectedStore !== 'all' && locations && locations.length > 0 && (
-          <Select value={selectedLocation} onValueChange={(v) => v && setSelectedLocation(v)}>
+          <Select value={selectedLocation} onValueChange={(v) => v && setSelectedLocation(v)} aria-label="Filter by location">
             <SelectTrigger className="w-44">
               {selectedLocation === 'all' ? 'All Locations' : locations?.find(l => l.id === selectedLocation)?.name ?? 'All Locations'}
             </SelectTrigger>
@@ -462,9 +464,11 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             {/* Product search (reuse global search) */}
+            <Label htmlFor="products-search" className="sr-only">Search products</Label>
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
+                id="products-search"
                 placeholder="Search by name, code, or barcode..."
                 className="pl-9"
                 value={searchQuery}
@@ -961,8 +965,9 @@ export default function InventoryPage() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
-              <Label>CSV File</Label>
+              <Label htmlFor="csv-upload">CSV File</Label>
               <Input
+                id="csv-upload"
                 type="file"
                 accept=".csv"
                 onChange={(e) => {

@@ -154,14 +154,17 @@ vi.mock('@/lib/db', () => {
     },
     inventoryStock: {
       findFirst: makeFindFirst('inventoryStocks'),
+      findMany: makeFindMany('inventoryStocks'),
       create: makeCreate('inventoryStocks'),
       update: makeUpdate('inventoryStocks'),
     },
-    stockMovement: { create: makeCreate('stockMovements') },
+    stockMovement: { create: makeCreate('stockMovements'), createMany: vi.fn() },
     payment: { createMany: vi.fn(), create: vi.fn() },
     loyaltyPointsLog: { create: vi.fn() },
+    subscription: { findFirst: vi.fn(() => ({ id: 'sub-test', status: 'ACTIVE', currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) })) },
     activityLog: { create: vi.fn() },
     $transaction: vi.fn(async (fn: any) => fn(prisma)),
+    $executeRaw: vi.fn(),
   }
 
   return { prisma }

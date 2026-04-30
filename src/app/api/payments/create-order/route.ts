@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createCheckout, isDodoConfigured, PLAN_MAPPING } from '@/lib/dodo'
+import { getTrialEndDate } from '@/config/subscription'
 
 /**
  * POST /api/payments/create-order
@@ -62,7 +63,7 @@ export async function POST(request: NextRequest) {
           dodoCustomerId: checkout.id,
           dodoSubscriptionId: checkout.id,
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          currentPeriodEnd: getTrialEndDate(),
         }
       })
     } else {
@@ -74,7 +75,7 @@ export async function POST(request: NextRequest) {
           dodoCustomerId: checkout.id,
           dodoSubscriptionId: checkout.id,
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+          currentPeriodEnd: getTrialEndDate(),
         }
       })
     }

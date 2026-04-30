@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { TenantPlan } from '@prisma/client'
+import { getTrialEndDate } from '@/config/subscription'
 
 const PLAN_MAP: Record<string, TenantPlan> = {
   launch: 'STARTER',
@@ -79,7 +80,7 @@ export async function POST(request: NextRequest) {
               plan: PLAN_MAP[plan] || 'PRO',
               status: 'TRIALING',
               currentPeriodStart: new Date(),
-              currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+              currentPeriodEnd: getTrialEndDate(),
             }
           })
         }

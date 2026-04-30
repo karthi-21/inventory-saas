@@ -104,6 +104,9 @@ export default function POSPage() {
   const [_upiPaymentRef, setUpiPaymentRef] = useState<string | null>(null)
   const [heldBillName, setHeldBillName] = useState('')
   const [customerPhone, setCustomerPhone] = useState('')
+  const [customerPhoneError, setCustomerPhoneError] = useState('')
+  const [heldBillNameError, setHeldBillNameError] = useState('')
+  const [mobileView, setMobileView] = useState<'products' | 'cart'>('products')
   const [customerResults, setCustomerResults] = useState<CustomerSearchResult[]>([])
   const [isSearchingCustomer, setIsSearchingCustomer] = useState(false)
   const [isCharging, setIsCharging] = useState(false)
@@ -171,6 +174,16 @@ export default function POSPage() {
   useEffect(() => {
     searchRef.current?.focus()
   }, [])
+
+  // Warn before leaving when cart has items
+  useEffect(() => {
+    if (cartCount === 0) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [cartCount])
 
   // Fetch locations for current store (counters)
   useEffect(() => {
@@ -373,7 +386,11 @@ export default function POSPage() {
 
   // Hold bill
   const handleHoldBill = () => {
-    if (!heldBillName.trim()) return
+    if (!heldBillName.trim()) {
+      setHeldBillNameError('Please enter a name for the held bill')
+      return
+    }
+    setHeldBillNameError('')
     holdBill(heldBillName)
     setHeldBillName('')
     setShowHoldDialog(false)
@@ -389,7 +406,10 @@ export default function POSPage() {
 
   // Complete sale
   const handleCharge = async () => {
-    if (cart.length === 0) return
+    if (cart.length === 0) {
+      toast.error('Cart is empty. Add items before charging.')
+      return
+    }
     setIsCharging(true)
     try {
       // Build payments array
@@ -510,7 +530,11 @@ export default function POSPage() {
 
   // Search customers
   const handleCustomerSearch = async () => {
-    if (!customerPhone.trim()) return
+    if (!customerPhone.trim()) {
+      setCustomerPhoneError('Please enter a phone number or name to search')
+      return
+    }
+    setCustomerPhoneError('')
     setIsSearchingCustomer(true)
     try {
       const res = await fetch(`/api/customers?search=${encodeURIComponent(customerPhone)}`)
@@ -614,9 +638,29 @@ export default function POSPage() {
     : 'Walk-in Customer'
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-4">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-4rem)] gap-4">
+      {/* Mobile view toggle */}
+      <div className="flex lg:hidden items-center border-b bg-white px-2">
+        <button
+          onClick={() => setMobileView('products')}
+          className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+            mobileView === 'products' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
+          }`}
+        >
+          Products
+        </button>
+        <button
+          onClick={() => setMobileView('cart')}
+          className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors ${
+            mobileView === 'cart' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground'
+          }`}
+        >
+          Cart ({cartCount})
+        </button>
+      </div>
+
       {/* Left Panel - Product Grid */}
-      <div className="flex flex-1 flex-col overflow-hidden rounded-lg border bg-white">
+      <div className={`flex flex-1 flex-col overflow-hidden rounded-lg border bg-white ${mobileView === 'cart' ? 'hidden lg:flex' : 'flex'}`}>
         {/* Search & Category */}
         <div className="border-b p-3 space-y-3">
           {/* Store & Counter selector */}
@@ -627,6 +671,7 @@ export default function POSPage() {
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
               ) : locations.length > 0 ? (
                 <Select
+                  aria-label="Select counter"
                   value={currentLocationId || '__all__'}
                   onValueChange={(val) => setCurrentLocation(val === '__all__' ? null : val)}
                 >
@@ -671,8 +716,10 @@ export default function POSPage() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Scan className="absolute right-10 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Label htmlFor="pos-product-search" className="sr-only">Search products</Label>
             <Input
               ref={searchRef}
+              id="pos-product-search"
               placeholder="Search by name, code, or barcode..."
               className="pl-9 pr-10"
               value={searchQuery}
@@ -783,7 +830,7 @@ export default function POSPage() {
       </div>
 
       {/* Right Panel - Cart / Bill */}
-      <div className="flex w-96 flex-col overflow-hidden rounded-lg border bg-white">
+      <div className={`flex w-full lg:w-96 flex-col overflow-hidden rounded-lg border bg-white ${mobileView === 'products' ? 'hidden lg:flex' : 'flex'}`}>
         {/* Cart Header */}
         <div className="border-b p-3">
           <div className="flex items-center justify-between">
@@ -898,7 +945,9 @@ export default function POSPage() {
               >
                 {discountType === '₹' ? '₹' : '%'}
               </Button>
+              <Label htmlFor="bill-discount" className="sr-only">Discount</Label>
               <Input
+                id="bill-discount"
                 placeholder={`Discount (${discountType})`}
                 type="number"
                 className="h-8 text-sm"
@@ -1005,6 +1054,7 @@ export default function POSPage() {
                 {splitPayments.map((payment, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     <Select
+                      aria-label={`Payment method ${idx + 1}`}
                       value={payment.method}
                       onValueChange={(v) => {
                         const newPayments = [...splitPayments]
@@ -1022,6 +1072,7 @@ export default function POSPage() {
                       </SelectContent>
                     </Select>
                     <Input
+                      id={`split-amount-${idx}`}
                       type="number"
                       min={0}
                       value={payment.amount || ''}
@@ -1034,6 +1085,7 @@ export default function POSPage() {
                       className="flex-1"
                     />
                     <Input
+                      id={`split-ref-${idx}`}
                       value={payment.reference}
                       onChange={(e) => {
                         const newPayments = [...splitPayments]
@@ -1066,8 +1118,9 @@ export default function POSPage() {
             ) : (
               /* Single Payment UI */
               <div className="space-y-2">
-                <Label>Payment Note (optional)</Label>
+                <Label htmlFor="payment-note">Payment Note (optional)</Label>
                 <Input
+                  id="payment-note"
                   placeholder="e.g. Card ending 4242"
                   value={paymentNote}
                   onChange={(e) => setPaymentNote(e.target.value)}
@@ -1086,7 +1139,9 @@ export default function POSPage() {
                   <Badge variant="outline">₹{loyaltyValue.toFixed(2)} off</Badge>
                 </div>
                 <div className="flex items-center gap-2">
+                  <Label htmlFor="loyalty-redeem" className="sr-only">Points to redeem</Label>
                   <Input
+                    id="loyalty-redeem"
                     type="number"
                     min={0}
                     max={maxLoyaltyPoints}
@@ -1127,18 +1182,20 @@ export default function POSPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Phone or Name</Label>
+              <Label htmlFor="customer-phone-search">Phone or Name</Label>
               <div className="flex gap-2">
                 <Input
+                  id="customer-phone-search"
                   placeholder="+91 98765 43210"
                   value={customerPhone}
-                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  onChange={(e) => { setCustomerPhone(e.target.value); setCustomerPhoneError('') }}
                   onKeyDown={(e) => e.key === 'Enter' && handleCustomerSearch()}
                 />
                 <Button onClick={handleCustomerSearch} disabled={isSearchingCustomer}>
                   {isSearchingCustomer ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
                 </Button>
               </div>
+              {customerPhoneError && <p className="text-sm text-destructive">{customerPhoneError}</p>}
             </div>
             {/* Customer results */}
             {customerResults.length > 0 && (
@@ -1177,12 +1234,14 @@ export default function POSPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Bill Name</Label>
+              <Label htmlFor="hold-bill-name">Bill Name</Label>
               <Input
+                id="hold-bill-name"
                 placeholder="e.g. Table 5, Ramesh"
                 value={heldBillName}
-                onChange={(e) => setHeldBillName(e.target.value)}
+                onChange={(e) => { setHeldBillName(e.target.value); setHeldBillNameError('') }}
               />
+              {heldBillNameError && <p className="text-sm text-destructive">{heldBillNameError}</p>}
             </div>
             <Button onClick={handleHoldBill} className="w-full" disabled={!heldBillName.trim()}>
               Hold Bill

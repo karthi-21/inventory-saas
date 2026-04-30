@@ -5,6 +5,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { Check, IndianRupee, Loader2, CreditCard, Calendar, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
@@ -14,6 +22,7 @@ import Link from 'next/link'
 export default function SubscriptionPage() {
   const queryClient = useQueryClient()
   const [cancelling, setCancelling] = useState(false)
+  const [showCancelDialog, setShowCancelDialog] = useState(false)
 
   const { data: subscriptionData, isLoading } = useQuery<{
     hasActiveSubscription: boolean
@@ -226,12 +235,7 @@ export default function SubscriptionPage() {
             </p>
             <Button
               variant="destructive"
-              onClick={() => {
-                if (confirm('Are you sure you want to cancel your subscription? You can continue using Ezvento until the end of your billing period.')) {
-                  setCancelling(true)
-                  cancelMutation.mutate()
-                }
-              }}
+              onClick={() => setShowCancelDialog(true)}
               disabled={cancelling}
             >
               {cancelling ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Cancelling...</> : 'Cancel Subscription'}
@@ -255,6 +259,32 @@ export default function SubscriptionPage() {
           </CardContent>
         </Card>
       )}
+      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancel Subscription</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to cancel your subscription? You can continue using Ezvento until
+              the end of your billing period.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
+              Keep Subscription
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                setShowCancelDialog(false)
+                setCancelling(true)
+                cancelMutation.mutate()
+              }}
+            >
+              Yes, Cancel Subscription
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

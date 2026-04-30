@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     const validationError = validateRequired(body as unknown as Record<string, unknown>, [
-      'storeName', 'storeType', 'businessName', 'address', 'state', 'pincode', 'phone'
+      'storeName', 'storeType', 'businessName', 'address', 'state', 'pincode'
     ])
     if (validationError) return errorResponse(validationError, 400)
 

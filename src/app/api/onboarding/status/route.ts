@@ -25,6 +25,9 @@ export async function GET() {
     return NextResponse.json({ hasExistingStore })
   } catch (error) {
     console.error('Onboarding status error:', error)
-    return NextResponse.json({ hasExistingStore: false })
+    return NextResponse.json(
+      { error: 'Failed to check onboarding status' },
+      { status: 500 }
+    )
   }
 }

@@ -858,11 +858,12 @@ export default function LandingPage() {
                       </div>
                     )}
 
-                    {/* Learn more for large/wide/tall */}
+                    {/* Feature tag for large/wide/tall cards */}
                     {(feature.size === 'large' || feature.size === 'wide' || feature.size === 'tall') && (
-                      <div className="mt-auto pt-3 flex items-center text-sm font-medium text-slate-600 group-hover:text-slate-900 transition-colors">
-                        Learn more
-                        <ArrowRight className="ml-1 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                      <div className="mt-auto pt-3">
+                        <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                          {feature.tags?.[0]}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -1164,10 +1165,15 @@ export default function LandingPage() {
             <div>
               <h4 className="font-semibold text-slate-900 mb-3 text-sm">Product</h4>
               <ul className="space-y-2">
-                {['Features', 'Pricing', 'Industries', 'Offline POS'].map((item) => (
-                  <li key={item}>
-                    <a href={`#${item.toLowerCase()}`} className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
-                      {item}
+                {[
+                  { label: 'Features', href: '#features' },
+                  { label: 'Pricing', href: '#pricing' },
+                  { label: 'Industries', href: '#industries' },
+                  { label: 'Offline POS', href: '#features' },
+                ].map((item) => (
+                  <li key={item.label}>
+                    <a href={item.href} className="text-sm text-slate-500 hover:text-slate-900 transition-colors">
+                      {item.label}
                     </a>
                   </li>
                 ))}

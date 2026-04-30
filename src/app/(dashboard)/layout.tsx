@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import React, { useMemo } from 'react'
+import React, { useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
   Store,
@@ -77,6 +77,7 @@ export default function DashboardLayout({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [isCheckingOnboarding, setIsCheckingOnboarding] = useState(true)
   const [shouldRedirectToOnboarding, setShouldRedirectToOnboarding] = useState(false)
+  const onboardingRequestIdRef = useRef(0)
   const { currentStoreId, setCurrentStore, setCurrentLocation } = usePOSStore()
 
   // Fetch user permissions for menu filtering
@@ -187,7 +188,7 @@ export default function DashboardLayout({
   React.useEffect(() => {
     if (!subscriptionData) return // Still loading
     if (trialExpired || (!hasActiveSubscription && !isTrialing)) {
-      if (pathname !== '/dashboard/billing' && pathname !== '/dashboard/settings') {
+      if (!pathname.startsWith('/dashboard/billing') && !pathname.startsWith('/dashboard/settings')) {
         router.push('/payment')
       }
     }
@@ -221,20 +222,34 @@ export default function DashboardLayout({
 
   // Check if user needs to complete onboarding
   React.useEffect(() => {
+    if (pathname === '/onboarding') {
+      setIsCheckingOnboarding(false)
+      return
+    }
+
+    onboardingRequestIdRef.current += 1
+    const requestId = onboardingRequestIdRef.current
+
     const checkOnboarding = async () => {
+      setIsCheckingOnboarding(true)
       try {
         const res = await fetch('/api/onboarding/status')
+        if (requestId !== onboardingRequestIdRef.current) return
+
         if (res.ok) {
           const data = await res.json()
-          // If user has no existing store and is not already on onboarding page
-          if (!data.hasExistingStore && pathname !== '/onboarding') {
+          if (!data.hasExistingStore) {
             setShouldRedirectToOnboarding(true)
+          } else {
+            setShouldRedirectToOnboarding(false)
           }
         }
       } catch (e) {
         console.error('Error checking onboarding:', e)
       } finally {
-        setIsCheckingOnboarding(false)
+        if (requestId === onboardingRequestIdRef.current) {
+          setIsCheckingOnboarding(false)
+        }
       }
     }
     checkOnboarding()
@@ -242,10 +257,10 @@ export default function DashboardLayout({
 
   // Redirect to onboarding if needed
   React.useEffect(() => {
-    if (shouldRedirectToOnboarding && !isCheckingOnboarding) {
+    if (shouldRedirectToOnboarding && !isCheckingOnboarding && pathname !== '/onboarding') {
       router.push('/onboarding')
     }
-  }, [shouldRedirectToOnboarding, isCheckingOnboarding, router])
+  }, [shouldRedirectToOnboarding, isCheckingOnboarding, router, pathname])
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -289,7 +304,7 @@ export default function DashboardLayout({
               <DropdownMenuItem key={store.id} onClick={() => { setCurrentStore(store.id); setCurrentLocation(null) }}>{store.name}</DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/dashboard/stores')}>
               <Badge variant="outline" className="mr-2">+</Badge>
               Add Store
             </DropdownMenuItem>
@@ -371,11 +386,12 @@ export default function DashboardLayout({
       <div className="flex flex-1 flex-col">
         {/* Top Bar */}
         <header className="sticky top-0 z-40 flex h-16 items-center gap-4 border-b bg-white px-4 lg:px-6">
-          <Sheet>
-            <SheetTrigger className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground px-3 py-2 lg:hidden">
-              <Menu className="h-5 w-5" />
-            </SheetTrigger>
-          </Sheet>
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground px-3 py-2 lg:hidden"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
 
           <div className="flex-1" />
 

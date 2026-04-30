@@ -599,7 +599,7 @@ export default function BillingPage() {
             </Button>
             <Button
               variant="destructive"
-              disabled={!cancelReason || (cancelReason === 'Other' && !customReason.trim()) || cancelMutation.isPending}
+              disabled={!cancelReason || (cancelReason === 'Other' && !customReason.trim()) || (selectedInvoice && Number(selectedInvoice.amountPaid) > 0) || cancelMutation.isPending}
               onClick={() => {
                 if (selectedInvoice) {
                   cancelMutation.mutate(selectedInvoice.id)

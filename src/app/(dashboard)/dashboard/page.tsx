@@ -166,32 +166,24 @@ export default function DashboardPage() {
     {
       title: "Today's Sales",
       value: statsData ? `₹${statsData.todaySales.toLocaleString('en-IN')}` : '₹0',
-      change: '+12.5%',
-      changeType: 'up' as const,
       icon: IndianRupee,
       loading: statsLoading,
     },
     {
       title: 'Bills',
       value: statsData?.todayInvoices?.toString() || '0',
-      change: '+8',
-      changeType: 'up' as const,
       icon: Receipt,
       loading: statsLoading,
     },
     {
       title: 'New Customers',
       value: statsData?.newCustomers?.toString() || '0',
-      change: '+3',
-      changeType: 'up' as const,
       icon: Users,
       loading: statsLoading,
     },
     {
       title: 'Low Stock Items',
       value: statsData?.lowStockCount?.toString() || '0',
-      change: '-2',
-      changeType: 'down' as const,
       icon: AlertTriangle,
       loading: statsLoading,
     },
@@ -292,17 +284,7 @@ export default function DashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  {stat.changeType === 'up' ? (
-                    <ArrowUpRight className="h-3 w-3 text-green-600" />
-                  ) : (
-                    <ArrowDownRight className="h-3 w-3 text-red-600" />
-                  )}
-                  <span className={stat.changeType === 'up' ? 'text-green-600' : 'text-red-600'}>
-                    {stat.change}
-                  </span>{' '}
-                  vs yesterday
-                </p>
+                <p className="text-xs text-muted-foreground">Current period</p>
               </CardContent>
             </Card>
           ))

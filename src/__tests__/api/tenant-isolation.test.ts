@@ -160,6 +160,7 @@ vi.mock('@/lib/db', () => {
     stockMovement: { create: makeCreate('stockMovements') },
     payment: { createMany: vi.fn(), create: vi.fn() },
     loyaltyPointsLog: { create: vi.fn() },
+    subscription: { findFirst: vi.fn(() => ({ id: 'sub-test', status: 'ACTIVE', currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) })) },
     activityLog: { create: vi.fn() },
     $transaction: vi.fn(async (fn: any) => fn(prisma)),
   }

@@ -1,0 +1,335 @@
+{
+  "summary": {
+    "totalBills": 90,
+    "successCount": 90,
+    "successRate": 1,
+    "totalRevenue": 12608446,
+    "durationSeconds": 1147
+  },
+  "byScenario": {
+    "diwali": {
+      "totalBills": 30,
+      "successCount": 30,
+      "errorCount": 0,
+      "totalRevenue": 6566185,
+      "avgLatency": 12408,
+      "p50Latency": 12282,
+      "p95Latency": 14560,
+      "p99Latency": 14885,
+      "throughput": 2,
+      "errorsByStatus": {},
+      "avgBillValue": 218873
+    },
+    "tuesday": {
+      "totalBills": 30,
+      "successCount": 30,
+      "errorCount": 0,
+      "totalRevenue": 1932150,
+      "avgLatency": 11048,
+      "p50Latency": 10925,
+      "p95Latency": 11631,
+      "p99Latency": 14022,
+      "throughput": 2,
+      "errorsByStatus": {},
+      "avgBillValue": 64405
+    },
+    "sunday": {
+      "totalBills": 30,
+      "successCount": 30,
+      "errorCount": 0,
+      "totalRevenue": 4110111,
+      "avgLatency": 11185,
+      "p50Latency": 11140,
+      "p95Latency": 11746,
+      "p99Latency": 11799,
+      "throughput": 2,
+      "errorsByStatus": {},
+      "avgBillValue": 137004
+    }
+  },
+  "byStore": {
+    "big": {
+      "totalBills": 30,
+      "successCount": 30,
+      "errorCount": 0,
+      "totalRevenue": 4330602,
+      "avgLatency": 11932,
+      "p50Latency": 11485,
+      "p95Latency": 14560,
+      "p99Latency": 14885,
+      "throughput": 2,
+      "errorsByStatus": {},
+      "avgBillValue": 144353,
+      "counters": {
+        "counter-1": {
+          "totalBills": 30,
+          "successCount": 30,
+          "errorCount": 0,
+          "totalRevenue": 4330602,
+          "avgLatency": 11932,
+          "p50Latency": 11485,
+          "p95Latency": 14560,
+          "p99Latency": 14885,
+          "throughput": 2,
+          "errorsByStatus": {},
+          "avgBillValue": 144353
+        },
+        "counter-2": {
+          "totalBills": 0,
+          "successCount": 0,
+          "errorCount": 0,
+          "totalRevenue": 0,
+          "avgLatency": 0,
+          "p50Latency": 0,
+          "p95Latency": 0,
+          "p99Latency": 0,
+          "throughput": 0,
+          "errorsByStatus": {},
+          "avgBillValue": 0
+        },
+        "counter-3": {
+          "totalBills": 0,
+          "successCount": 0,
+          "errorCount": 0,
+          "totalRevenue": 0,
+          "avgLatency": 0,
+          "p50Latency": 0,
+          "p95Latency": 0,
+          "p99Latency": 0,
+          "throughput": 0,
+          "errorsByStatus": {},
+          "avgBillValue": 0
+        },
+        "counter-4": {
+          "totalBills": 0,
+          "successCount": 0,
+          "errorCount": 0,
+          "totalRevenue": 0,
+          "avgLatency": 0,
+          "p50Latency": 0,
+          "p95Latency": 0,
+          "p99Latency": 0,
+          "throughput": 0,
+          "errorsByStatus": {},
+          "avgBillValue": 0
+        }
+      }
+    },
+    "medium": {
+      "totalBills": 30,
+      "successCount": 30,
+      "errorCount": 0,
+      "totalRevenue": 6106055,
+      "avgLatency": 11278,
+      "p50Latency": 11101,
+      "p95Latency": 12508,
+      "p99Latency": 12691,
+      "throughput": 2,
+      "errorsByStatus": {},
+      "avgBillValue": 203535,
+      "counters": {
+        "counter-1": {
+          "totalBills": 30,
+          "successCount": 30,
+          "errorCount": 0,
+          "totalRevenue": 6106055,
+          "avgLatency": 11278,
+          "p50Latency": 11101,
+          "p95Latency": 12508,
+          "p99Latency": 12691,
+          "throughput": 2,
+          "errorsByStatus": {},
+          "avgBillValue": 203535
+        },
+        "counter-2": {
+          "totalBills": 0,
+          "successCount": 0,
+          "errorCount": 0,
+          "totalRevenue": 0,
+          "avgLatency": 0,
+          "p50Latency": 0,
+          "p95Latency": 0,
+          "p99Latency": 0,
+          "throughput": 0,
+          "errorsByStatus": {},
+          "avgBillValue": 0
+        },
+        "counter-3": {
+          "totalBills": 0,
+          "successCount": 0,
+          "errorCount": 0,
+          "totalRevenue": 0,
+          "avgLatency": 0,
+          "p50Latency": 0,
+          "p95Latency": 0,
+          "p99Latency": 0,
+          "throughput": 0,
+          "errorsByStatus": {},
+          "avgBillValue": 0
+        }
+      }
+    },
+    "small": {
+      "totalBills": 30,
+      "successCount": 30,
+      "errorCount": 0,
+      "totalRevenue": 2171789,
+      "avgLatency": 11431,
+      "p50Latency": 11255,
+      "p95Latency": 12282,
+      "p99Latency": 14060,
+      "throughput": 2,
+      "errorsByStatus": {},
+      "avgBillValue": 72393,
+      "counters": {
+        "counter-1": {
+          "totalBills": 30,
+          "successCount": 30,
+          "errorCount": 0,
+          "totalRevenue": 2171789,
+          "avgLatency": 11431,
+          "p50Latency": 11255,
+          "p95Latency": 12282,
+          "p99Latency": 14060,
+          "throughput": 2,
+          "errorsByStatus": {},
+          "avgBillValue": 72393
+        },
+        "counter-2": {
+          "totalBills": 0,
+          "successCount": 0,
+          "errorCount": 0,
+          "totalRevenue": 0,
+          "avgLatency": 0,
+          "p50Latency": 0,
+          "p95Latency": 0,
+          "p99Latency": 0,
+          "throughput": 0,
+          "errorsByStatus": {},
+          "avgBillValue": 0
+        }
+      }
+    }
+  },
+  "latency": {
+    "avg": 11547,
+    "p50": 11211,
+    "p95": 14060,
+    "p99": 14885,
+    "min": 10386,
+    "max": 14885
+  },
+  "errors": {},
+  "topSlowest": [
+    {
+      "counter": "counter-1",
+      "store": "big",
+      "scenario": "diwali",
+      "billNumber": 2,
+      "latencyMs": 14885,
+      "status": 201,
+      "itemCount": 7,
+      "totalAmount": 46102,
+      "timestamp": 1777563517553
+    },
+    {
+      "counter": "counter-1",
+      "store": "big",
+      "scenario": "diwali",
+      "billNumber": 1,
+      "latencyMs": 14560,
+      "status": 201,
+      "itemCount": 7,
+      "totalAmount": 479702,
+      "timestamp": 1777563502141
+    },
+    {
+      "counter": "counter-1",
+      "store": "big",
+      "scenario": "diwali",
+      "billNumber": 3,
+      "latencyMs": 14427,
+      "status": 201,
+      "itemCount": 6,
+      "totalAmount": 7196,
+      "timestamp": 1777563532374
+    },
+    {
+      "counter": "counter-1",
+      "store": "big",
+      "scenario": "diwali",
+      "billNumber": 5,
+      "latencyMs": 14150,
+      "status": 201,
+      "itemCount": 6,
+      "totalAmount": 296197,
+      "timestamp": 1777563561533
+    },
+    {
+      "counter": "counter-1",
+      "store": "small",
+      "scenario": "diwali",
+      "billNumber": 6,
+      "latencyMs": 14060,
+      "status": 201,
+      "itemCount": 8,
+      "totalAmount": 5035,
+      "timestamp": 1777564329698
+    },
+    {
+      "counter": "counter-1",
+      "store": "big",
+      "scenario": "tuesday",
+      "billNumber": 6,
+      "latencyMs": 14022,
+      "status": 201,
+      "itemCount": 1,
+      "totalAmount": 45293,
+      "timestamp": 1777563706553
+    },
+    {
+      "counter": "counter-1",
+      "store": "big",
+      "scenario": "diwali",
+      "billNumber": 4,
+      "latencyMs": 13500,
+      "status": 201,
+      "itemCount": 3,
+      "totalAmount": 4871,
+      "timestamp": 1777563546537
+    },
+    {
+      "counter": "counter-1",
+      "store": "big",
+      "scenario": "diwali",
+      "billNumber": 6,
+      "latencyMs": 12815,
+      "status": 201,
+      "itemCount": 5,
+      "totalAmount": 25689,
+      "timestamp": 1777563575165
+    },
+    {
+      "counter": "counter-1",
+      "store": "big",
+      "scenario": "diwali",
+      "billNumber": 7,
+      "latencyMs": 12699,
+      "status": 201,
+      "itemCount": 4,
+      "totalAmount": 6442,
+      "timestamp": 1777563588392
+    },
+    {
+      "counter": "counter-1",
+      "store": "medium",
+      "scenario": "diwali",
+      "billNumber": 5,
+      "latencyMs": 12691,
+      "status": 201,
+      "itemCount": 8,
+      "totalAmount": 109844,
+      "timestamp": 1777563941624
+    }
+  ]
+}

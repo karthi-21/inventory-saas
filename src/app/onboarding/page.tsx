@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { CheckCircle2, ChevronRight, ChevronLeft, Loader2, Store, Users } from 'lucide-react'
@@ -10,6 +13,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
   SelectContent,
@@ -48,6 +52,26 @@ const indianStates = [
   'Other'
 ]
 
+const onboardingSchema = z.object({
+  businessName: z.string().min(1, 'Business name is required'),
+  gstin: z.string().optional().or(z.literal('')),
+  pan: z.string().optional().or(z.literal('')),
+  fssaiNumber: z.string().optional().or(z.literal('')),
+  email: z.string().email('Valid email is required').optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
+  storeName: z.string().min(1, 'Store name is required'),
+  storeCount: z.string(),
+  address: z.string().min(1, 'Address is required'),
+  state: z.string().min(1, 'State is required'),
+  pincode: z.string().length(6, 'PIN Code must be 6 digits'),
+  hasBatchTracking: z.boolean(),
+  hasSerialTracking: z.boolean(),
+  hasExpiryTracking: z.boolean(),
+  hasMultiStore: z.boolean(),
+})
+
+type OnboardingForm = z.infer<typeof onboardingSchema>
+
 const steps = [
   { id: 1, title: 'Business' },
   { id: 2, title: 'Store' },
@@ -62,9 +86,11 @@ export default function OnboardingPage() {
   const [isComplete, setIsComplete] = useState(false)
   const [selectedStoreType, setSelectedStoreType] = useState<StoreType | null>(null)
   const [selectedPersonas, setSelectedPersonas] = useState<string[]>([])
+  const [suggestedPersonas, setSuggestedPersonas] = useState<string[]>([])
   const [selectedState, setSelectedState] = useState('')
   const [isChecking, setIsChecking] = useState(true)
   const [hasExistingStore, setHasExistingStore] = useState(false)
+  const [storeTypeError, setStoreTypeError] = useState<string | null>(null)
 
   // Check if user already has a store set up
   useEffect(() => {
@@ -98,22 +124,37 @@ export default function OnboardingPage() {
   }, [router])
 
   // Form data
-  const [formData, setFormData] = useState({
-    businessName: '',
-    gstin: '',
-    pan: '',
-    fssaiNumber: '',
-    email: '',
-    phone: '',
-    storeName: '',
-    storeCount: '1',
-    address: '',
-    pincode: '',
-    state: '',
-    hasExpiryTracking: false,
-    hasSerialTracking: false,
-    hasBatchTracking: false,
-    hasMultiStore: false,
+  const form = useForm<OnboardingForm>({
+    resolver: zodResolver(onboardingSchema),
+    mode: 'onSubmit',
+    defaultValues: async () => {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('ezvento_onboarding_state')
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved)
+            return {
+              businessName: parsed.formData?.businessName || '',
+              gstin: parsed.formData?.gstin || '',
+              pan: parsed.formData?.pan || '',
+              fssaiNumber: parsed.formData?.fssaiNumber || '',
+              email: parsed.formData?.email || '',
+              phone: parsed.formData?.phone || '',
+              storeName: parsed.formData?.storeName || '',
+              storeCount: parsed.formData?.storeCount || '1',
+              address: parsed.formData?.address || '',
+              state: parsed.formData?.state || '',
+              pincode: parsed.formData?.pincode || '',
+              hasBatchTracking: parsed.formData?.hasBatchTracking ?? false,
+              hasSerialTracking: parsed.formData?.hasSerialTracking ?? false,
+              hasExpiryTracking: parsed.formData?.hasExpiryTracking ?? false,
+              hasMultiStore: parsed.formData?.hasMultiStore ?? false,
+            }
+          } catch { /* ignore */ }
+        }
+      }
+      return { businessName: '', storeName: '', address: '', state: '', pincode: '', storeCount: '1', hasBatchTracking: false, hasSerialTracking: false, hasExpiryTracking: false, hasMultiStore: false }
+    },
   })
 
   // Restore state from localStorage on mount
@@ -123,9 +164,9 @@ export default function OnboardingPage() {
       try {
         const parsed = JSON.parse(saved)
         if (parsed.currentStep) setCurrentStep(parsed.currentStep)
-        if (parsed.formData) setFormData(prev => ({ ...prev, ...parsed.formData }))
         if (parsed.selectedStoreType) setSelectedStoreType(parsed.selectedStoreType)
         if (parsed.selectedPersonas) setSelectedPersonas(parsed.selectedPersonas)
+        if (parsed.suggestedPersonas) setSuggestedPersonas(parsed.suggestedPersonas)
         if (parsed.selectedState) {
           setSelectedState(parsed.selectedState)
         } else if (parsed.formData?.state) {
@@ -138,21 +179,24 @@ export default function OnboardingPage() {
   }, [])
 
   // Persist state to localStorage on change
+  const watchedValues = form.watch()
   useEffect(() => {
     const state = {
       currentStep,
-      formData,
+      formData: watchedValues,
       selectedStoreType,
       selectedPersonas,
+      suggestedPersonas,
       selectedState,
       lastSaved: new Date().toISOString()
     }
     localStorage.setItem('ezvento_onboarding_state', JSON.stringify(state))
-  }, [currentStep, formData, selectedStoreType, selectedPersonas, selectedState])
+  }, [currentStep, watchedValues, selectedStoreType, selectedPersonas, suggestedPersonas, selectedState])
 
   const handleStoreTypeSelect = (type: StoreType) => {
     setSelectedStoreType(type)
     setSelectedPersonas(personaTemplates[type] || [])
+    setSuggestedPersonas(personaTemplates[type] || [])
   }
 
   const togglePersona = (persona: string) => {
@@ -161,41 +205,38 @@ export default function OnboardingPage() {
     )
   }
 
-  const nextStep = () => {
-    if (currentStep === 1) {
-      if (!formData.businessName.trim() || !formData.gstin.trim()) {
-        toast.error('Please fill all required fields')
-        return
-      }
-    }
+  const nextStep = async () => {
+    let fieldsToValidate: (keyof OnboardingForm)[] = []
+    if (currentStep === 1) fieldsToValidate = ['businessName']
     if (currentStep === 2) {
-      if (!selectedStoreType || !formData.storeName.trim()) {
-        toast.error('Please fill all required fields')
+      fieldsToValidate = ['storeName']
+      if (!selectedStoreType) {
+        setStoreTypeError('Please select a store type')
         return
       }
+      setStoreTypeError(null)
     }
-    if (currentStep === 3) {
-      if (!formData.address.trim() || !formData.state.trim() || !formData.pincode.trim()) {
-        toast.error('Please fill all required fields')
-        return
-      }
-    }
+    if (currentStep === 3) fieldsToValidate = ['address', 'state', 'pincode']
+
+    const isValid = await form.trigger(fieldsToValidate)
+    if (!isValid) return
     setCurrentStep((s) => Math.min(s + 1, 4))
   }
   const prevStep = () => setCurrentStep((s) => Math.max(s - 1, 1))
 
   const handleComplete = async () => {
     if (!selectedStoreType) {
-      toast.error('Please select a store type')
+      setStoreTypeError('Please select a store type')
       return
     }
+    const values = form.getValues()
     setIsLoading(true)
     try {
       const response = await fetch('/api/onboarding', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          ...formData,
+          ...values,
           storeType: selectedStoreType,
           personas: selectedPersonas,
           plan: localStorage.getItem('selected_plan') || 'grow'
@@ -263,9 +304,11 @@ export default function OnboardingPage() {
                 <Input
                   id="businessName"
                   placeholder="e.g. Sharma Electronics"
-                  value={formData.businessName}
-                  onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
+                  {...form.register('businessName')}
                 />
+                {form.formState.errors.businessName && (
+                  <p className="text-sm text-destructive">{form.formState.errors.businessName.message}</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -273,8 +316,7 @@ export default function OnboardingPage() {
                   <Input
                     id="gstin"
                     placeholder="27AABCU9603R1ZM"
-                    value={formData.gstin}
-                    onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase() })}
+                    {...form.register('gstin', { setValueAs: (v: string) => v.toUpperCase() })}
                     maxLength={15}
                   />
                 </div>
@@ -283,8 +325,7 @@ export default function OnboardingPage() {
                   <Input
                     id="pan"
                     placeholder="AABCU9603R"
-                    value={formData.pan}
-                    onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase() })}
+                    {...form.register('pan', { setValueAs: (v: string) => v.toUpperCase() })}
                     maxLength={10}
                   />
                 </div>
@@ -296,8 +337,7 @@ export default function OnboardingPage() {
                     id="email"
                     type="email"
                     placeholder="contact@store.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    {...form.register('email')}
                   />
                 </div>
                 <div className="space-y-2">
@@ -305,8 +345,7 @@ export default function OnboardingPage() {
                   <Input
                     id="phone"
                     placeholder="+91 98765 43210"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    {...form.register('phone')}
                   />
                 </div>
               </div>
@@ -332,7 +371,10 @@ export default function OnboardingPage() {
                       ? 'border-primary bg-primary/5'
                       : 'hover:border-primary/50'
                   }`}
-                  onClick={() => handleStoreTypeSelect(type.value)}
+                  onClick={() => {
+                    handleStoreTypeSelect(type.value)
+                    setStoreTypeError(null)
+                  }}
                 >
                   <CardContent className="flex items-center gap-4 p-4">
                     <div
@@ -355,45 +397,56 @@ export default function OnboardingPage() {
                 </Card>
               ))}
             </div>
+            {storeTypeError && (
+              <p className="text-sm text-destructive">{storeTypeError}</p>
+            )}
             {selectedStoreType && (
               <div className="space-y-2">
                 <Label htmlFor="storeName">Primary Store Name *</Label>
                 <Input
                   id="storeName"
                   placeholder="e.g. Chennai Showroom"
-                  value={formData.storeName}
-                  onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
+                  {...form.register('storeName')}
                 />
+                {form.formState.errors.storeName && (
+                  <p className="text-sm text-destructive">{form.formState.errors.storeName.message}</p>
+                )}
               </div>
             )}
             {selectedStoreType && (
               <div className="space-y-2">
-                <Label>Store Count</Label>
-                <Select
-                  value={formData.storeCount}
-                  onValueChange={(v) => setFormData({ ...formData, storeCount: v || '1' })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">1 store</SelectItem>
-                    <SelectItem value="2">2 stores</SelectItem>
-                    <SelectItem value="3">3 stores</SelectItem>
-                    <SelectItem value="5">5 stores</SelectItem>
-                    <SelectItem value="10">10+ stores</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label id="storeCount-label">Store Count</Label>
+                <Controller
+                  name="storeCount"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      aria-labelledby="storeCount-label"
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 store</SelectItem>
+                        <SelectItem value="2">2 stores</SelectItem>
+                        <SelectItem value="3">3 stores</SelectItem>
+                        <SelectItem value="5">5 stores</SelectItem>
+                        <SelectItem value="10">10+ stores</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
               </div>
             )}
             {(selectedStoreType === 'GROCERY' || selectedStoreType === 'SUPERMARKET' || selectedStoreType === 'RESTAURANT') && (
               <div className="space-y-2">
-                <Label htmlFor="fssai">FSSAI License Number (for food businesses)</Label>
+                <Label htmlFor="fssaiNumber">FSSAI License Number (for food businesses)</Label>
                 <Input
                   id="fssaiNumber"
                   placeholder="12345678901234"
-                  value={formData.fssaiNumber}
-                  onChange={(e) => setFormData({ ...formData, fssaiNumber: e.target.value })}
+                  {...form.register('fssaiNumber')}
                 />
               </div>
             )}
@@ -411,45 +464,59 @@ export default function OnboardingPage() {
             </div>
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="address">Address</Label>
+                <Label htmlFor="address">Address *</Label>
                 <Input
                   id="address"
                   placeholder="123 Main Road, Area"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  {...form.register('address')}
                 />
+                {form.formState.errors.address && (
+                  <p className="text-sm text-destructive">{form.formState.errors.address.message}</p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>State *</Label>
-                  <Select
-                    value={selectedState}
-                    onValueChange={(v) => {
-                      setSelectedState(v || '')
-                      setFormData(prev => ({ ...prev, state: v || '' }))
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select state" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {indianStates.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label id="state-label">State *</Label>
+                  <Controller
+                    name="state"
+                    control={form.control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value || selectedState}
+                        onValueChange={(v) => {
+                          field.onChange(v || '')
+                          setSelectedState(v || '')
+                        }}
+                        aria-labelledby="state-label"
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select state" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {indianStates.map((state) => (
+                            <SelectItem key={state} value={state}>
+                              {state}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {form.formState.errors.state && (
+                    <p className="text-sm text-destructive">{form.formState.errors.state.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pincode">PIN Code</Label>
+                  <Label htmlFor="pincode">PIN Code *</Label>
                   <Input
                     id="pincode"
                     placeholder="600001"
-                    value={formData.pincode}
-                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) })}
+                    {...form.register('pincode', { setValueAs: (v: string) => v.replace(/\D/g, '').slice(0, 6) })}
                     maxLength={6}
                   />
+                  {form.formState.errors.pincode && (
+                    <p className="text-sm text-destructive">{form.formState.errors.pincode.message}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -460,60 +527,56 @@ export default function OnboardingPage() {
               <h3 className="font-medium">Stock Tracking</h3>
               <div className="space-y-3">
                 {selectedStoreType !== 'RESTAURANT' && (
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-input"
-                      checked={formData.hasBatchTracking}
-                      onChange={(e) => setFormData({ ...formData, hasBatchTracking: e.target.checked })}
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="hasBatchTracking"
+                      checked={form.watch('hasBatchTracking')}
+                      onCheckedChange={(checked) => form.setValue('hasBatchTracking', checked === true)}
                     />
-                    <div>
+                    <label htmlFor="hasBatchTracking" className="cursor-pointer">
                       <p className="font-medium">Batch & Expiry Tracking</p>
                       <p className="text-sm text-muted-foreground">Track manufacturing dates and expiry</p>
-                    </div>
-                  </label>
+                    </label>
+                  </div>
                 )}
                 {selectedStoreType === 'ELECTRONICS' && (
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-input"
-                      checked={formData.hasSerialTracking}
-                      onChange={(e) => setFormData({ ...formData, hasSerialTracking: e.target.checked })}
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="hasSerialTracking"
+                      checked={form.watch('hasSerialTracking')}
+                      onCheckedChange={(checked) => form.setValue('hasSerialTracking', checked === true)}
                     />
-                    <div>
+                    <label htmlFor="hasSerialTracking" className="cursor-pointer">
                       <p className="font-medium">Serial Number Tracking</p>
                       <p className="text-sm text-muted-foreground">Track individual items and warranties</p>
-                    </div>
-                  </label>
+                    </label>
+                  </div>
                 )}
                 {(selectedStoreType === 'GROCERY' || selectedStoreType === 'SUPERMARKET' || selectedStoreType === 'RESTAURANT') && (
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-input"
-                      checked={formData.hasExpiryTracking}
-                      onChange={(e) => setFormData({ ...formData, hasExpiryTracking: e.target.checked })}
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="hasExpiryTracking"
+                      checked={form.watch('hasExpiryTracking')}
+                      onCheckedChange={(checked) => form.setValue('hasExpiryTracking', checked === true)}
                     />
-                    <div>
+                    <label htmlFor="hasExpiryTracking" className="cursor-pointer">
                       <p className="font-medium">Expiry Alerts</p>
                       <p className="text-sm text-muted-foreground">Get notified before items expire</p>
-                    </div>
-                  </label>
+                    </label>
+                  </div>
                 )}
-                {parseInt(formData.storeCount) > 1 && (
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      className="h-4 w-4 rounded border-input"
-                      checked={formData.hasMultiStore}
-                      onChange={(e) => setFormData({ ...formData, hasMultiStore: e.target.checked })}
+                {parseInt(form.watch('storeCount')) > 1 && (
+                  <div className="flex items-center gap-3">
+                    <Checkbox
+                      id="hasMultiStore"
+                      checked={form.watch('hasMultiStore')}
+                      onCheckedChange={(checked) => form.setValue('hasMultiStore', checked === true)}
                     />
-                    <div>
+                    <label htmlFor="hasMultiStore" className="cursor-pointer">
                       <p className="font-medium">Multi-Store Transfers</p>
                       <p className="text-sm text-muted-foreground">Transfer stock between locations</p>
-                    </div>
-                  </label>
+                    </label>
+                  </div>
                 )}
               </div>
             </div>
@@ -530,7 +593,7 @@ export default function OnboardingPage() {
               </p>
             </div>
             <div className="space-y-3">
-              {selectedPersonas.map((persona) => (
+              {suggestedPersonas.map((persona) => (
                 <Card
                   key={persona}
                   className="cursor-pointer transition-all hover:border-primary/50"

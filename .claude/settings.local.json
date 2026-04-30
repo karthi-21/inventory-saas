@@ -53,7 +53,9 @@
       "mcp__plugin_supabase_supabase__execute_sql",
       "mcp__web-inspector__wait_for_network_idle",
       "mcp__plugin_supabase_supabase__get_logs",
-      "mcp__plugin_playwright_playwright__browser_run_code"
+      "mcp__plugin_playwright_playwright__browser_run_code",
+      "Bash(curl -s -o /dev/null http://localhost:3000)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" --max-time 5 http://localhost:3003)"
     ]
   }
 }

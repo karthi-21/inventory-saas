@@ -1,6 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -42,6 +45,46 @@ import {
 import Link from 'next/link'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase/client'
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
+
+const businessSchema = z.object({
+  name: z.string().optional().or(z.literal('')),
+  gstin: z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/, 'Invalid GSTIN format').or(z.string().length(0)).optional().or(z.literal('')),
+  pan: z.string().regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, 'Invalid PAN format').or(z.string().length(0)).optional().or(z.literal('')),
+  fssaiNumber: z.string().optional().or(z.literal('')),
+  phone: z.string().optional().or(z.literal('')),
+  email: z.string().email('Invalid email format').or(z.string().length(0)).optional().or(z.literal('')),
+  address: z.string().optional().or(z.literal('')),
+  state: z.string().optional().or(z.literal('')),
+  pincode: z.string().regex(/^\d{6}$/, 'PIN must be 6 digits').or(z.string().length(0)).optional().or(z.literal('')),
+})
+
+const passwordSchema = z.object({
+  newPassword: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string(),
+}).refine(data => data.newPassword === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
+})
+
+const loyaltySchema = z.object({
+  loyaltyEnabled: z.boolean(),
+  pointsPerRupee: z.string().regex(/^\d+(\.\d+)?$/, 'Enter a valid number'),
+  rupeePerPoint: z.string().regex(/^\d+(\.\d+)?$/, 'Enter a valid number'),
+  minimumRedemption: z.string().regex(/^\d+$/, 'Enter a whole number'),
+  pointsExpiryDays: z.string().regex(/^\d+$/, 'Enter a whole number'),
+})
+
+const notifSchema = z.object({
+  emailNotificationsEnabled: z.boolean(),
+  invoiceAutoSend: z.boolean(),
+  lowStockEmailAlerts: z.boolean(),
+  shiftSummaryEmail: z.boolean(),
+  paymentReminderFrequency: z.string(),
+})
+
+type BusinessForm = z.infer<typeof businessSchema>
+type PasswordForm = z.infer<typeof passwordSchema>
 
 interface TenantSettings {
   id: string
@@ -97,16 +140,10 @@ export default function SettingsPage() {
   })
 
   // Form state
-  const [businessForm, setBusinessForm] = useState({
-    name: '',
-    gstin: '',
-    pan: '',
-    fssaiNumber: '',
-    phone: '',
-    email: '',
-    address: '',
-    state: '',
-    pincode: '',
+  const businessForm = useForm<BusinessForm>({
+    resolver: zodResolver(businessSchema),
+    mode: 'onChange',
+    defaultValues: { name: '', gstin: '', pan: '', fssaiNumber: '', phone: '', email: '', address: '', state: '', pincode: '' },
   })
 
   const [settingsForm, setSettingsForm] = useState({
@@ -118,17 +155,22 @@ export default function SettingsPage() {
     expiryAlertDays: '7',
   })
 
-  const [notifForm, setNotifForm] = useState({
-    emailNotificationsEnabled: true,
-    invoiceAutoSend: true,
-    lowStockEmailAlerts: true,
-    shiftSummaryEmail: false,
-    paymentReminderFrequency: 'WEEKLY',
+  const notifForm = useForm<z.infer<typeof notifSchema>>({
+    resolver: zodResolver(notifSchema),
+    mode: 'onChange',
+    defaultValues: {
+      emailNotificationsEnabled: true,
+      invoiceAutoSend: true,
+      lowStockEmailAlerts: true,
+      shiftSummaryEmail: false,
+      paymentReminderFrequency: 'WEEKLY',
+    },
   })
 
-  const [passwordForm, setPasswordForm] = useState({
-    newPassword: '',
-    confirmPassword: '',
+  const passwordForm = useForm<PasswordForm>({
+    resolver: zodResolver(passwordSchema),
+    mode: 'onChange',
+    defaultValues: { newPassword: '', confirmPassword: '' },
   })
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false)
   const [isChangingPassword, setIsChangingPassword] = useState(false)
@@ -138,12 +180,16 @@ export default function SettingsPage() {
   const [twoFACode, setTwoFACode] = useState('')
   const [verifying2FA, setVerifying2FA] = useState(false)
 
-  const [loyaltyForm, setLoyaltyForm] = useState({
-    loyaltyEnabled: true,
-    pointsPerRupee: '1',
-    rupeePerPoint: '0.25',
-    minimumRedemption: '100',
-    pointsExpiryDays: '365',
+  const loyaltyForm = useForm<z.infer<typeof loyaltySchema>>({
+    resolver: zodResolver(loyaltySchema),
+    mode: 'onChange',
+    defaultValues: {
+      loyaltyEnabled: true,
+      pointsPerRupee: '1',
+      rupeePerPoint: '0.25',
+      minimumRedemption: '100',
+      pointsExpiryDays: '365',
+    },
   })
 
   // Fetch loyalty settings
@@ -159,7 +205,7 @@ export default function SettingsPage() {
   // Populate forms when data loads
   useEffect(() => {
     if (tenantData?.tenant) {
-      setBusinessForm({
+      businessForm.reset({
         name: tenantData.tenant.name || '',
         gstin: tenantData.tenant.gstin || '',
         pan: tenantData.tenant.pan || '',
@@ -171,7 +217,7 @@ export default function SettingsPage() {
         pincode: tenantData.tenant.pincode || '',
       })
     }
-  }, [tenantData])
+  }, [tenantData, businessForm])
 
   useEffect(() => {
     if (settingsData?.settings) {
@@ -183,7 +229,7 @@ export default function SettingsPage() {
         lowStockAlertDays: String(settingsData.settings.lowStockAlertDays || 7),
         expiryAlertDays: String(settingsData.settings.expiryAlertDays || 7),
       })
-      setNotifForm({
+      notifForm.reset({
         emailNotificationsEnabled: settingsData.settings.emailNotificationsEnabled ?? true,
         invoiceAutoSend: settingsData.settings.invoiceAutoSend ?? true,
         lowStockEmailAlerts: settingsData.settings.lowStockEmailAlerts ?? true,
@@ -191,11 +237,11 @@ export default function SettingsPage() {
         paymentReminderFrequency: settingsData.settings.paymentReminderFrequency || 'WEEKLY',
       })
     }
-  }, [settingsData])
+  }, [settingsData, notifForm])
 
   useEffect(() => {
     if (loyaltyData) {
-      setLoyaltyForm({
+      loyaltyForm.reset({
         loyaltyEnabled: loyaltyData.loyaltyEnabled ?? true,
         pointsPerRupee: String(loyaltyData.pointsPerRupee ?? 1),
         rupeePerPoint: String(loyaltyData.rupeePerPoint ?? 0.25),
@@ -203,11 +249,11 @@ export default function SettingsPage() {
         pointsExpiryDays: String(loyaltyData.pointsExpiryDays ?? 365),
       })
     }
-  }, [loyaltyData])
+  }, [loyaltyData, loyaltyForm])
 
   // Update tenant mutation
   const updateTenant = useMutation({
-    mutationFn: async (data: typeof businessForm) => {
+    mutationFn: async (data: BusinessForm) => {
       const res = await fetch('/api/tenant', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -248,12 +294,17 @@ export default function SettingsPage() {
     onError: () => toast.error('Failed to update settings'),
   })
 
-  const handleSaveBusiness = () => updateTenant.mutate(businessForm)
+  const handleSaveBusiness = async () => {
+    const valid = await businessForm.trigger()
+    if (!valid) return
+    const values = businessForm.getValues()
+    updateTenant.mutate(values)
+  }
   const handleSaveSettings = () => updateSettings.mutate(settingsForm)
 
   // Update notification settings mutation
   const updateNotifications = useMutation({
-    mutationFn: async (data: typeof notifForm) => {
+    mutationFn: async (data: z.infer<typeof notifSchema>) => {
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -271,7 +322,7 @@ export default function SettingsPage() {
 
   // Update loyalty mutation
   const updateLoyalty = useMutation({
-    mutationFn: async (data: typeof loyaltyForm) => {
+    mutationFn: async (data: z.infer<typeof loyaltySchema>) => {
       const res = await fetch('/api/settings/loyalty', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -293,33 +344,34 @@ export default function SettingsPage() {
     onError: () => toast.error('Failed to update loyalty settings'),
   })
 
-  const handleSaveLoyalty = () => updateLoyalty.mutate(loyaltyForm)
+  const handleSaveLoyalty = async () => {
+    const valid = await loyaltyForm.trigger()
+    if (!valid) return
+    updateLoyalty.mutate(loyaltyForm.getValues())
+  }
+
+  const handleSaveNotifications = async () => {
+    const valid = await notifForm.trigger()
+    if (!valid) return
+    updateNotifications.mutate(notifForm.getValues())
+  }
 
   const handleChangePassword = async () => {
-    if (!passwordForm.newPassword) {
-      toast.error('Please enter a new password')
-      return
-    }
-    if (passwordForm.newPassword.length < 6) {
-      toast.error('Password must be at least 6 characters')
-      return
-    }
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error('Passwords do not match')
-      return
-    }
+    const valid = await passwordForm.trigger()
+    if (!valid) return
+    const values = passwordForm.getValues()
 
     setIsChangingPassword(true)
     try {
       const { error } = await supabase.auth.updateUser({
-        password: passwordForm.newPassword,
+        password: values.newPassword,
       })
       if (error) {
         toast.error(error.message || 'Failed to change password')
       } else {
         toast.success('Password changed successfully')
         setPasswordDialogOpen(false)
-        setPasswordForm({ newPassword: '', confirmPassword: '' })
+        passwordForm.reset({ newPassword: '', confirmPassword: '' })
       }
     } catch {
       toast.error('An unexpected error occurred')
@@ -463,82 +515,109 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Business Name</Label>
+              <Label htmlFor="businessName">Business Name</Label>
               <Input
-                value={businessForm.name}
-                onChange={(e) => setBusinessForm({ ...businessForm, name: e.target.value })}
+                id="businessName"
+                {...businessForm.register('name')}
               />
+              {businessForm.formState.errors.name && (
+                <p className="text-sm text-destructive">{businessForm.formState.errors.name.message}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>GST Number (GSTIN)</Label>
+              <Label htmlFor="gstin">GST Number (GSTIN)</Label>
               <p className="text-xs text-muted-foreground">Your 15-digit tax identification number</p>
               <Input
-                value={businessForm.gstin}
-                onChange={(e) => setBusinessForm({ ...businessForm, gstin: e.target.value.toUpperCase() })}
+                id="gstin"
                 className="uppercase font-mono"
                 maxLength={15}
+                {...businessForm.register('gstin')}
               />
+              {businessForm.formState.errors.gstin && (
+                <p className="text-sm text-destructive">{businessForm.formState.errors.gstin.message}</p>
+              )}
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>PAN (Tax ID)</Label>
+              <Label htmlFor="pan">PAN (Tax ID)</Label>
               <p className="text-xs text-muted-foreground">10-character tax ID for income tax filing</p>
               <Input
-                value={businessForm.pan}
-                onChange={(e) => setBusinessForm({ ...businessForm, pan: e.target.value.toUpperCase() })}
+                id="pan"
                 className="uppercase font-mono"
                 maxLength={10}
+                {...businessForm.register('pan')}
               />
+              {businessForm.formState.errors.pan && (
+                <p className="text-sm text-destructive">{businessForm.formState.errors.pan.message}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>FSSAI (for food businesses)</Label>
+              <Label htmlFor="fssaiNumber">FSSAI (for food businesses)</Label>
               <Input
-                value={businessForm.fssaiNumber}
-                onChange={(e) => setBusinessForm({ ...businessForm, fssaiNumber: e.target.value })}
+                id="fssaiNumber"
                 maxLength={14}
+                {...businessForm.register('fssaiNumber')}
               />
+              {businessForm.formState.errors.fssaiNumber && (
+                <p className="text-sm text-destructive">{businessForm.formState.errors.fssaiNumber.message}</p>
+              )}
             </div>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Phone</Label>
+              <Label htmlFor="phone">Phone</Label>
               <Input
-                value={businessForm.phone}
-                onChange={(e) => setBusinessForm({ ...businessForm, phone: e.target.value })}
+                id="phone"
+                {...businessForm.register('phone')}
               />
+              {businessForm.formState.errors.phone && (
+                <p className="text-sm text-destructive">{businessForm.formState.errors.phone.message}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
+                id="email"
                 type="email"
-                value={businessForm.email}
-                onChange={(e) => setBusinessForm({ ...businessForm, email: e.target.value })}
+                {...businessForm.register('email')}
               />
+              {businessForm.formState.errors.email && (
+                <p className="text-sm text-destructive">{businessForm.formState.errors.email.message}</p>
+              )}
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Address</Label>
+            <Label htmlFor="address">Address</Label>
             <Input
-              value={businessForm.address}
-              onChange={(e) => setBusinessForm({ ...businessForm, address: e.target.value })}
+              id="address"
+              {...businessForm.register('address')}
             />
+            {businessForm.formState.errors.address && (
+              <p className="text-sm text-destructive">{businessForm.formState.errors.address.message}</p>
+            )}
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>State</Label>
+              <Label htmlFor="state">State</Label>
               <Input
-                value={businessForm.state}
-                onChange={(e) => setBusinessForm({ ...businessForm, state: e.target.value })}
+                id="state"
+                {...businessForm.register('state')}
               />
+              {businessForm.formState.errors.state && (
+                <p className="text-sm text-destructive">{businessForm.formState.errors.state.message}</p>
+              )}
             </div>
             <div className="space-y-2">
-              <Label>PIN Code</Label>
+              <Label htmlFor="pincode">PIN Code</Label>
               <Input
-                value={businessForm.pincode}
-                onChange={(e) => setBusinessForm({ ...businessForm, pincode: e.target.value.replace(/\D/g, '') })}
+                id="pincode"
                 maxLength={6}
+                {...businessForm.register('pincode')}
               />
+              {businessForm.formState.errors.pincode && (
+                <p className="text-sm text-destructive">{businessForm.formState.errors.pincode.message}</p>
+              )}
             </div>
           </div>
           <Button onClick={handleSaveBusiness} disabled={updateTenant.isPending} className="gap-2">
@@ -560,18 +639,20 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Bill Prefix</Label>
+              <Label htmlFor="invoicePrefix">Bill Prefix</Label>
               <Input
+                id="invoicePrefix"
                 value={settingsForm.invoicePrefix}
                 onChange={(e) => setSettingsForm({ ...settingsForm, invoicePrefix: e.target.value })}
                 className="font-mono"
               />
             </div>
             <div className="space-y-2">
-              <Label>Default Language</Label>
+              <Label id="defaultLanguage-label">Default Language</Label>
               <Select
                 value={settingsForm.defaultLanguage}
                 onValueChange={(v) => v && setSettingsForm({ ...settingsForm, defaultLanguage: v })}
+                aria-labelledby="defaultLanguage-label"
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -589,11 +670,12 @@ export default function SettingsPage() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Decimal Places</Label>
+              <Label id="decimalPlaces-label">Decimal Places</Label>
               <p className="text-xs text-muted-foreground">Number of decimal places in prices (2 = ₹1.00)</p>
               <Select
                 value={settingsForm.decimalPlaces}
                 onValueChange={(v) => v && setSettingsForm({ ...settingsForm, decimalPlaces: v })}
+                aria-labelledby="decimalPlaces-label"
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -607,14 +689,13 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <div>
-                  <Label>Round Off</Label>
+                  <Label id="roundOffEnabled-label">Round Off</Label>
                   <p className="text-xs text-muted-foreground">Round totals to nearest rupee</p>
                 </div>
-                <input
-                  type="checkbox"
+                <Switch
+                  id="roundOffEnabled"
                   checked={settingsForm.roundOffEnabled}
-                  onChange={(e) => setSettingsForm({ ...settingsForm, roundOffEnabled: e.target.checked })}
-                  className="h-4 w-4"
+                  onCheckedChange={(v) => setSettingsForm({ ...settingsForm, roundOffEnabled: v })}
                 />
               </div>
             </div>
@@ -638,11 +719,12 @@ export default function SettingsPage() {
         <CardContent className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label>Low Stock Alert (days before)</Label>
+              <Label id="lowStockAlertDays-label">Low Stock Alert (days before)</Label>
               <p className="text-xs text-muted-foreground">Alert me this many days before stock runs out</p>
               <Select
                 value={settingsForm.lowStockAlertDays}
                 onValueChange={(v) => v && setSettingsForm({ ...settingsForm, lowStockAlertDays: v })}
+                aria-labelledby="lowStockAlertDays-label"
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -656,11 +738,12 @@ export default function SettingsPage() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Expiry Alert (days before)</Label>
+              <Label id="expiryAlertDays-label">Expiry Alert (days before)</Label>
               <p className="text-xs text-muted-foreground">Alert me this many days before products expire</p>
               <Select
                 value={settingsForm.expiryAlertDays}
                 onValueChange={(v) => v && setSettingsForm({ ...settingsForm, expiryAlertDays: v })}
+                aria-labelledby="expiryAlertDays-label"
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -723,72 +806,119 @@ export default function SettingsPage() {
           <CardDescription>Configure loyalty points earning and redemption</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <Label>Enable Loyalty Program</Label>
-              <p className="text-xs text-muted-foreground">Allow customers to earn and redeem points</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={loyaltyForm.loyaltyEnabled}
-              onChange={(e) => setLoyaltyForm({ ...loyaltyForm, loyaltyEnabled: e.target.checked })}
-              className="h-4 w-4"
-            />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Points per ₹100 spent</Label>
-              <Input
-                type="number"
-                step="0.5"
-                min="0"
-                value={loyaltyForm.pointsPerRupee}
-                onChange={(e) => setLoyaltyForm({ ...loyaltyForm, pointsPerRupee: e.target.value })}
-                disabled={!loyaltyForm.loyaltyEnabled}
+          <Form {...loyaltyForm}>
+            <div className="space-y-4">
+              <FormField
+                control={loyaltyForm.control}
+                name="loyaltyEnabled"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <FormLabel>Enable Loyalty Program</FormLabel>
+                      <FormDescription>Allow customers to earn and redeem points</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        id="loyaltyEnabled"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-              <p className="text-xs text-muted-foreground">How many points a customer earns for every ₹100 spent</p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={loyaltyForm.control}
+                  name="pointsPerRupee"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Points per ₹100 spent</FormLabel>
+                      <FormControl>
+                        <Input
+                          id="pointsPerRupee"
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          disabled={!loyaltyForm.watch('loyaltyEnabled')}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>How many points a customer earns for every ₹100 spent</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={loyaltyForm.control}
+                  name="rupeePerPoint"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>₹ Value per point</FormLabel>
+                      <FormControl>
+                        <Input
+                          id="rupeePerPoint"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          disabled={!loyaltyForm.watch('loyaltyEnabled')}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>Cash value when customer redeems points</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={loyaltyForm.control}
+                  name="minimumRedemption"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Minimum redemption points</FormLabel>
+                      <FormControl>
+                        <Input
+                          id="minimumRedemption"
+                          type="number"
+                          min="0"
+                          disabled={!loyaltyForm.watch('loyaltyEnabled')}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>Customer needs at least this many points before they can use them</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={loyaltyForm.control}
+                  name="pointsExpiryDays"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Points expiry (days)</FormLabel>
+                      <FormControl>
+                        <Input
+                          id="pointsExpiryDays"
+                          type="number"
+                          min="0"
+                          disabled={!loyaltyForm.watch('loyaltyEnabled')}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>Points expire after this many days (0 = never expire)</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <Button onClick={handleSaveLoyalty} disabled={updateLoyalty.isPending} className="gap-2">
+                {updateLoyalty.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save Loyalty Settings
+              </Button>
             </div>
-            <div className="space-y-2">
-              <Label>₹ Value per point</Label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                value={loyaltyForm.rupeePerPoint}
-                onChange={(e) => setLoyaltyForm({ ...loyaltyForm, rupeePerPoint: e.target.value })}
-                disabled={!loyaltyForm.loyaltyEnabled}
-              />
-              <p className="text-xs text-muted-foreground">Cash value when customer redeems points</p>
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label>Minimum redemption points</Label>
-              <Input
-                type="number"
-                min="0"
-                value={loyaltyForm.minimumRedemption}
-                onChange={(e) => setLoyaltyForm({ ...loyaltyForm, minimumRedemption: e.target.value })}
-                disabled={!loyaltyForm.loyaltyEnabled}
-              />
-              <p className="text-xs text-muted-foreground">Customer needs at least this many points before they can use them</p>
-            </div>
-            <div className="space-y-2">
-              <Label>Points expiry (days)</Label>
-              <Input
-                type="number"
-                min="0"
-                value={loyaltyForm.pointsExpiryDays}
-                onChange={(e) => setLoyaltyForm({ ...loyaltyForm, pointsExpiryDays: e.target.value })}
-                disabled={!loyaltyForm.loyaltyEnabled}
-              />
-              <p className="text-xs text-muted-foreground">Points expire after this many days (0 = never expire)</p>
-            </div>
-          </div>
-          <Button onClick={handleSaveLoyalty} disabled={updateLoyalty.isPending || !loyaltyForm.loyaltyEnabled} className="gap-2">
-            {updateLoyalty.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Loyalty Settings
-          </Button>
+          </Form>
         </CardContent>
       </Card>
 
@@ -822,20 +952,24 @@ export default function SettingsPage() {
                   <Input
                     id="new-password"
                     type="password"
-                    value={passwordForm.newPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
-                    placeholder="At least 6 characters"
+                    placeholder="Min 6 characters"
+                    {...passwordForm.register('newPassword')}
                   />
+                  {passwordForm.formState.errors.newPassword && (
+                    <p className="text-sm text-destructive">{passwordForm.formState.errors.newPassword.message}</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="confirm-password">Confirm Password</Label>
                   <Input
                     id="confirm-password"
                     type="password"
-                    value={passwordForm.confirmPassword}
-                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
-                    placeholder="Re-enter your new password"
+                    placeholder="Re-enter password"
+                    {...passwordForm.register('confirmPassword')}
                   />
+                  {passwordForm.formState.errors.confirmPassword && (
+                    <p className="text-sm text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
+                  )}
                 </div>
               </div>
               <DialogFooter>
@@ -919,74 +1053,119 @@ export default function SettingsPage() {
           <CardDescription>Configure which emails are sent automatically</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Email notifications</p>
-              <p className="text-sm text-muted-foreground">Enable or disable all email notifications</p>
+          <Form {...notifForm}>
+            <div className="space-y-4">
+              <FormField
+                control={notifForm.control}
+                name="emailNotificationsEnabled"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Email notifications</p>
+                      <FormDescription>Enable or disable all email notifications</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <Separator />
+              <FormField
+                control={notifForm.control}
+                name="invoiceAutoSend"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Auto-send bill receipts</p>
+                      <FormDescription>Email receipt to customer after each sale</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!notifForm.watch('emailNotificationsEnabled')}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={notifForm.control}
+                name="lowStockEmailAlerts"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Low stock email alerts</p>
+                      <FormDescription>Get email when products run low</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!notifForm.watch('emailNotificationsEnabled')}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={notifForm.control}
+                name="shiftSummaryEmail"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Shift summary email</p>
+                      <FormDescription>Email shift summary when shift is closed</FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={!notifForm.watch('emailNotificationsEnabled')}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+              <Separator />
+              <FormField
+                control={notifForm.control}
+                name="paymentReminderFrequency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Payment reminder frequency</FormLabel>
+                    <FormDescription>How often to email customers with outstanding balance</FormDescription>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={!notifForm.watch('emailNotificationsEnabled')}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="DAILY">Daily</SelectItem>
+                        <SelectItem value="WEEKLY">Weekly</SelectItem>
+                        <SelectItem value="BIWEEKLY">Every 2 weeks</SelectItem>
+                        <SelectItem value="MONTHLY">Monthly</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button onClick={handleSaveNotifications} disabled={updateNotifications.isPending} className="gap-2">
+                {updateNotifications.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Save Notification Settings
+              </Button>
             </div>
-            <Switch
-              checked={notifForm.emailNotificationsEnabled}
-              onCheckedChange={v => setNotifForm(f => ({ ...f, emailNotificationsEnabled: v }))}
-            />
-          </div>
-          <Separator />
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Auto-send bill receipts</p>
-              <p className="text-sm text-muted-foreground">Email receipt to customer after each sale</p>
-            </div>
-            <Switch
-              checked={notifForm.invoiceAutoSend}
-              onCheckedChange={v => setNotifForm(f => ({ ...f, invoiceAutoSend: v }))}
-              disabled={!notifForm.emailNotificationsEnabled}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Low stock email alerts</p>
-              <p className="text-sm text-muted-foreground">Get email when products run low</p>
-            </div>
-            <Switch
-              checked={notifForm.lowStockEmailAlerts}
-              onCheckedChange={v => setNotifForm(f => ({ ...f, lowStockEmailAlerts: v }))}
-              disabled={!notifForm.emailNotificationsEnabled}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Shift summary email</p>
-              <p className="text-sm text-muted-foreground">Email shift summary when shift is closed</p>
-            </div>
-            <Switch
-              checked={notifForm.shiftSummaryEmail}
-              onCheckedChange={v => setNotifForm(f => ({ ...f, shiftSummaryEmail: v }))}
-              disabled={!notifForm.emailNotificationsEnabled}
-            />
-          </div>
-          <Separator />
-          <div className="space-y-2">
-            <Label>Payment reminder frequency</Label>
-            <p className="text-xs text-muted-foreground">How often to email customers with outstanding balance</p>
-            <Select
-              value={notifForm.paymentReminderFrequency}
-              onValueChange={v => v && setNotifForm(f => ({ ...f, paymentReminderFrequency: v }))}
-              disabled={!notifForm.emailNotificationsEnabled}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="DAILY">Daily</SelectItem>
-                <SelectItem value="WEEKLY">Weekly</SelectItem>
-                <SelectItem value="BIWEEKLY">Every 2 weeks</SelectItem>
-                <SelectItem value="MONTHLY">Monthly</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <Button onClick={() => updateNotifications.mutate(notifForm)} disabled={updateNotifications.isPending} className="gap-2">
-            {updateNotifications.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Save Notification Settings
-          </Button>
+          </Form>
         </CardContent>
       </Card>
     </div>

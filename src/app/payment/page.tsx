@@ -68,7 +68,8 @@ function PaymentContent() {
         const errData = await res.json()
         throw new Error(errData.error || 'Dev bypass failed')
       }
-      router.push('/onboarding')
+      // Full navigation to clear cached subscription state
+      window.location.href = '/onboarding'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Dev bypass failed')
       setIsLoading(false)

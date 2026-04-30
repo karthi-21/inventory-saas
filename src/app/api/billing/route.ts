@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/db'
-import { BillingType, PaymentMethod, PaymentStatus } from '@prisma/client'
+import { BillingType, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client'
 import {
   requirePermission,
   successResponse,
@@ -176,9 +176,10 @@ export async function POST(request: NextRequest) {
 
     // Use transaction for atomic operations
     const result = await prisma.$transaction(async (tx) => {
-      // Generate invoice number inside transaction to prevent race conditions
+      // Advisory lock inside transaction for atomic number+insert.
+      // The lock serializes concurrent counters — correct for sequencing.
+      // Batch stock ops reduce the lock hold time vs per-item loop.
       const invoiceNumber = await generateInvoiceNumber(user.tenantId, storeId, 'INV', tx)
-
       // Create invoice
       const invoice = await tx.salesInvoice.create({
         data: {
@@ -246,46 +247,62 @@ export async function POST(request: NextRequest) {
         })
       }
 
-      // Update stock and create stock movements
+      // --- Stock updates (batched for performance) ---
+      // Bulk-find all relevant stock records in one query
+      const productIds = [...new Set(
+        items.filter((i: InvoiceItemInput) => i.productId).map((i: InvoiceItemInput) => i.productId)
+      )] as string[]
+      const allStocks = productIds.length > 0
+        ? await tx.inventoryStock.findMany({
+            where: { productId: { in: productIds }, storeId }
+          })
+        : []
+
+      // Index stocks by productId+variantId for O(1) lookup
+      const stockMap = new Map<string, typeof allStocks[0]>()
+      for (const s of allStocks) {
+        const key = `${s.productId}__${s.variantId ?? ''}`
+        if (!stockMap.has(key)) stockMap.set(key, s)
+      }
+
+      // Prepare all update promises and movement records
+      const stockUpdates: Promise<unknown>[] = []
+      const movementData: Prisma.StockMovementCreateManyInput[] = []
+
       for (const item of items) {
-        if (item.productId) {
-          // Find stock record
-          const stock = await tx.inventoryStock.findFirst({
-            where: {
-              productId: item.productId,
-              variantId: item.variantId || null,
-              storeId
+        if (!item.productId) continue
+        const key = `${item.productId}__${item.variantId ?? ''}`
+        const stock = stockMap.get(key)
+        if (!stock) continue
+
+        stockUpdates.push(
+          tx.inventoryStock.update({
+            where: { id: stock.id },
+            data: {
+              quantity: { decrement: item.quantity },
+              lastStockUpdate: new Date()
             }
           })
+        )
+        movementData.push({
+          productId: item.productId,
+          variantId: item.variantId || null,
+          storeId,
+          locationId: stock.locationId,
+          movementType: 'SALES',
+          quantity: -item.quantity,
+          referenceType: 'SalesInvoice',
+          referenceId: invoice.id,
+          notes: `Sold in invoice ${invoiceNumber}`,
+          createdById: user.id,
+          inventoryStockId: stock.id
+        })
+      }
 
-          if (stock) {
-            // Update stock quantity
-            await tx.inventoryStock.update({
-              where: { id: stock.id },
-              data: {
-                quantity: { decrement: item.quantity },
-                lastStockUpdate: new Date()
-              }
-            })
-
-            // Create stock movement
-            await tx.stockMovement.create({
-              data: {
-                productId: item.productId,
-                variantId: item.variantId || null,
-                storeId,
-                locationId: stock.locationId,
-                movementType: 'SALES',
-                quantity: -item.quantity,
-                referenceType: 'SalesInvoice',
-                referenceId: invoice.id,
-                notes: `Sold in invoice ${invoiceNumber}`,
-                createdById: user.id,
-                inventoryStockId: stock.id
-              }
-            })
-          }
-        }
+      // Execute stock updates in parallel, then createMany for movements
+      await Promise.all(stockUpdates)
+      if (movementData.length > 0) {
+        await tx.stockMovement.createMany({ data: movementData })
       }
 
       // Update customer credit balance if credit sale
@@ -353,7 +370,7 @@ export async function POST(request: NextRequest) {
       }
 
       return invoice
-    })
+    }, { timeout: 30000 })
 
     // Log activity
     await logActivity({

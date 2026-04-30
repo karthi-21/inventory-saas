@@ -25,19 +25,27 @@ export async function GET() {
       return NextResponse.json({ hasActiveSubscription: false })
     }
 
-    // Check for active or trialing subscription
+    // Check for active or trialing (non-expired) subscription
+    const now = new Date()
     const hasActive = dbUser.tenant.subscriptions.some(
-      sub => sub.status === 'ACTIVE' || sub.status === 'TRIALING'
+      sub => sub.status === 'ACTIVE' ||
+        (sub.status === 'TRIALING' && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now)
     )
+
+    const activeSub = hasActive ? dbUser.tenant.subscriptions.find(
+      sub => sub.status === 'ACTIVE' ||
+        (sub.status === 'TRIALING' && sub.currentPeriodEnd && new Date(sub.currentPeriodEnd) > now)
+    ) : null
 
     return NextResponse.json({
       hasActiveSubscription: hasActive,
-      subscription: hasActive ? dbUser.tenant.subscriptions.find(
-        sub => sub.status === 'ACTIVE' || sub.status === 'TRIALING'
-      ) : null
+      subscription: activeSub
     })
   } catch (error) {
     console.error('Subscription status error:', error)
-    return NextResponse.json({ hasActiveSubscription: false })
+    return NextResponse.json(
+      { error: 'Failed to check subscription status' },
+      { status: 500 }
+    )
   }
 }

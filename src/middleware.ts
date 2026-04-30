@@ -5,6 +5,29 @@ import { apiLimiter, authLimiter } from '@/lib/rate-limit'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // CSRF protection: check origin for API mutation requests
+  if (pathname.startsWith('/api/') && !['GET', 'HEAD', 'OPTIONS'].includes(request.method)) {
+    const origin = request.headers.get('origin')
+    const referer = request.headers.get('referer')
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || ''
+
+    // Build list of allowed origins
+    const allowedOrigins = [
+      appUrl,
+      'http://localhost:3000',
+      'http://localhost:3003',
+    ].filter(Boolean)
+
+    const requestOrigin = origin || (referer ? new URL(referer).origin : null)
+
+    if (requestOrigin && !allowedOrigins.some((allowed) => requestOrigin.startsWith(allowed))) {
+      return NextResponse.json(
+        { error: 'Invalid request origin' },
+        { status: 403 }
+      )
+    }
+  }
+
   // Rate limiting (disabled in development for E2E testing)
   if (process.env.NODE_ENV !== 'development') {
     const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || request.headers.get('x-real-ip') || 'unknown'

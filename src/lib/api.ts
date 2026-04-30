@@ -105,30 +105,38 @@ export async function generateInvoiceNumber(tenantId: string, storeId: string, p
   const day = String(date.getDate()).padStart(2, '0')
   const datePrefix = `${prefix}${year}${month}${day}`
 
-  // Use advisory lock to prevent race conditions on invoice number generation
+  // Advisory lock serializes invoice number generation per-store.
   const lockKey = `invoice:${tenantId}:${storeId}:${datePrefix}`
   const lockHash = Array.from(lockKey).reduce((h, c) => (h * 31 + c.charCodeAt(0)) & 0x7fffffff, 0)
-  await client.$executeRaw`SELECT pg_advisory_lock(${lockHash})`
 
-  try {
-    // Get the last invoice for this store
-    const lastInvoice = await client.salesInvoice.findFirst({
-      where: { tenantId, storeId },
-      orderBy: { createdAt: 'desc' }
-    })
+  if (tx) {
+    // Transaction-scoped lock: auto-released on commit/rollback.
+    await client.$executeRaw`SELECT pg_advisory_xact_lock(${lockHash})`
+  } else {
+    // Session-scoped lock: must be released manually.
+    await client.$executeRaw`SELECT pg_advisory_lock(${lockHash})`
+  }
 
-    let sequence = 1
-    if (lastInvoice?.invoiceNumber) {
-      const match = lastInvoice.invoiceNumber.match(/(\d+)$/)
-      if (match) {
-        sequence = parseInt(match[1]) + 1
-      }
+  const lastInvoice = await client.salesInvoice.findFirst({
+    where: { tenantId, storeId },
+    orderBy: { createdAt: 'desc' }
+  })
+
+  let sequence = 1
+  if (lastInvoice?.invoiceNumber) {
+    const match = lastInvoice.invoiceNumber.match(/(\d+)$/)
+    if (match) {
+      sequence = parseInt(match[1]) + 1
     }
+  }
 
-    return `${datePrefix}-${String(sequence).padStart(4, '0')}`
-  } finally {
+  const invoiceNumber = `${datePrefix}-${String(sequence).padStart(4, '0')}`
+
+  if (!tx) {
     await client.$executeRaw`SELECT pg_advisory_unlock(${lockHash})`
   }
+
+  return invoiceNumber
 }
 
 /**
@@ -254,13 +262,52 @@ export async function requirePermission(
   }
   // Owner users bypass permission checks
   if (user.isOwner) {
+    // But owners still need an active subscription for mutation endpoints
+    if (action !== 'VIEW') {
+      const subCheck = await requireActiveSubscription({ tenantId: user.tenantId, isOwner: user.isOwner })
+      if ('error' in subCheck) return { error: subCheck.error }
+    }
     return { user }
   }
   // Check assigned permissions
   if (!hasPermission(user.userPersonas, module, action)) {
     return { error: forbiddenResponse() }
   }
+  // Non-owners need subscription for mutation endpoints
+  if (action !== 'VIEW') {
+    const subCheck = await requireActiveSubscription({ tenantId: user.tenantId, isOwner: user.isOwner })
+    if ('error' in subCheck) return { error: subCheck.error }
+  }
   return { user }
+}
+
+/**
+ * Require an active (paid or non-expired trial) subscription.
+ * Returns the user or a 402 Payment Required response.
+ */
+export async function requireActiveSubscription(user: { tenantId: string; isOwner: boolean }): Promise<{ subscription: unknown } | { error: NextResponse }> {
+  // Owner/users always need a valid subscription for mutation endpoints
+  const now = new Date()
+  const sub = await prisma.subscription.findFirst({
+    where: {
+      tenantId: user.tenantId,
+      OR: [
+        { status: 'ACTIVE' },
+        { status: 'TRIALING', currentPeriodEnd: { gt: now } },
+      ],
+    },
+  })
+
+  if (!sub) {
+    return {
+      error: NextResponse.json(
+        { error: 'Subscription required. Please subscribe to continue.' },
+        { status: 402 }
+      ),
+    }
+  }
+
+  return { subscription: sub }
 }
 
 /**
